@@ -22,7 +22,7 @@ pass `-C <folder>`. The format is in `reference/format-cheatsheet.md`.
 | a bug report or a ticket | `reference/bugs.md` |
 | "build it", after a person changed clauses | step 3 of the change: `sor status` lists what changed |
 | "keep my change", or drift that was there before you started | "Code a person changed", below |
-| plain sentences: bullets without **names**, or `sor check` notes drafts or loose text | `reference/plain-clauses.md` |
+| plain sentences: bullets without **names**, or `sor check` says `unnamed test` or `loose text` | `reference/plain-clauses.md` |
 | other agents work at the same time | `reference/parallel-agents.md` |
 
 A new project: nothing else is asked of the user, and there is no `sor init`. Write the specs and stop: write code
@@ -36,7 +36,7 @@ only when asked, or when the project is tiny like hello world.
 | `sor test` | runs the clauses' tests (headless Chrome, web projects only) |
 | `sor claim <ids>` / `sor release --all` | say you work on these clauses / give them up |
 | `sor lock` | accept what you claimed, with its code and test results (the forms are in "Locking") |
-| `sor new <part>` / `sor new --root` | a skeleton with `<fill in: ...>` placeholders; a part name must not be an item's name |
+| `sor new <part>` / `sor new --root` | a skeleton with `<fill in: ...>` placeholders, which `sor check` reports until filled; a part name must not be an item's name |
 | `sor show <id>`, `sor markers <id or file:line>` | a part's clauses with their code; where a clause's code is, or which clause a line serves |
 | `sor parts [--tree]` | an index of every part: run it first in a project you do not know |
 | `sor needs [part]`, `sor changes` | what a part uses from other parts; the pending changes in words |
@@ -60,7 +60,8 @@ The user says what to build or change, in their own words, and mentions Spec of 
 3. Run `sor status`. "recompile" lists the clauses to build, "review" what to check.
 4. Change only the code in the `@clause` regions status names. The edit hook refuses code changes whose clause did not
    change, and its message says which clause to change.
-5. Run the tests the project can run (`sor test` needs a web target), then lock what you claimed, as in "Locking".
+5. Run the tests the project can run (`sor test` needs a web target) and fix what fails, then lock what you claimed, as in
+   "Locking".
 
 ## Locking
 `sor lock` saves the agreed state: the clauses, their code and their test results. With no ids it locks what you claimed
@@ -77,7 +78,7 @@ and the changed parts under a claimed part; `sor lock <ids>` locks only the ids 
   changed clause.
 - A person checks a `manual:` test: `sor lock --confirm <test>` is for people, never for you.
 - A lock is refused while a test that is not `manual:` has no passing result: the `tests (N)` block of `sor status`
-  lists them and says the way out.
+  lists them and says the way out (for a test nobody can run yet, a `manual:` line saying what a person checks).
 - The lock takes the code of the clauses and the glue files with it (a file that is only glue, such as `__init__.py`,
   goes with every lock). If `sor status` still lists something afterwards, claim that clause or part and lock it.
 
