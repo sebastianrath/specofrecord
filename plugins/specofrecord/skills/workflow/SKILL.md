@@ -1,6 +1,6 @@
 ---
 name: workflow
-description: Guides work in a Spec of Record project, whose specification is clauses in a sor/ folder (root sor/SPECOFRECORD.md) and whose code carries @clause markers. Use when the user mentions Spec of Record or sor, when a project has sor/SPECOFRECORD.md, to start a new project from a few words, to work beside other agents, or to change what the software does.
+description: Guides work in a Spec of Record project, whose specification is clauses in a sor/ folder (root sor/SPECOFRECORD.md) and whose code carries @clause markers. Use when the user mentions Spec of Record or sor, or the project has sor/SPECOFRECORD.md, and the work is to change what the software does, start a new project from a few words, or work beside other agents.
 allowed-tools: Bash(sor *)
 ---
 

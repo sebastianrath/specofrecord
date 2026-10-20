@@ -12,3 +12,8 @@ A loose test ("test that the moon circles around") is a bullet in Tests, named a
 With no `do:` / `expect:` lines, write it in the project's framework under `// @clause test <part>/<name>`, in a folder a
 target declares (`{path: test/}`). `sor test` then shows it as EXTERNAL. Lock with `sor lock --results F`, where F holds
 its result (with a web target, add `--run-tests`).
+
+## Loose text
+`sor check` notes `loose text` for a sentence that belongs to no bullet: it is not locked, and a change to it goes
+unnoticed. Make it a bullet (`- **name** - ...`), or indent it under the item it continues; in the header, join it to the
+`Why:` line. Do that only in a part you are writing or changing in this task, and mention older ones at most once.
