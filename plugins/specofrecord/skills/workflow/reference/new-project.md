@@ -73,7 +73,7 @@ the lock records them as manual and unconfirmed. Say so honestly: `sor test` has
 to a real result later is a test in the project's own framework and `sor lock --results F`, where F is a JSON file of
 results written from a run of the framework: with no web target it gives the result of any test that is not `manual:`.
 Mark the test's code `// @clause test <id>` in a folder a target declares as code (`{path: tests/}`) so that the code is
-tied to its bullet and guarded (see the loose tests in `SKILL.md`, and SPEC §8 on tests written in your own framework).
+tied to its bullet and guarded (see `reference/plain-clauses.md`, and SPEC §8 on tests written in your own framework).
 The tool reads no framework's own output.
 
 ## The smallest example: hello world

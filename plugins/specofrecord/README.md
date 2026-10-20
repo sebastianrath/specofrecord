@@ -57,8 +57,8 @@ placeholders that `sor check` reports until they are filled in. Or create the fi
   An agent that never claims is not stopped. This relies on the session id a hook receives being the one
   `sor claim` finds in `CLAUDE_CODE_SESSION_ID`: checked equal live. Subagents share their parent's session id,
   so a parent running subagents in parallel gives each its own name (`--as`); two subagents then conflict at
-  `sor claim`. A subagent that names itself releases only its own claims; the parent's last `sor release --all` has no
-  name and frees every claim of the session. The edit hook does not enforce between sibling subagents.
+  `sor claim`. Who may release what is in "Claims" of `skills/workflow/SKILL.md`. The edit hook does not enforce
+  between sibling subagents.
 - **Open questions and notes.** An `open: <question>` line under any item but a test flags a question nobody has
   answered: `sor check` lists it as a note, it is not part of the item's lock text, and the agent builds only what is
   not in question instead of choosing an answer. `sor check` also notes a part that outgrows the limits of the format

@@ -41,6 +41,7 @@ DOCS = {
     'format-cheatsheet.md': CHEAT,
     'new-project.md': SKILL_DIR + '/reference/new-project.md',
     'parallel-agents.md': SKILL_DIR + '/reference/parallel-agents.md',
+    'plain-clauses.md': SKILL_DIR + '/reference/plain-clauses.md',
     'plugin README.md': 'plugins/specofrecord/README.md',
     'SPEC.md': 'SPEC.md',
 }
