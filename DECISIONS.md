@@ -526,7 +526,7 @@ browser). The first run of the new tests found a bug: `sor show` on a table row 
 
 ## The skill, restructured (2026-10-20)
 A review of the skill for density (14 findings) led to a restructure, planned and checked twice with the advisor before it
-was applied. `SKILL.md` went from 129 lines and 2,000 words to 127 and about 1,710, the description from 566 to 352
+was applied. `SKILL.md` went from 129 lines and 2,000 words to 127 and about 1,710, the description from 566 to 362
 characters (above the 320 aimed for), the longest body line from 250 to 167.
 - **Shape:** one "Which situation?" table instead of one section per situation; a routine as a list instead of a
   paragraph; the Locking table holds only the three forms of the command, the constraints are a list; the Rules are
@@ -540,9 +540,10 @@ characters (above the 320 aimed for), the longest body line from 250 to 167.
   the Jupiter change with and without naming Spec of Record, a new project in an empty folder, and the Jupiter change
   with an unnamed test bullet planted (it reaches `plain-clauses.md`). All 16 runs ended with the specs, code and lock
   in agreement, claims released, and no code written for the new project. `sor status` between the clause edit and the
-  code edit was skipped by both arms about as often (old 3 of 6, new 3 of 7 over the Jupiter runs and the planted-bullet
-  runs; the planted-bullet part is read from the call sequences). The sample cannot tell the arms apart, and cost per
-  run was flat ($0.34 to $0.49). Not exercised: bugs, existing code, keeping a person's change, parallel agents.
+  code edit was done in 3 of 6 old runs and 3 of 7 new runs (the Jupiter runs and the planted-bullet runs; the
+  planted-bullet part is read from the call sequences), so both arms skipped it about as often. The sample cannot tell
+  the arms apart, and cost per run was flat ($0.34 to $0.49). Not exercised: bugs, existing code, keeping a person's
+  change, parallel agents.
 
 ## Still open
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for

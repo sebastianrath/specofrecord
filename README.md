@@ -31,11 +31,21 @@ next to your code, as plain Markdown files that you commit with it. Spec of Reco
 The specs are made of **clauses**. A clause is a rule, a number or a table row. Below is one clause and the code built
 from it.
 
-![A clause named turn in sor/run.md, and the code built from it in src/run.js. An arrow marked "marker" leads from the name to the "@clause run/turn" comment in the code, and a second arrow to the other file that holds code for the same clause.](social/example.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="social/example-dark.png">
+  <img src="social/example.png" alt="A clause named turn in sor/run.md, and the code built from it in src/run.js. An arrow marked marker leads from the name to the @clause run/turn comment in the code, and a second arrow to the other file that holds code for the same clause.">
+</picture>
+
+*The arrows lead from the clause's name, `turn`, to its markers: the `// @clause run/turn` comments in both files.*
+
+<!-- The two images are captures of the example in index.html (its "pair" block, the script that draws the arrows and their
+CSS). Source hash: 86606cb5a81b1326. After changing that example, capture both images again and update the hash;
+tools/test_sor_docs.py fails until you do. -->
 
 The marker is a comment that names the clause, so spec and code point at each other. The link works both ways and for
 everyone. A person can trace it in the editor, from a clause to its code and from a line of code back to its clause. An AI
-or a script can trace it with a command that returns the same answer as text or JSON.
+or a script can trace it with a command that returns the same answer as text or JSON. A clause can also trace back
+further, to its source outside the code, such as a Figma design.
 
 You keep your language, framework, editor, tools and coding agent. Change one sentence in the spec, say the player moves
 only every second key press, and the associated code blocks are updated. If you change the code yourself, the AI updates
@@ -60,6 +70,14 @@ change at a time. Take a game. The spec says the player must collect 3 keys to o
 5. The AI changes the code to 5, but the spec stays at 3, because nobody asked for an update or the AI forgot. Now the spec
 says 3 and the code says 5. A new teammate reads the spec and believes it.
 
+It usually gets worse. Most spec-driven development is spec-first: the spec is written for one task, then set aside, and
+each change gets a new spec, like `SPEC.md`, then `SPEC-2026-01-08.md`, then another. To know what the software does now,
+you have to read them all in the correct order. Soon people stop reading the specs and sometimes leave it to the AI to
+change the code directly. That is where many projects hit a limit.
+
+Tools that go further and regenerate code from the spec run into the opposite problem. An AI does not write the same code
+twice, so regenerating a whole file can change parts nobody asked to change.
+
 Spec of Record keeps one set of spec files that describe your project and always match the code. The tools keep it that
 way.
 
@@ -80,9 +98,10 @@ For an **existing project**, name the one thing you are about to change. Only th
 
 > I am about to change the checkout. Put just that under Spec of Record first, then make my change.
 
-Today the workflow comes as a Claude Code plugin. Requirements and other ways to load it are in the
-[plugin README](plugins/specofrecord/README.md). Any language, framework or editor works, and a person can write the code
-too.
+Today the workflow comes as a Claude Code plugin. Any language, framework or editor works, and a person can write the code
+too. The tools need Python 3 on the PATH (they are plain Python, standard library only), and Chrome or Edge only for
+`sor test` on web projects. It runs on macOS or Linux, and Windows is untested. More requirements and other ways to load
+the plugin are in the [plugin README](plugins/specofrecord/README.md).
 
 ## The tools
 
@@ -92,14 +111,20 @@ You can follow the philosophy by hand. The tools check it for you.
 - **Edit guard.** Stops the AI from changing code before its clause. A change you make yourself is flagged, and the AI
   updates the spec to match.
 - **Test runner.** Runs each clause's tests and shows how many clauses pass.
-- **Build record.** Saves each finished build, in `sor/sor-lock.json`. A build only counts if its tests pass.
-- **Editor extension.** For people: jump from a clause to its code, and from any line of code to its clause. See
+- **Build record.** Saves each finished build in the lock file, `sor/sor-lock.json`, which `sor lock` writes. The lock
+  file records the results. A build only counts if its tests pass.
+- **Editor extension.** For people: jump from a clause to its code, and from any line of code to its clause. Optional.
+  Install from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=sor.sor-vscode), or see
   [editors/vscode](editors/vscode).
 - **Trace commands.** For AI and scripts: `sor markers` returns the links as text or JSON, and `sor show` prints a clause
   with its code underneath.
 
-They are all one command, `sor`. Run it from a project folder (the one holding `sor/`), or pass `-C <folder>`. With the
-plugin enabled in Claude Code it is on the PATH as plain `sor`:
+Most of this is one command, `sor`: the change list, the test runner, the build record and the trace commands. The edit
+guard is `sor`'s hook for Claude Code, and only Claude Code runs it (other agents get no hook, so run `sor status` yourself).
+The editor extension is a separate VS Code extension that gets everything from `sor`.
+
+Run `sor` from a project folder (the one holding `sor/`), or pass `-C <folder>`. With the plugin enabled in Claude Code it
+is on the PATH as plain `sor`:
 
 ```bash
 python3 tools/sor.py -C examples/solar-system parts
@@ -114,10 +139,10 @@ python3 tools/sor.py -C examples/solar-system parts
 | `sor status` | What changed since the last build: code to rebuild, clauses to review, drift, who is working on what. |
 | `sor changes` | The pending changes in words. |
 | `sor check` | Every problem in the spec files and the code markers. |
-| `sor test` | Runs the clauses' tests (headless Chrome for web projects). On other projects, your own test runner reports the results. |
+| `sor test` | Runs the clauses' tests (headless Chrome for web projects). On other projects, your own test runner runs them, and you hand its results to `sor lock --results <file>`. |
 | `sor new <part>` | Writes a skeleton part to fill in. |
 | `sor claim` / `sor release` | Agents working in the same project claim the clauses they work on, and a second claim on the same clause is refused. |
-| `sor lock` | Saves the build record: the clauses, their code and their test results. |
+| `sor lock` | Saves the build record in the lock file: the clauses, their code and their test results. |
 
 `sor --help` lists the rest and the exit codes. It is plain Python 3 with the standard library only.
 
@@ -142,7 +167,7 @@ More questions, how it compares to Spec Kit, OpenSpec, Kiro and others, and the 
 
 | Folder or file | What it is |
 |---|---|
-| [`SPEC.md`](SPEC.md) | The format: files and hierarchy, the four sections of a part (Rules, Approach, Contract, Tests), items and ids, values and references, targets, code markers, the build record, what a tool enforces and how agents work in parallel. It starts with a cheat sheet. |
+| [`SPEC.md`](SPEC.md) | The format: files and hierarchy, the four sections of a part (Rules, Approach, Contract, Tests), items and ids, values and references, targets, code markers, the lock file (`sor-lock.json`), what a tool enforces and how agents work in parallel. It starts with a cheat sheet. |
 | [`tools/`](tools) | The `sor` command: `tools/sor.py` and the library behind it (`tools/sorlib/`), with its own tests and a coverage script. |
 | [`plugins/specofrecord/`](plugins/specofrecord) | The Claude Code plugin: the workflow skill, the edit guard and a copy of `tools/`. |
 | [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) | Lets the repository itself be added as a plugin marketplace. |
@@ -151,7 +176,7 @@ More questions, how it compares to Spec Kit, OpenSpec, Kiro and others, and the 
 | [`comparisons/`](comparisons) | The same solar-system project written for other spec-driven tools (BMad Method, CodeSpeak, Kiro, nima, OpenSpec, Spec Kit, SpecLock, Tessl), each with notes on the differences. |
 | [`DECISIONS.md`](DECISIONS.md) | The design decisions behind the format, and the alternatives that were dropped. |
 | [`AGENTS.md`](AGENTS.md), [`CLAUDE.md`](CLAUDE.md) | How a coding agent works in a project with a `sor/` folder. `CLAUDE.md` imports the plugin's skill, so the workflow is written once. |
-| [`index.html`](index.html), [`social/`](social) | The project page, its banner and the example image above. |
+| [`index.html`](index.html), [`social/`](social) | The project page, its banner and the example images above (a light and a dark one, captured from the page). |
 
 ## Working on this repository
 
@@ -165,6 +190,9 @@ More questions, how it compares to Spec Kit, OpenSpec, Kiro and others, and the 
 
 ## License
 
-This draft (the specification and the documents) is licensed under
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The tools are published under the
-[MIT License](https://opensource.org/license/mit).
+The spec itself, this draft, is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). You may share and
+adapt it, including commercially, if you credit the author, link the license and say what you changed.
+
+The toolset (the `sor` command in [`tools/`](tools), the [plugin](plugins/specofrecord) and the
+[VS Code extension](editors/vscode)) is published under the [MIT License](https://opensource.org/license/mit). Each of
+the three folders carries its own `LICENSE` file.
