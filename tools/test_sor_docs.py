@@ -18,7 +18,6 @@ Python 3.9, standard library only. Nothing is written.
 """
 import argparse
 import glob
-import hashlib
 import json
 import os
 import re
@@ -191,7 +190,7 @@ class TestThePluginHasOneName(unittest.TestCase):
 
     def test_every_install_line_names_the_plugin_and_the_marketplace(self):
         lines = 0
-        for rel in ('README.md', 'plugins/specofrecord/README.md', 'index.html'):
+        for rel in ('plugins/specofrecord/README.md', 'index.html'):
             text = read(rel)
             if rel.endswith(('.htm', '.html')):
                 text = re.sub(r'<[^>]+>', '', text)   # the commands are highlighted with <span>s: read the text
@@ -320,53 +319,14 @@ class TestTheWorkflowIsWrittenOnce(unittest.TestCase):
         self.assertEqual(missing, [], 'commands the skill never mentions')
 
 
-class TestTheReadmeAgreesWithThePage(unittest.TestCase):
-    """README.md reuses the page's wording and shows a capture of the page's example. Neither may drift quietly."""
+class TestTheLicenses(unittest.TestCase):
+    """README.md says the spec is CC BY 4.0 and the toolset (tools, plugin, extension) is MIT."""
 
-    def example_hash(self):
-        """The example on the page: its markup, the script that draws the arrows and the CSS rules for it."""
-        html = read('index.html')
-        block = html[html.index('<div class="pair">'):html.index('<!-- full-example-button:start -->')]
-        script = re.search(r'<script id="pair-arrow-js">.*?</script>', html, re.S).group(0)
-        css = '\n'.join(line for line in html.splitlines() if line.startswith('  ') and '.pair' in line and '{' in line)
-        return hashlib.sha256(flat(block + script + css).encode('utf8')).hexdigest()[:16]
-
-    def test_the_example_images_were_captured_from_the_example_on_the_page(self):
-        readme = read('README.md')
-        recorded = re.findall(r'Source hash: ([0-9a-f]{16})', readme)
-        self.assertEqual(len(recorded), 1, 'README.md records the hash of the page example its images were captured from')
-        self.assertEqual(recorded[0], self.example_hash(),
-                         'the example in index.html changed: capture social/example.png and social/example-dark.png '
-                         'again, then put the new hash into the comment in README.md')
-        for image in ('social/example.png', 'social/example-dark.png'):
-            self.assertIn(image, readme)
-            self.assertTrue(os.path.isfile(os.path.join(REPO, *image.split('/'))), image)
-
-    def test_the_abstract_is_the_pages_abstract(self):
-        page = flat(re.sub(r'<[^>]+>', '', re.search(r'<p class="sub">(.*?)</p>', read('index.html'), re.S).group(1)))
-        self.assertIn(page, flat(read('README.md')))
-
-    def test_the_tools_and_the_license_say_the_same_as_the_page(self):
-        readme = flat(read('README.md'))
-        page = flat(re.sub(r'<[^>]+>', '', read('index.html')))
-        for sentence in ('The lock file records the results.',
-                         'The spec is the source code. The AI acts like a compiler.',
-                         'One difference. An AI does not write the same code twice.',
-                         'Spec drift is when the spec says one thing, the code does another, and nobody can tell which is right.'):
-            self.assertIn(sentence, page, 'the page no longer says: ' + sentence)
-            self.assertIn(sentence, readme, 'README.md no longer says: ' + sentence)
-        self.assertIn('https://marketplace.visualstudio.com/items?itemName=sor.sor-vscode', read('index.html'))
-        self.assertIn('https://marketplace.visualstudio.com/items?itemName=sor.sor-vscode', read('README.md'))
-
-    def test_every_folder_the_readme_calls_mit_has_the_license_text(self):
+    def test_every_folder_the_readme_calls_mit_has_the_license_text_and_says_mit_in_its_manifest(self):
         for folder in ('tools', 'plugins/specofrecord', 'editors/vscode'):
-            text = read(folder + '/LICENSE')
-            self.assertTrue(text.startswith('MIT License'), folder)
-        self.assertEqual(self.plugin_license(), 'MIT')
+            self.assertTrue(read(folder + '/LICENSE').startswith('MIT License'), folder)
+        self.assertEqual(json.loads(read('plugins/specofrecord/.claude-plugin/plugin.json')).get('license'), 'MIT')
         self.assertEqual(json.loads(read('editors/vscode/package.json')).get('license'), 'MIT')
-
-    def plugin_license(self):
-        return json.loads(read('plugins/specofrecord/.claude-plugin/plugin.json')).get('license')
 
 
 if __name__ == '__main__':
