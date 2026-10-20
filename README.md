@@ -6,9 +6,8 @@ their own area of expertise while the whole team works from one source. You can 
 code, and back. The AI changes the spec first, then the code. If you change the code yourself, it updates the spec to
 match.
 
-Version 0.1, a draft proposal by [Sebastian Rath](https://sebastianrath.io). The goal, an example, how to install it, the
-tools and the questions people ask are on the [project page](https://specofrecord.org). This README only says what is in
-this repository.
+To learn how this works, start at [specofrecord.org](https://specofrecord.org): the goal, an example, how to install it,
+the tools and the questions people ask. This README only says what is in this repository.
 
 ## What is in this repository
 
