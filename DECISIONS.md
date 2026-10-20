@@ -524,6 +524,26 @@ browser). The first run of the new tests found a bug: `sor show` on a table row 
   decode errors in the marker scanner). An opt-in browser test that skips without Chrome is the way to cover the first group.
 - No `pragma: no cover` was added.
 
+## The skill, restructured (2026-10-20)
+A review of the skill for density (14 findings) led to a restructure, planned and checked twice with the advisor before it
+was applied. `SKILL.md` went from 129 lines and 2,000 words to 127 and about 1,710, the description from 566 to 352
+characters (above the 320 aimed for), the longest body line from 250 to 167.
+- **Shape:** one "Which situation?" table instead of one section per situation; a routine as a list instead of a
+  paragraph; the Locking table holds only the three forms of the command, the constraints are a list; the Rules are
+  three groups. "Plain-written clauses" and the loose-test paragraph moved to `reference/plain-clauses.md`.
+- **Dropped on purpose (veto any):** the sentence `Never say "the lock still holds"` (the bullet on explaining the tool's
+  words stays), the final "Report which clauses changed" bullet (the routine says it), the lists of note kinds and of
+  status blocks (they went stale, as the review showed), the legacy names `sor/CLAUSES.md` and `clauses-lock.json` in
+  the description. The advisor found three more instructions dropped by mistake (fix what fails before locking, the
+  `manual:` way out for a test nobody can run yet, that `sor check` reports unfilled placeholders): restored.
+- **Checked with fresh headless agents**, old skill against new, same flags, a fresh copy of the example each time:
+  the Jupiter change with and without naming Spec of Record, a new project in an empty folder, and the Jupiter change
+  with an unnamed test bullet planted (it reaches `plain-clauses.md`). All 16 runs ended with the specs, code and lock
+  in agreement, claims released, and no code written for the new project. `sor status` between the clause edit and the
+  code edit was skipped by both arms about as often (old 3 of 6, new 3 of 7 over the Jupiter runs and the planted-bullet
+  runs; the planted-bullet part is read from the call sequences). The sample cannot tell the arms apart, and cost per
+  run was flat ($0.34 to $0.49). Not exercised: bugs, existing code, keeping a person's change, parallel agents.
+
 ## Still open
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for
   this format (SPEC §15). The old `fdd` prototype (previous syntax) is not in this folder.
