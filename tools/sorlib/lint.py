@@ -9,7 +9,7 @@ import glob
 import os
 
 from .markers import Scan
-from .model import ANCHOR, CODE, SECTIONS, Problem, listed, test_keyword
+from .model import ANCHOR, CODE, SECTIONS, VDEF, Problem, listed, test_keyword
 
 LIMIT_ITEMS = 7        # items in Rules, Approach or Contract (a table counts as one)
 LIMIT_SCREEN = 40      # lines above `## Tests`
@@ -71,7 +71,7 @@ def _steps(test):
 
 def notes(project, scan=None):
     """Readability notes and open questions as Problems of the kinds 'too long', 'too wide', 'screen',
-    'long test', 'never run', 'loose text' and 'open'. They are advice: callers show them apart from the problems.
+    'long test', 'never run', 'loose text', 'value twice' and 'open'. They are advice: callers show them apart from the problems.
     scan: the code markers, which tell a test written in the project's own framework (`@clause test`) from one nobody
     runs; they are read only when a project without a web target has a test with steps."""
     out = []
@@ -131,7 +131,40 @@ def notes(project, scan=None):
                                                                        'say it shorter, or split it into two items (SPEC §13)'))
             for n, question in item.opens:
                 out.append(Problem('open', f'{part.rel}:{n}', f'{item.id}: {question}'.rstrip()))
+    out += value_twice(project)
     return sorted(out, key=_order)
+
+
+def value_twice(project):
+    """A note at every `{name: value}` that another part defines with the same name and the same text: one fact written
+    twice, so a change to one copy misses the other. Left out: tests (they restate numbers on purpose), table cells and
+    `{v: = x}` aliases (those refer, they do not define), generated parts, and the same name with different texts (a
+    generic `max` or a glossary's `term` is not a copy of anything)."""
+    seen = {}   # (name, text) -> [(part id, item, line)]
+    for part in project.parts.values():
+        if not part.path.endswith('.md'):
+            continue
+        for item in part.items.values():
+            if item.is_test:
+                continue
+            for name, value in item.values.items():
+                if value.startswith('='):
+                    continue
+                line = next((n for n, t in item.lines if not t.strip().startswith('|')
+                             and any(k == name for k, _ in VDEF.findall(CODE.sub('', t)))), item.lineno)
+                seen.setdefault((name, ' '.join(value.lower().split())), []).append((part.id, item, line))
+    out = []
+    for (name, _), places in seen.items():
+        if len({pid for pid, _, _ in places}) < 2:
+            continue
+        for pid, item, line in places:
+            others = [o for o in places if o[0] != pid]
+            where = ', '.join(o[1].id for o in others[:4]) + (f' and {len(others) - 4} more' if len(others) > 4 else '')
+            out.append(Problem('value twice', f'{item.file}:{line}',
+                               f'{{{name}: {item.values[name]}}} is also defined with the same value in {where}: keep one '
+                               f'definition and refer to it from the others (`{{{others[0][1].id}.{name}}}`), or, if they are '
+                               'different quantities, rename them so the names say what they are (SPEC §13)'))
+    return out
 
 
 def placeholders(project):

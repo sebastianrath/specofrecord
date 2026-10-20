@@ -241,8 +241,9 @@ wrong:
 - **One Write over an untouched skeleton.** The hook refused Write over every existing spec file, so after `sor new` an
   agent could not fill the skeleton in whole, only Edit by Edit, placeholder by placeholder. A file that is byte for
   byte what `sor new` would write now has nothing in it to erase, so one Write is allowed; the first change makes it an
-  existing file again, and the claims check still applies. Not covered: a skeleton made with `--why` (the hook cannot
-  know the sentence), `.tests.md` files and the older folder form. A Write that creates a file was never refused.
+  existing file again, and the claims check still applies. A skeleton made with `--why` was first left out (the hook
+  cannot know the sentence); see "What the engine runs left (2026-10-20)". Not covered: `.tests.md` files and the older folder form. A Write
+  that creates a file was never refused.
 - **A review of the documents (2026-10-20) changed behaviour in two places.** A reference in a table cell (`{x}`; an alias
   `{v: = x}` written in a cell counts too) is now a reference like any other, decided with the user: one that names nothing, or two things, is a problem that
   blocks the lock of its part, and the item that holds the table is flagged for review when the target changes. Before, a cell
@@ -544,6 +545,57 @@ characters (above the 320 aimed for), the longest body line from 250 to 167.
   planted-bullet part is read from the call sequences), so both arms skipped it about as often. The sample cannot tell
   the arms apart, and cost per run was flat ($0.34 to $0.49). Not exercised: bugs, existing code, keeping a person's
   change, parallel agents.
+- **The description must stay scoped to Spec of Record projects.** A tightening pass listed "start a new project",
+  "work beside other agents" and "change what the software does" as separate triggers, and in a plain folder the prompt
+  "Start a new project: a small command-line todo list in Python" then loaded the skill and created a `sor/` folder in
+  2 of 2 runs. With the qualifier (mention, or a `sor/SPECOFRECORD.md`, and the work is one of the three) it did so in
+  0 of 2; "Make the title bigger" in a plain page loaded it in 0 of 4 runs, "Put this page under Spec of Record" in 2 of
+  2, and the Jupiter change without any mention still loads it (2 of 2). Do not drop the qualifier again to save words.
+
+## What the engine runs left (2026-10-20)
+The engine passes (`FINDINGS.md`, passes 3 to 6) and a second review of the skill were walked through one by one, each
+probed with one command in a temporary project, never in the engine project itself.
+- **Changed:** (1) A skeleton made with `--why` may be written whole once, like a plain one: the hook reads the sentence
+  from the file's `Why:` line and makes the skeleton again with it, so the exception is gone from the skill. The one
+  thing a Write can now erase unnoticed is an edit to that line alone. (2) `sor parts [PART ...]` shows those parts and the
+  parts inside them, as `sor check` does; the engine's 200-part index was cut off by the harness. (3) `claim` and `lock`
+  say what to write instead when an id has the root in front (`SPECOFRECORD/year`, `ROOT/year`; root items have no
+  prefix). (4) Docs: the skill says `--as` is for claim, lock and release only; `parallel-agents.md` says to claim
+  items, not whole parts, when others work in the same part; `plain-clauses.md` says what `loose text` is and when a loose
+  test gets `do:`/`expect:` lines and when it goes in the project's framework; a docs test ties the output the skill quotes
+  (refusal prefixes, `REFUSED`, `unnamed test`, `loose text`, `tests (N)`, `<fill in:`) to the tool's source.
+- **Built after a yes (2026-10-20), the two design questions:**
+  - **`value twice`.** `sor check` notes a `{name: value}` that another part defines with the same name and the same text
+    (case and spacing aside), at each definition and naming the others, with both ways out: keep one and refer to it, or
+    rename if they are different quantities. Not counted: tests, table cells, `{v: = x}` aliases, generated parts, and the
+    same name with a different text. The different-text case was left out on purpose: measured on the real projects it
+    gives 6 permanent notes on solar-system (`min`, `max`, `size`, `days`, `start`) and would flag the glossary fields of
+    the engine (`term`, `meaning`, `owner`), which can never be fixed. With the rule as built: 0 notes on solar-system,
+    the extension spec and the final engine snapshot; 9 on the engine after pass 1 (63 parts, 4 names); 93 at
+    the end of pass 2 (201 parts, 44 names), the state the third pass deduplicated, the copies the agents found with a script.
+  - **A scoped lock waits for its own items.** A problem of one item's own text (`broken`, `needs`, `proves`, `expect`) in
+    an item the lock does not cover no longer keeps the lock from happening, even in the same file; the lock says how many
+    it left out, writes only its own entries, and `sor status` and `sor check` still list the problem. It is narrower than
+    what was agreed ("ignore a problem in an item outside the lock"): a draft test (`unnamed test`) and an unfilled
+    `<fill in …>` still block wherever they sit, because "Loose tests" records that a draft test keeps `sor lock` waiting
+    for the tidy step, and a placeholder outside the scope is nearly always someone's half-filled skeleton. A problem that
+    is no item's own text (a heading written twice, a name used twice) and `lock --all` still block. A refusal names the
+    agent that holds the item the line lies in. Overrule by moving a kind into or out of `ITEM_LOCAL` in `cli.py`.
+- **Already fixed before (passes 1 and 2 are all closed):** `sor` on the PATH, Write over a skeleton, `never run` and
+  `heading` and `duplicate` notes (a second `## Approach` and a repeated test name are reported, probed), release by
+  name, child-part locks, the expired-claim message, part and item names sharing one set of ids (in the cheat sheet),
+  the `--as` error naming the commands that take it, the 80-word limit, `sor check PART`, the broken-pipe traceback,
+  "did you mean" on references, references in table cells, refusals naming only the blocked ids, `{part/item.value}` in
+  the cheat sheet, the 30-minute claim lifetime in the docs.
+- **By design, not changed:** table rows are items, so `sor changes` lists a changed row (it is what a claim, a marker
+  and a lock key point at); `open:` lines are unchecked on purpose; a claim on a part holds its items (SPEC §16); claim
+  times are shown in local time like `date` (not reproduced); a `{name: value}` counts as two words against the 80 (words
+  are split at spaces); a reference to a part that is still a skeleton resolves, and `sor check` reports its
+  placeholders anyway; the 7-rule cap shows as a note; "broken {x}" already says it looked for an item, row, value or part.
+- **Design questions, not built, need a yes:** a check for references that point upward (what "upward" means is
+  project-specific: the engine's `layers` rule); a child part named like a top-level part shadowing it; a rename-value
+  command.
+- **Not tool problems:** the harness refusing compound commands, heredocs and `sed -i` in background sub-agents.
 
 ## Still open
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for

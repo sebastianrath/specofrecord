@@ -291,7 +291,8 @@ def write_over(path, content='x', **extra):
 
 
 class TestWriteOverASkeleton(Flow):
-    """A skeleton `sor new` wrote and nobody touched may be written whole; the same file once anyone changed it may not."""
+    """A skeleton `sor new` wrote and nobody touched may be written whole, with or without --why; the same file once anyone
+    changed more than its Why: line may not."""
 
     REFUSAL = ('Do not rewrite sor/{rel} with Write: it erases changes others made since you read it. '
                'Change the clause with Edit (one clause at a time), or MultiEdit.')
@@ -324,7 +325,6 @@ class TestWriteOverASkeleton(Flow):
         self.new('--root')
         changes = {
             'a placeholder filled in': lambda p: replace_in(p, '<fill in: what must be true>', 'It must be loud.'),
-            'the why written by hand': lambda p: replace_in(p, 'Why: <fill in: one sentence on why this part exists>', 'Why: It sounds.'),
             'a line added': lambda p: put(p, read(p) + '- **mine** - written by a person.\n'),
             'a hint removed': lambda p: replace_in(p, '<!-- How it is built', '<!-- how it is built'),
             'the last newline gone': lambda p: put(p, read(p).rstrip('\n')),
@@ -341,22 +341,35 @@ class TestWriteOverASkeleton(Flow):
             with self.subTest(change=what):
                 self.assertEqual(reason(hook.pre_edit(write_over(path))), self.REFUSAL.format(rel=name + '.md'))
 
-    def test_a_skeleton_made_with_a_why_is_not_the_skeleton_the_guard_knows(self):
+    def test_a_skeleton_made_with_a_why_may_be_written_whole_too(self):
         self.new('--root', '--why', 'A tiny game engine.')
         self.new('ui', '--why', 'The screens.')
-        for rel in ('SPECOFRECORD.md', 'ui.md'):
+        self.new('ui/hud', '--why', 'What  the   player sees.')   # the spaces are collapsed, as sor new does
+        for rel in ('SPECOFRECORD.md', 'ui.md', 'ui/hud.md'):
             with self.subTest(file=rel):
-                self.assertIn('Do not rewrite', reason(hook.pre_edit(write_over(self.path(rel)))))
+                self.assertIsNone(hook.pre_edit(write_over(self.path(rel))))
 
-    def test_the_root_changed_after_sor_new_is_refused_and_so_is_a_file_that_is_nothing_like_one(self):
+    def test_the_why_is_the_one_line_that_may_differ(self):
         self.new('--root')
-        root = self.path('SPECOFRECORD.md')
-        replace_in(root, '<fill in: what the project will not do>', 'Nothing about tax.')
-        self.assertIn('Do not rewrite sor/SPECOFRECORD.md', reason(hook.pre_edit(write_over(root))))
-        put(write(self.dir, 'sor/greet.md', ''), read(self.path('SPECOFRECORD.md')))   # the root's text under another name
-        self.assertIn('Do not rewrite sor/greet.md', reason(hook.pre_edit(write_over(self.path('greet.md')))))
-        write(self.dir, 'sor/empty.md', '')
-        self.assertIn('Do not rewrite', reason(hook.pre_edit(write_over(self.path('empty.md')))))
+        self.new('ui')
+        path = self.path('ui.md')
+        replace_in(path, 'Why: <fill in: one sentence on why this part exists>', 'Why: The screens.')
+        self.assertIsNone(hook.pre_edit(write_over(path)), 'a Why line written by hand on an untouched skeleton')
+        changes = {
+            'a placeholder filled in': lambda p: replace_in(p, '<fill in: what must be true>', 'It must be loud.'),
+            'a line added': lambda p: put(p, read(p) + '- **mine** - written by a person.\n'),
+            'a hint removed': lambda p: replace_in(p, '<!-- How it is built', '<!-- how it is built'),
+            'the why on two lines': lambda p: replace_in(p, 'Why: The screens.', 'Why: The screens.\nand more'),
+            'the why empty': lambda p: replace_in(p, 'Why: The screens.', 'Why: '),
+            'no why line at all': lambda p: replace_in(p, 'Why: The screens.\n', ''),
+        }
+        for n, (what, change) in enumerate(changes.items()):
+            self.new(f'p{n}')   # a fresh skeleton for each change
+            q = self.path(f'p{n}.md')
+            replace_in(q, 'Why: <fill in: one sentence on why this part exists>', 'Why: The screens.')
+            change(q)
+            with self.subTest(change=what):
+                self.assertIn('Do not rewrite', reason(hook.pre_edit(write_over(q))))
 
     def test_the_skeleton_of_another_part_is_not_the_skeleton_of_this_one(self):
         self.new('--root')

@@ -17,7 +17,7 @@ them and report in plain words. Do not ask the user to run anything.
 2. Write the specs: a root `sor/SPECOFRECORD.md` and one part file per subsystem, short and in plain words.
    `sor new --root` and `sor new <part>` write skeletons with `<fill in: ...>` placeholders, which `sor check` reports
    until you replace them. A fresh skeleton may be filled in whole with Write, once, while it is still exactly what
-   `sor new` wrote (not one made with `--why`); after that use Edit, one clause at a time. There is no `sor init`.
+   `sor new` wrote (with or without `--why`); after that use Edit, one clause at a time. There is no `sor init`.
 3. Check, lock and report (see "After writing").
 4. A large project stops here, so the user can read the specs. Write code only when asked, or when the project is tiny
    like hello world. Code then follows "A change asked in words" in `SKILL.md`.

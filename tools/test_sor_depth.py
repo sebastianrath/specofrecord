@@ -1,4 +1,5 @@
-"""Tests for how wide a part may get (SPEC §13): the note for a part with too many child parts, and `sor parts --tree`.
+"""Tests for how wide a part may get (SPEC §13): the note for a part with too many child parts, `sor parts --tree` and
+`sor parts PART`, and the advice for a root item written with the root in front.
 
     cd <repo> && python3 -m unittest discover -s tools -p 'test_*.py' -v
 
@@ -107,6 +108,63 @@ class TestThePartsTree(base.Case):
         tree = json.loads(base.run_sor(self.dir, 'parts', '--tree', '--json')[1])
         self.assertEqual([p['id'] for p in plain], ['ROOT', 'a', 'a-b', 'a/c', 'a/c/d', 'a/e', 'z'])
         self.assertEqual([p['id'] for p in tree], ['ROOT', 'a', 'a/c', 'a/c/d', 'a/e', 'a-b', 'z'])
+
+
+class TestPartsOfOnePart(base.Case):
+    """`sor parts PART` shows the part and the parts inside it, as `sor check PART` does."""
+
+    def setUp(self):
+        super().setUp()
+        self.project({'audio': small('Audio'), 'audio/mixer': small('Mixer'), 'audio-fx': small('Fx'), 'z': small('Z')})
+
+    def ids(self, *args):
+        return [p['id'] for p in json.loads(base.run_sor(self.dir, 'parts', '--json', *args)[1])]
+
+    def test_a_part_brings_the_parts_inside_it_and_not_a_neighbour_with_the_same_start(self):
+        self.assertEqual(self.ids('audio'), ['audio', 'audio/mixer'])
+        self.assertEqual(self.ids('audio/mixer'), ['audio/mixer'])
+        self.assertEqual(self.ids('audio', 'z'), ['audio', 'audio/mixer', 'z'])
+
+    def test_ROOT_is_the_root_file_alone(self):
+        self.assertEqual(self.ids('ROOT'), ['ROOT'])
+
+    def test_no_names_means_every_part(self):
+        self.assertEqual(self.ids(), ['ROOT', 'audio', 'audio-fx', 'audio/mixer', 'z'])
+
+    def test_the_count_and_the_tree_follow_the_names(self):
+        code, out, _ = base.run_sor(self.dir, 'parts', 'audio')
+        self.assertEqual((code, out.splitlines()[-1]), (0, '2 parts'))
+        code, out, _ = base.run_sor(self.dir, 'parts', '--tree', 'audio')
+        self.assertEqual(out.splitlines()[0].split()[:2], ['audio', '(1)'])
+
+    def test_a_name_that_is_no_part_is_refused_with_the_closest_ones(self):
+        code, out, err = base.run_sor(self.dir, 'parts', 'audi')
+        self.assertEqual((code, out), (2, ''))
+        self.assertIn('sor parts: no such part: audi. Closest part ids: audio', err)
+
+
+class TestRootItemsHaveNoPrefix(base.Case):
+    """An agent that writes `SPECOFRECORD/year` or `ROOT/year` for a root item is told the id to use."""
+
+    def setUp(self):
+        super().setUp()
+        self.project({'audio': small('Audio')}, root_text='# Demo\nWhy: A project.\n\n## Rules\n- **year** - A year is {days: 365} days.\n')
+
+    def test_claim_and_lock_say_what_to_write_instead(self):
+        for prefix in ('SPECOFRECORD', 'ROOT'):
+            with self.subTest(prefix=prefix):
+                code, _, err = base.run_sor(self.dir, 'claim', f'{prefix}/year', '--as', 'a1')
+                self.assertEqual(code, 2)
+                self.assertIn(f'no such clause or part: {prefix}/year (items of the root have no prefix: use `year`, not {prefix}/year)', err)
+                code, out, _ = base.run_sor(self.dir, 'lock', f'{prefix}/year', '--as', 'a1')
+                self.assertEqual(code, 2)
+                self.assertIn('items of the root have no prefix: use `year`', out)
+
+    def test_the_bare_id_works_and_a_name_that_is_nothing_gets_no_such_advice(self):
+        self.assertEqual(base.run_sor(self.dir, 'claim', 'year', '--as', 'a1')[0], 0)
+        code, _, err = base.run_sor(self.dir, 'claim', 'ROOT/nope', '--as', 'a1')
+        self.assertEqual(code, 2)
+        self.assertNotIn('no prefix', err)
 
 
 if __name__ == '__main__':

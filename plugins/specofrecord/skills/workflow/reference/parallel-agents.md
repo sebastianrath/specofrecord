@@ -26,6 +26,13 @@ Subagents share your session, so the tool cannot tell them apart from you by its
 - Your own final `sor release --all` has no `--as`, and `SOR_AGENT` is not set in your environment (it is a name too, and
   your subagents share that environment). A caller that gives no name frees every claim of the session, so it also clears
   what a subagent that crashed left behind.
+- Claim items, not whole parts, when others work in the same part: a claim on a part holds all its own items, so another
+  agent's claim on an item inside it is refused until you release, and your claim on the part is refused while someone
+  holds one of its items (child parts are separate). Claim the part only to add an item to it.
+- A `sor lock` of your own items is not held up by a broken reference (or a bad `needs`, `proves` or `expect`) in another
+  agent's item, even in the same file: the lock says how many problems it left out, and `sor check` still lists them. An
+  unnamed test, an unfilled `<fill in …>`, a heading written twice and `sor lock --all` still wait, and the refusal names
+  who holds the item the line is in.
 - Run `sor check <your parts>` instead of a plain `sor check`: only the problems and notes of those parts and of the parts
   inside them are shown, and the exit code follows only them, so another agent's unfinished part does not fail yours.
   `audio` covers `audio/mixer`, not `audio-fx`; `ROOT` is the root file alone.

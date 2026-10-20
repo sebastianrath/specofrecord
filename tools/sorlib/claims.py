@@ -24,6 +24,7 @@ import re
 import time
 
 from .invoke import getenv
+from .model import PART_FILE_NAME
 
 
 CLAIMS_FILE = '.sor-claims.json'
@@ -328,6 +329,18 @@ def claim(project, scan, universe, ids, agent, ttl=DEFAULT_TTL, session=None):
     return ok, res
 
 
+def unknown_text(project, universe, unknown):
+    """"no such clause or part: ...", and, for an id written with the root in front (`ROOT/year`, `SPECOFRECORD/year`),
+    the id of the root item it was meant for: items of the root have no prefix."""
+    text = 'no such clause or part: ' + ', '.join(unknown)
+    fixes = []
+    for ident in unknown:
+        head, _, rest = ident.partition('/')
+        if rest and head in ('ROOT', PART_FILE_NAME) and not footprint(project, universe, [rest])[1]:
+            fixes.append(f'`{rest}`, not {ident}')
+    return text + (f' (items of the root have no prefix: use {"; ".join(fixes)})' if fixes else '')
+
+
 def _claim(project, scan, universe, ids, agent, ttl, session):
     """`claim` without `blocked`: a refusal carries the other agents' claims it was measured against, as `theirs`."""
     if not agent:
@@ -335,8 +348,7 @@ def _claim(project, scan, universe, ids, agent, ttl, session):
     session = current_session() if session is None else session
     keys, unknown = footprint(project, universe, ids)
     if unknown:
-        raise ClaimError('no such clause or part: ' + ', '.join(unknown)
-                         + ' (to add a clause, claim the part that will hold it)')
+        raise ClaimError(unknown_text(project, universe, unknown) + ' (to add a clause, claim the part that will hold it)')
     regions = regions_of(scan, keys)
     shared = sorted({k for _, ids_ in regions for k in ids_} - keys)
     with _Mutex(project):

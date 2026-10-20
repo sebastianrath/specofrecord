@@ -8,6 +8,7 @@ Python 3.9, standard library only, temporary folders only, no browser. The two r
 """
 import json
 import os
+import re
 import sys
 import unittest
 from unittest import mock
@@ -616,3 +617,71 @@ class TestReferencesInTableCells(Flow):
         code, out, _ = self.sor('lock', '--all')
         self.assertEqual(code, 2)
         self.assertIn('{nosuch.value}', out)
+
+
+class TestTheSameValueInTwoParts(Flow):
+    """A `{name: value}` that another part defines with the same name and the same text is one fact written twice: a note
+    at each of them, never a problem."""
+
+    def part(self, *rules, tests=()):
+        return doc('P', 'A part.', rules=list(rules), tests=list(tests))
+
+    def found(self, parts, *args):
+        self.project(parts)
+        code, out, _ = self.sor('check', *args)
+        return code, [m.groups() for m in (re.match(r'\s*value twice\s+(\S+)\s+(.*)$', line) for line in out.splitlines()) if m]
+
+    def test_each_definition_gets_a_note_that_names_the_others(self):
+        code, notes = self.found({'a': self.part('- **fast** - Takes {limit: 2 seconds}.'),
+                                  'b': self.part('- **slow** - Takes {limit: 2 seconds}.')})
+        self.assertEqual((code, [n[0] for n in notes]), (0, ['a.md:5', 'b.md:5']))
+        self.assertIn('{limit: 2 seconds} is also defined with the same value in b/slow', notes[0][1])
+        self.assertIn('{limit: 2 seconds} is also defined with the same value in a/fast', notes[1][1])
+        self.assertIn('(`{b/slow.limit}`)', notes[0][1])
+        self.assertIn('rename them so the names say what they are', notes[0][1])
+
+    def test_it_is_a_note_and_strict_makes_it_fail(self):
+        self.found({'a': self.part('- **x** - {n: 1}.'), 'b': self.part('- **y** - {n: 1}.')})
+        self.assertEqual(self.sor('check')[0], 0)
+        self.assertEqual(self.sor('check', '--strict')[0], 2)
+
+    def test_case_and_spacing_do_not_make_two_values_different(self):
+        _, notes = self.found({'a': self.part('- **x** - {n: 2 Seconds}.'), 'b': self.part('- **y** - {n:  2   seconds}.')})
+        self.assertEqual(len(notes), 2)
+
+    def test_with_three_parts_only_the_ones_that_agree_are_noted(self):
+        _, notes = self.found({'a': self.part('- **x** - {n: 1}.'), 'b': self.part('- **y** - {n: 1}.'),
+                               'c': self.part('- **z** - {n: 9}.')})
+        self.assertEqual([n[0] for n in notes], ['a.md:5', 'b.md:5'])
+        self.assertNotIn('c/z', notes[0][1])
+
+    def test_the_root_and_a_child_count_as_two_parts(self):
+        self.project({'a': self.part('- **x** - {n: 1}.')}, root_text=doc('Demo', 'A project.', rules=['- **r** - {n: 1}.']))
+        _, out, _ = self.sor('check')
+        self.assertEqual(len(re.findall(r'value twice', out)), 2)
+
+    def test_different_texts_one_part_tests_cells_and_aliases_are_not_copies(self):
+        table = ['- **t** - Sizes:', '', '| Name | Cost |', '|------|------|', '| x | {n: 1} |']
+        cases = {
+            'the same name with other texts': {'a': self.part('- **x** - {n: 1}.'), 'b': self.part('- **y** - {n: 2}.')},
+            'two items of one part': {'a': self.part('- **x** - {n: 1}.', '- **y** - {n: 1}.')},
+            'tests restate numbers on purpose': {'a': self.part('- **x** - {n: 1}.', tests=['- **x** - is {n: 1}.', '  manual: by hand']),
+                                                 'b': self.part('- **y** - {m: 5}.', tests=['- **y** - is {n: 1}.', '  manual: by hand'])},
+            'an alias refers, it does not define': {'a': self.part('- **x** - {n: 1}.'), 'b': self.part('- **y** - {n: = a/x.n}.')},
+            'a cell is not a definition': {'a': self.part('- **x** - {n: 1}.'), 'b': self.part(*table)},
+        }
+        for what, parts in cases.items():
+            with self.subTest(what=what):
+                self.assertEqual(self.found(parts)[1], [])
+
+    def test_a_check_for_one_part_shows_its_own_note(self):
+        parts = {'a': self.part('- **x** - {n: 1}.'), 'b': self.part('- **y** - {n: 1}.'), 'c': self.part('- **z** - {m: 3}.')}
+        self.assertEqual([n[0] for n in self.found(parts, 'a')[1]], ['a.md:5'])
+        self.assertEqual([n[0] for n in self.found(parts, 'b')[1]], ['b.md:5'])
+        self.assertEqual(self.found(parts, 'c')[1], [])
+
+    def test_the_real_projects_have_none(self):
+        self.assertEqual(len(self.found({'a': self.part('- **x** - {n: 1}.'), 'b': self.part('- **y** - {n: 1}.')})[1]), 2)
+        for path in base.real_projects():
+            with self.subTest(project=os.path.relpath(path, base.REPO)):
+                self.assertEqual([n for n in lint.notes(Project(path)) if n.kind == 'value twice'], [])

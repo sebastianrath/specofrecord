@@ -363,6 +363,10 @@ Tie-breaks: a user or a test could notice the change → Rules · only the way i
 - A part SHOULD have at most 12 child parts (the root: 12 top-level parts); `sor check` notes more as `too wide`. More means:
   group related ones under a part of their own, so the tree grows in depth and not in width (`rendering/lighting/shadows`, not
   25 children of `rendering`). A folder that only groups parts is no part and is not counted.
+- A value SHOULD be defined once. `sor check` notes a `{name: value}` that another part defines with the same name and the
+  same text (case and spacing aside) as `value twice`, at each of the definitions, naming the others: keep one and refer to
+  it from the rest (`{part/item.name}`), or, if they are different quantities, rename them so the names say what they are.
+  Tests, table cells and `{v: = x}` aliases are not definitions, and the same name with another text is not a copy.
 - `sor check` reports a breach of these limits as a note, not a problem (§15): a note
   never changes the exit code, and `sor check --strict` makes notes exit 2.
 - No forward surprises: a reader never needs a file below to understand this one.
@@ -393,16 +397,16 @@ with `-C <folder>`:
 | `sor status [--json]` | compares files and code with `sor-lock.json`: **recompile** (new, changed, removed clauses), **review** (a referenced item or value, or shared code, changed), **drift** (code changed, its clause did not), **built**, **info**; and a block `tests (N)` of the tests a lock would refuse for want of a passing result, with the way out (as in the refusal of `sor lock`). `--json` has them as `tests_pending`, a superset of `tests_not_passed` (the tests that had not passed at the last lock) |
 | `sor test [id …] [--coverage] [--out F]` | runs the tests in headless Chrome against the web target's probes; reports clause and line coverage. An id is a test, the item it proves, or a part; an id that matches no test is exit 2, not a pass. A test without steps whose code is marked `@clause test` is shown as EXTERNAL: not run, not failed (§8) |
 | `sor test --strength [id …]` | test strength (§8): reruns each passing test with every value it refers to changed; lists weak tests and the value that did not matter, and the passing tests it could not vary (`IDLE`) |
-| `sor lock [--run-tests \| --results F] [--confirm test …] [--allow-incomplete]` | writes the lock; refuses on problems, drift, or tests that did not pass. With both `--run-tests` and `--results F`, F gives the results of the EXTERNAL tests only (§8). The refusal for tests without a result says `N test(s) did not pass (F failed, M not run)`, lists the first ten and the way out: with no web target a `manual:` line for a test nobody can run yet, or `--results F` for a test in the project's own framework; with a web target `sor lock --run-tests`, adding `--results F` for a test marked `@clause test <id>`; and `--allow-incomplete` in both |
+| `sor lock [--run-tests \| --results F] [--confirm test …] [--allow-incomplete]` | writes the lock; refuses on problems, drift, or tests that did not pass. What a scoped lock waits for is in §16. With both `--run-tests` and `--results F`, F gives the results of the EXTERNAL tests only (§8). The refusal for tests without a result says `N test(s) did not pass (F failed, M not run)`, lists the first ten and the way out: with no web target a `manual:` line for a test nobody can run yet, or `--results F` for a test in the project's own framework; with a web target `sor lock --run-tests`, adding `--results F` for a test marked `@clause test <id>`; and `--allow-incomplete` in both |
 | `sor lock [<id …> \| --all]` | accepts the named clauses only, none of the child parts under them unless named (§11); with no ids, what you claimed, and the child parts under a claimed part that have a change of their own (new, changed or removed; parts made after the claim too): it prints `locking the parts under them too: …`, and leaves out a child part that another agent's claim overlaps, naming it (`not locking audio/mixer, which is claimed: …`); `ROOT` is not expanded; `--all` the whole project (§16). Refused while someone else claims them. With no ids and every claim of the agent expired, it is refused and says so; when only some expired, it warns (§16) |
 | `sor claim <id …> [--as NAME] [--ttl 30m]` | says you are working on these clauses and for how long: `claimed audio until 00:31 (30 min)`; exit 3 and who holds them when someone else is: the refusal names the ids in the way, and says when the others asked for were free but not claimed either, for a claim takes all its ids or none (§16) |
 | `sor release [id … \| --all] [--as NAME] [--force]` | gives claims up again. A caller that names itself (`--as NAME` or `SOR_AGENT`) frees only that agent's claims; releasing another agent's claim by id prints `NOT released (held by someone else; --force overrides)` and exits 3. A caller that gives no name (the parent, or the only agent) frees every claim made in its session (§16). `--force` overrides. Claims that had expired are named: `nothing to release: your claims on X expired at 00:31`, or the same as a `note:` beside what was released |
 | `sor markers [id \| file:line]` | where an item's code is, or which clauses a line of code serves |
 | `sor show <part \| item>` | the clauses with their code underneath, and under an item every test that proves it: one view for people and agents |
-| `sor parts [--json] [--tree]` | an index of every part (`--tree`: each part indented under its parent, with the number of parts under it): id, title, `Why:`, Owner, Source, bullets per section, what it gives, open questions. Printed, never written into `sor/`, because every `.md` file there is a part. The session-start hook adds a compact version of it |
+| `sor parts [--json] [--tree] [PART …]` | an index of every part (`--tree`: each part indented under its parent, with the number of parts under it; with parts, only those and the parts inside them, as in `sor check`, and a name that is no part is exit 2 with the closest ones): id, title, `Why:`, Owner, Source, bullets per section, what it gives, open questions. Printed, never written into `sor/`, because every `.md` file there is a part. The session-start hook adds a compact version of it |
 | `sor needs [part] [--json]` | what a part needs, derived from the `{references}` in its items to items of other parts (words of its parent files, its own child parts and design tokens do not count, so the root needs nothing), each marked `gives` or not. A `needs` bullet (§7) stays allowed and is optional |
 | `sor changes [--json]` | the changes pending since the last lock, grouped: **Added**, **Changed**, **Removed**, **Fixes** (new or changed tests with `bug:`), and every item retired with `retired:` |
-| `sor new <part> [--why TEXT]` · `sor new --root [--why TEXT]` | writes a skeleton part (the four sections) or the root file (Rules and Approach), with hint comments at the start of a line and `<fill in: …>` placeholders, which `sor check` reports until they are filled in. Never overwrites a file. The edit hook lets one Write fill in a skeleton that is still exactly as written (not one made with `--why`; see the hooks below). Refuses (writing nothing): a `-C` folder that does not exist; an id that is already an item (parts and items share one set of ids, §3; the message says where the item is, `the rule **mixer** in audio.md`, and the two ways out: another part name, or rename that item first); an id whose folder already holds parts; a `--why` with a `Word:` setting inside the sentence (`Owner:`, `Run:`, …), which the reader would take for a setting of the part |
+| `sor new <part> [--why TEXT]` · `sor new --root [--why TEXT]` | writes a skeleton part (the four sections) or the root file (Rules and Approach), with hint comments at the start of a line and `<fill in: …>` placeholders, which `sor check` reports until they are filled in. Never overwrites a file. The edit hook lets one Write fill in a skeleton that is still exactly as written, whatever sentence it was given for `--why` (see the hooks below). Refuses (writing nothing): a `-C` folder that does not exist; an id that is already an item (parts and items share one set of ids, §3; the message says where the item is, `the rule **mixer** in audio.md`, and the two ways out: another part name, or rename that item first); an id whose folder already holds parts; a `--why` with a `Word:` setting inside the sentence (`Owner:`, `Run:`, …), which the reader would take for a setting of the part |
 | `sor hook pre-edit \| post-read` | Claude Code hooks, registered in `.claude/settings.json` (below) |
 
 Drift lines name who last changed their lines when the environment can tell (today from `git blame`):
@@ -467,8 +471,9 @@ the plugin at `plugins/specofrecord/`, DECISIONS.md):
   what others changed since the agent read it): edit it with Edit, one clause at a time; and where
   `SOR_ENFORCE_CLAIMS=1` is set, a clause another session has claimed may not be edited (§16).
   The refusal to rewrite has one exception: a file that is byte for byte the skeleton `sor new` would write right now
-  (for the root or for a part, made without `--why`) has nothing in it to erase, so one Write may fill it in whole; after
-  any change to it, it is an existing file like every other. A Write that creates a spec file was never refused.
+  (for the root or for a part; the sentence given to `--why` is read from its `Why:` line) has nothing in it to erase but
+  that line, so one Write may fill it in whole; after any other change to it, it is an existing file like every other.
+  A Write that creates a spec file was never refused.
 - *After Read* of code, the clauses behind the regions read are added to the agent's context,
   with the clauses that may change now.
 - *A hook that cannot run never blocks an edit.* Only a deliberate refusal (a JSON deny) does. Any other failure
@@ -500,6 +505,7 @@ the clause first.
 | no `<fill in …>` left in a spec file (`sor new`) | problem in `sor check` (`placeholder`) |
 | code sits in a `@clause` region of an id that exists; `code:` finds its code (§10) | problem in `sor check`; the edit hook refuses an edit that adds an unmarked line or a bad marker |
 | the limits of §13 | note in `sor check` |
+| a `{name: value}` is defined once: the same name with the same text in another part is one fact written twice (§3, §13) | note in `sor check` (`value twice`), at each of the definitions |
 | a test with `do:`, `expect:`, `each:` or `measure:` lines that nothing will run: no web target, not `manual:`, no `@clause test` code (§8) | note in `sor check` (`never run`) |
 | an `open:` question stays visible until it is answered (§3) | note in `sor check` |
 | code changes after the clause it serves (§15) | drift in `sor status`, which `sor lock` refuses; the edit hook refuses an agent's edit, and a person's edit is flagged and not blocked |
@@ -605,7 +611,11 @@ What the tool does about it:
   the plain lock covers them, so that work on a part is not left pending, or locked with `--all`. A clause that shares
   code with the ones locked is locked too when its entry would change, and the lock is refused when that clause has a
   change of its own. A clause the locked ones refer to keeps its old hash in their entries, so they are flagged for
-  review once it is locked. Problems in files outside the scope, and drift elsewhere, do not block a scoped lock. The
+  review once it is locked. Problems in files outside the scope, and drift elsewhere, do not block a scoped lock; nor does a problem of one item's
+  own text (`broken`, `needs`, `proves`, `expect`) that lies in an item the lock does not cover, in a file it does cover
+  (the lock says how many it left out). A draft test (`unnamed test`), an unfilled `<fill in …>` and a problem that is no
+  item's own text (a heading written twice, a name used twice) still block it, and the refusal names the agent that holds the
+  item the line lies in. The
   glue of a file that holds nothing but glue (an `__init__.py`) goes with every scoped lock, since no clause could ever
   claim it. Locking a part also retires the entries of items that left it since the last lock (moved to another part,
   where they are new, or deleted): they belong to the nearest part above them that still exists. Several scoped locks at

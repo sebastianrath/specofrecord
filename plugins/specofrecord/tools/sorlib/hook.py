@@ -115,16 +115,21 @@ def claim_refusal(project, payload, keys, regions=()):
 
 
 def is_skeleton(root, rel, path):
-    """Whether the file is byte for byte what `sor new` writes for its part (no --why): nobody has touched it, so nobody's
-    changes can be lost by writing it whole."""
+    """Whether the file is byte for byte what `sor new` writes for its part: nobody has touched it, so nobody's changes can
+    be lost by writing it whole. The sentence given to --why is read from the file's Why: line and the skeleton is made
+    again with it, so only a change to that line goes unnoticed (it is the one line whose text `sor new` does not choose)."""
     name = rel[len(SPEC_DIR) + 1:-3]
     if name != PART_FILE_NAME and not views.PART_ID.match(name):   # the folder form (<id>/SPECOFRECORD.md), CLAUSES.md, .tests.md: sor new writes none
         return False
     try:
         with open(path, 'rb') as fh:
-            return fh.read() == views.skeleton('' if name == PART_FILE_NAME else name, root).encode('utf8')
+            data = fh.read()
     except OSError:
         return False
+    why = next((line[5:] for line in data.decode('utf8', 'replace').split('\n') if line.startswith('Why: ')), None)
+    if why is None:
+        return False
+    return data == views.skeleton('' if name == PART_FILE_NAME else name, root, None if why == views.WHY else why).encode('utf8')
 
 
 def pre_edit(payload):

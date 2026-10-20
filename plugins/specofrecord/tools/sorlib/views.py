@@ -1,6 +1,6 @@
 """Views of a project that are printed and never stored, and the command that starts a part (SPEC §15).
 
-    sor parts [--json]              an index of every part: why, bullets per section, what it gives, open questions
+    sor parts [--json] [--tree] [PART ...]  an index of every part: why, bullets per section, what it gives, open questions
     sor needs [PART] [--json]       what a part needs, derived from the {references} in its items
     sor changes [--json]            the changes pending since the last lock, in words
     sor new PART | --root [--why]   a skeleton part, or the root file, with <fill in: ...> where a person writes
@@ -89,9 +89,10 @@ def tree_label(pid, kids):
     return '  ' * pid.count('/') + name + (f' ({kids[pid]})' if kids.get(pid) else '')
 
 
-def cmd_parts(args):
+def cmd_parts(args, keep=None):
+    """`keep` says which part ids to show (default: all): `sor parts audio` shows audio and the parts inside it."""
     project = Project(args.root)
-    parts = [project.parts[pid] for pid in (tree_order(project) if args.tree else in_order(project))]
+    parts = [project.parts[pid] for pid in (tree_order(project) if args.tree else in_order(project)) if keep is None or keep(pid)]
     infos = [part_info(p) for p in parts]
     if args.json:
         dump(infos)

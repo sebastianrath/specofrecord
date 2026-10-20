@@ -318,6 +318,34 @@ class TestTheWorkflowIsWrittenOnce(unittest.TestCase):
         missing = sorted(c for c in sor_commands() if c != 'hook' and f'sor {c}' not in skill)
         self.assertEqual(missing, [], 'commands the skill never mentions')
 
+    # what the skill quotes from the tool's own output, as (the words in the skill, the words in the tool's source)
+    QUOTED = (('Clauses come first', 'Clauses come first'),
+              ('Someone else is working on this', 'Someone else is working on this'),
+              ('Do not rewrite', 'Do not rewrite'),
+              ('is written only by', 'is written only by'),
+              ('REFUSED', 'REFUSED'),
+              ('unnamed test', 'unnamed test'),
+              ('loose text', 'loose text'),
+              ('tests (N)', "tests ({"),   # the block `sor status` prints, with its count
+              ('<fill in:', '<fill in:'))
+
+    def test_the_output_the_skill_quotes_is_what_the_tool_prints(self):
+        """A rename in the tool must not leave the skill telling the agent to look for words that no longer appear."""
+        skill = flat(read(SKILL))
+        source = ''.join(read('tools/sorlib/' + os.path.basename(f)) for f in sorted(glob.glob(os.path.join(REPO, 'tools', 'sorlib', '*.py'))))
+        for in_skill, in_source in self.QUOTED:
+            with self.subTest(quoted=in_skill):
+                self.assertIn(in_skill, skill, 'the skill no longer quotes it: take it out of QUOTED')
+                self.assertIn(in_source, source, 'the skill quotes words the tool no longer prints')
+
+    def test_what_the_router_cues_on_is_explained_where_it_sends_the_agent(self):
+        """The row for plain sentences names two things `sor check` says; the file it points to must cover both."""
+        plain = flat(read(SKILL_DIR + '/reference/plain-clauses.md'))
+        for cue in ('unnamed test', 'loose text'):
+            with self.subTest(cue=cue):
+                self.assertIn(f'`{cue}`', flat(read(SKILL)))
+                self.assertIn(f'`{cue}`', plain, f'plain-clauses.md never mentions {cue}')
+
 
 class TestTheLicenses(unittest.TestCase):
     """README.md says the spec is CC BY 4.0 and the toolset (tools, plugin, extension) is MIT."""
@@ -325,6 +353,11 @@ class TestTheLicenses(unittest.TestCase):
     def test_every_folder_the_readme_calls_mit_has_the_license_text_and_says_mit_in_its_manifest(self):
         for folder in ('tools', 'plugins/specofrecord', 'editors/vscode'):
             self.assertTrue(read(folder + '/LICENSE').startswith('MIT License'), folder)
+        mit = read('LICENSE.md')
+        for folder in ('tools', 'plugins/specofrecord', 'editors/vscode'):
+            self.assertIn(read(folder + '/LICENSE').strip(), mit, folder + '/LICENSE is not the text in LICENSE.md')
+        self.assertIn('CC BY 4.0', mit)
+        self.assertIn('(LICENSE.md)', read('README.md'))
         self.assertEqual(json.loads(read('plugins/specofrecord/.claude-plugin/plugin.json')).get('license'), 'MIT')
         self.assertEqual(json.loads(read('editors/vscode/package.json')).get('license'), 'MIT')
 

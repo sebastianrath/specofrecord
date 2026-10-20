@@ -2,7 +2,8 @@
 
     sor check [--strict] [PART ...]  every problem in the spec files and the code markers, and notes (too long, open:, loose text);
                                   with parts: only those parts and the parts inside them
-    sor parts [--json]            an index of every part: why it exists, its size, its open questions
+    sor parts [--json] [--tree] [PART ...]  an index of every part: why it exists, its size, its open questions;
+                                  with parts: only those parts and the parts inside them
     sor needs [PART] [--json]     what a part needs from other parts, found from its references
     sor changes [--json]          the changes pending since the last lock, in words
     sor new PART | --root         write a skeleton part (or the root file) with <fill in: ...> placeholders
@@ -76,7 +77,7 @@ def parts_of(project, scan, where):
     return {home(project, i) for r in here or [r for r in scan.regions if r.file == file] for i in r.ids}
 
 
-def wanted_parts(project, names):
+def wanted_parts(project, names, cmd='check'):
     """The ids of the parts named on the command line, or None after saying which names are no part."""
     ids, unknown = [], []
     for name in names:
@@ -89,9 +90,16 @@ def wanted_parts(project, names):
     for name in unknown:
         near = [k for k in keys if k.startswith(name) or name.startswith(k + '/')]
         near += difflib.get_close_matches(name, keys, n=5, cutoff=0.6)
-        print(f'sor check: no such part: {name}. '
+        print(f'sor {cmd}: no such part: {name}. '
               + ('Closest part ids: ' + ', '.join(list(dict.fromkeys(near))[:5]) if near else '`sor parts` lists them'), file=sys.stderr)
     return None if unknown else ids
+
+
+def cmd_parts(args):
+    ids = wanted_parts(Project(args.root), args.parts, 'parts') if args.parts else []
+    if ids is None:
+        return 2
+    return views.cmd_parts(args, (lambda pid: inside(ids, pid)) if ids else None)
 
 
 def cmd_check(args):
@@ -183,7 +191,7 @@ def scope_plan(project, scan, old, findings, ids):
     now = lockfile.snapshot(project, scan)
     universe = set(now) | set(old)
     keys, unknown = claims.footprint(project, universe, ids)
-    reasons = ['no such clause or part: ' + ', '.join(unknown)] if unknown else []
+    reasons = [claims.unknown_text(project, universe, unknown)] if unknown else []
     # An item moved or deleted since the last lock leaves its old entries behind: they belong to the nearest part
     # that still exists above them, so locking that part retires them (an item moved to another part is new there).
     owners = {project.find(i)[1].id for i in ids if project.find(i) and project.find(i)[0] == 'part'}
@@ -234,6 +242,31 @@ def scope_files(project, scan, keys):
     return files
 
 
+ITEM_LOCAL = ('broken', 'needs', 'proves', 'expect')   # problems of one item's own text, fixed by whoever works on that item
+# 'unnamed test' and 'placeholder' are not among them: a person's draft test and a half-filled skeleton keep a lock waiting
+# until they are tidied or filled in, wherever in the file they sit (DECISIONS: Loose tests).
+
+
+def item_at(project, where):
+    """The item whose lines hold `where` (file:line), or None: a line of code, or text outside any item."""
+    file, _, line = where.rpartition(':')
+    if not line.isdigit():
+        return None
+    return next((it for it in project.all_items() if it.file == file and any(n == int(line) for n, _ in it.lines)), None)
+
+
+def covered(item, scope):
+    """Whether the lock keys `scope` include the item, its rows or its values."""
+    return any(k == item.id or k.startswith(item.id + '.') or k.startswith(item.id + '/') for k in scope)
+
+
+def with_holder(project, me, problem):
+    """The problem as a line of a refusal, and, when it lies in an item another agent has claimed, who that is."""
+    item = item_at(project, problem.where)
+    theirs = claims.others(project, me, {item.id}, ()) if item else []
+    return str(problem) + (f'  (in {item.id}, claimed by {" and ".join(sorted({c["agent"] for c in theirs}))})' if theirs else '')
+
+
 def cmd_lock(args):
     project, scan = load(args)
     old = lockfile.read(project)
@@ -282,10 +315,14 @@ def cmd_lock(args):
             print('locking with them (they share code): ' + ', '.join(shared))
         files = scope_files(project, scan, scope)
         found = problems(project, scan)
-        reasons += [str(p) for p in found if p.where.split(':')[0] in files]
+        here = [p for p in found if p.where.split(':')[0] in files]
+        apart = [p for p in here if p.kind in ITEM_LOCAL and item_at(project, p.where) and not covered(item_at(project, p.where), scope)]
+        reasons += [with_holder(project, me, p) for p in here if p not in apart]
         outside = [p for p in found if p.where.split(':')[0] not in files]
         if outside:
             print(f'note: {len(outside)} problem(s) in other files do not block this lock (`sor check` lists them)')
+        if apart:
+            print(f'note: {len(apart)} problem(s) in other items of these files do not block this lock (`sor check` lists them)')
         findings = [f for f in findings if f.key in scope]
         held = claims.others(project, me, scope, claims.regions_of(scan, scope))
     else:
@@ -629,9 +666,10 @@ def build_parser():
                    help='notes (too long, open questions, loose text) also make the exit code 2')
     s.set_defaults(fn=cmd_check)
     s = sub.add_parser('parts', help='an index of every part')
+    s.add_argument('parts', nargs='*', metavar='PART', help='only these parts and the parts inside them (default: all)')
     s.add_argument('--json', action='store_true')
     s.add_argument('--tree', action='store_true', help='show the hierarchy: each part under its parent, with the number of parts under it')
-    s.set_defaults(fn=views.cmd_parts)
+    s.set_defaults(fn=cmd_parts)
     s = sub.add_parser('needs', help='what a part needs from other parts, derived from its references')
     s.add_argument('part', nargs='?', help='a part id (ROOT for the root); none: every part')
     s.add_argument('--json', action='store_true')

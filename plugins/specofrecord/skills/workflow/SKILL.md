@@ -32,13 +32,13 @@ only when asked, or when the project is tiny like hello world.
 | Command | Does |
 |---|---|
 | `sor status` | what changed since the last lock: recompile, review, drift, claims |
-| `sor check [<parts>]` | every problem in the spec and the markers, plus notes; with parts, only theirs: use it while others work |
+| `sor check [<parts>]` | every problem in the spec and the markers, plus notes; with parts, only those and the parts inside them: use it while others work |
 | `sor test` | runs the clauses' tests (headless Chrome, web projects only) |
 | `sor claim <ids>` / `sor release --all` | say you work on these clauses / give them up |
 | `sor lock` | accept what you claimed, with its code and test results (the forms are in "Locking") |
-| `sor new <part>` / `sor new --root` | a skeleton with `<fill in: ...>` placeholders, which `sor check` reports until filled; a part name must not be an item's name |
+| `sor new <part>` / `sor new --root` | a skeleton with `<fill in: ...>` placeholders, which `sor check` reports until filled; a part name must not be an item's name (`reference/new-project.md`) |
 | `sor show <id>`, `sor markers <id or file:line>` | a part's clauses with their code; where a clause's code is, or which clause a line serves |
-| `sor parts [--tree]` | an index of every part: run it first in a project you do not know |
+| `sor parts [--tree] [<parts>]` | an index of every part, or of those and the parts inside them: run it first in a project you do not know |
 | `sor needs [part]`, `sor changes` | what a part uses from other parts; the pending changes in words |
 
 ## Your routine
@@ -91,8 +91,9 @@ Claims say who works on which clauses. They are advisory, so make them a habit e
   wait and retry, or ask the user.
 - Release when you are done, and before you stop even if the work failed: `sor release --all`. The tool tells you when
   your claims ran out (at `sor lock` with no ids, or `sor release`): claim again and re-read the clause before you go on.
-- A sub-agent passes its own `--as <name>` on every claim, lock and release, and frees only its own claims.
-  `sor release --all` without a name frees every claim of the session, its siblings' too, so only the parent runs it.
+- A sub-agent passes its own `--as <name>` on every claim, lock and release (no other command takes `--as`) and frees
+  only its own claims. `sor release --all` without a name frees every claim of the session, its siblings' too, so only
+  the parent runs it. More: `reference/parallel-agents.md`.
 
 ## Code a person changed ("keep my change")
 A person may edit code themselves. The edit guard watches only your own edits, so theirs goes through and shows up as
@@ -110,8 +111,7 @@ in line. The steps are in `reference/code-a-person-changed.md`: read it first.
 
 **Spec files and code**
 - Edit spec files with Edit, one clause at a time, and re-read the clause right before. Never rewrite a spec file with
-  Write (it erases what others changed since you read it), except a fresh `sor new` skeleton (not one made with
-  `--why`): fill that in whole, once.
+  Write (it erases what others changed since you read it), except a fresh `sor new` skeleton: fill that in whole, once.
 - Every code line sits in a `@clause <id>` region, or ends with a line marker. (Code under a `Source: code at <path>`
   part is written by hand and needs none.)
 - Write choices the clauses left open into the notes of the glue region.

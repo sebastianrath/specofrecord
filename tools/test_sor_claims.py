@@ -20,7 +20,7 @@ sys.path.insert(0, HERE)
 import test_sor as base                            # noqa: E402  (its helpers only)
 from sorlib import claims                          # noqa: E402
 from sorlib.model import Project                   # noqa: E402
-from test_sor_flows import Flow, accepted, lock_bytes   # noqa: E402  (not the Test classes: they would run twice)
+from test_sor_flows import Flow, accepted, lock_bytes, replace_in   # noqa: E402  (not the Test classes: they would run twice)
 
 doc, write, read = base.doc, base.write, base.read
 
@@ -433,3 +433,86 @@ class TestRefusedBatchClaim(Session):
         write(self.dir, 'sor/audio.md', AUDIO)
         out = self.run_sor('claim', 'greet/hello', 'greet/bye', 'audio', '--as', 'a2')[1]
         self.assertIn('nothing was claimed: greet/bye, audio are free', out)
+
+
+# --- a scoped lock waits for the items it locks, not for a neighbour's ---------------------------------------
+
+CORE = doc('Core', 'The core.', rules=['- **tick** - A tick lasts {ms: 16} ms.', '- **tock** - A tock follows a tick.'],
+           tests=['- **tick** - ok', '  manual: by hand', '- **tock** - ok', '  manual: by hand'])
+TOCK = '- **tock** - A tock follows a tick.'
+
+
+class TestAScopedLockWaitsOnlyForItsOwnItems(Session):
+    """Two agents work in one file: a1 on core/tick, a2 on core/tock. A problem in the text of a2's item does not keep a1
+    from locking, as one in another file never did; what is not one item's own text, or is a person's draft, still does."""
+
+    def setUp(self):
+        super().setUp()
+        self.project({'core': CORE})
+        accepted(self.dir)
+        self.core = os.path.join(self.spec, 'core.md')
+        replace_in(self.core, '{ms: 16}', '{ms: 17}')
+        self.assertEqual(self.run_sor('claim', 'core/tick', '--as', 'a1')[0], 0)
+        self.assertEqual(self.run_sor('claim', 'core/tock', '--as', 'a2')[0], 0)
+
+    def lock(self, agent):
+        return self.run_sor('lock', '--as', agent, '--allow-incomplete')
+
+    def lock_entries(self):
+        return json.loads(lock_bytes(self.dir))
+
+    def break_tock(self, text=TOCK + ' See {nothing-here}.'):
+        replace_in(self.core, TOCK, text)
+
+    def test_a_broken_reference_in_a_neighbours_item_does_not_stop_my_lock(self):
+        before = self.lock_entries()
+        self.break_tock()
+        code, out, _ = self.lock('a1')
+        self.assertEqual(code, 0, out)
+        self.assertIn('1 problem(s) in other items of these files do not block this lock', out)
+        after = self.lock_entries()
+        self.assertEqual(after['core/tick.ms']['text'], base.sha12('17'))
+        self.assertEqual(after['core/tock'], before['core/tock'], "the neighbour's entry is left as it was")
+        self.assertIn('{nothing-here}', self.run_sor('status')[1])
+        self.assertIn('1 problem(s)', self.run_sor('check')[1])
+
+    def test_the_item_with_the_problem_is_still_refused_and_so_is_lock_all(self):
+        self.break_tock()
+        code, out, _ = self.lock('a2')
+        self.assertEqual(code, 2)
+        self.assertIn('{nothing-here}', out)
+        code, out, _ = self.run_sor('lock', '--all', '--allow-incomplete')
+        self.assertEqual(code, 2)
+        self.assertIn('{nothing-here}', out)
+
+    def test_a_broken_reference_in_a_table_row_belongs_to_its_item(self):
+        self.break_tock(TOCK + '\n\n| Name | Cost |\n|------|------|\n| x | {nothing-here} |')
+        code, out, _ = self.lock('a1')
+        self.assertEqual(code, 0, out)
+        self.assertIn('in other items of these files', out)
+
+    def test_a_problem_that_is_no_item_s_own_text_still_blocks(self):
+        write(self.dir, 'sor/core.md', read(self.core) + '\n## Rules\n- **extra** - Another rules heading.\n')
+        code, out, _ = self.lock('a1')
+        self.assertEqual(code, 2)
+        self.assertIn('heading', out)
+
+    def test_a_persons_draft_test_keeps_the_lock_waiting_wherever_it_is_in_the_file(self):
+        write(self.dir, 'sor/core.md', read(self.core).rstrip('\n') + '\n- test that a tock follows a tick\n')
+        code, out, _ = self.lock('a1')
+        self.assertEqual(code, 2)
+        self.assertIn('unnamed test', out)
+
+    def test_a_half_filled_skeleton_keeps_the_lock_waiting_and_the_refusal_says_whose_item_it_is(self):
+        self.break_tock(TOCK + ' <fill in: what a tock does>')
+        code, out, _ = self.lock('a1')
+        self.assertEqual(code, 2)
+        self.assertIn('placeholder', out)
+        self.assertIn('(in core/tock, claimed by a2)', out)
+
+    def test_nothing_claimed_around_it_means_no_holder_in_the_line(self):
+        self.run_sor('release', '--all', '--as', 'a2')
+        self.break_tock(TOCK + ' <fill in: what a tock does>')
+        code, out, _ = self.lock('a1')
+        self.assertEqual(code, 2)
+        self.assertNotIn('claimed by', out)
