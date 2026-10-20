@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="t d">
+  <title id="t">Spec of Record (SoR)</title>
+  <desc id="d">Specs act as the source. An AI builds the code. One clause in a spec file is linked to the code built from it, in two code files.</desc>
+  <style>
+    .sans { font-family: "Atkinson Hyperlegible", Verdana, sans-serif; }
+    .mono { font-family: "Atkinson Hyperlegible Mono", Menlo, Consolas, monospace; }
+    .k { fill: #cf222e; } .f { fill: #8250df; } .m { fill: #0047b3; font-weight: 600; }
+  </style>
+  <rect width="1200" height="630" fill="#ffffff"/>
+  <rect x="0" y="0" width="1200" height="10" fill="#0047b3"/>
+
+  <!-- title and tagline -->
+  <text x="64" y="118" class="sans" font-size="80" font-weight="700" fill="#111">Spec of Record <tspan font-weight="400" fill="#777">(SoR)</tspan></text>
+  <text x="64" y="170" class="sans" font-size="32" fill="#111">Specs act as the source.</text>
+  <text x="64" y="208" class="sans" font-size="32" fill="#111">An AI builds the code.</text>
+
+  <!-- left pane: the spec -->
+  <g>
+    <rect x="64" y="244" width="440" height="346" rx="12" fill="#f4f4f4" stroke="#dcdcdc"/>
+    <path d="M64 256 a12 12 0 0 1 12 -12 h416 a12 12 0 0 1 12 12 v26 h-440 z" fill="#e3e3e3"/>
+    <rect x="80" y="250" width="188" height="32" rx="6" fill="#f4f4f4" stroke="#dcdcdc"/>
+    <rect x="80" y="250" width="188" height="3" fill="#0047b3"/>
+    <path d="M96 259.5h6l3.2 3.2v9.8h-9.2z" fill="none" stroke="#555" stroke-width="1.4" stroke-linejoin="round"/>
+    <text x="116" y="272" class="mono" font-size="16" fill="#111">sor/run.md</text>
+    <text x="84" y="334" class="mono" font-size="20" fill="#777">...</text>
+    <rect x="76" y="383" width="416" height="112" rx="8" fill="#fff1b8"/>
+    <rect x="76" y="383" width="4" height="112" fill="#0047b3"/>
+    <text x="96" y="415" class="sans" font-size="25" fill="#111"><tspan class="mono" font-weight="600" font-size="23">turn</tspan> – Each key press moves</text>
+    <text x="96" y="447" class="sans" font-size="25" fill="#111">the player, picks up keys and</text>
+    <text x="96" y="479" class="sans" font-size="25" fill="#111">moves the monsters.</text>
+    <text x="84" y="548" class="mono" font-size="20" fill="#777">...</text>
+  </g>
+
+  <!-- the link from one clause to the code in two files -->
+  <g stroke="#0047b3" stroke-width="3" fill="none" stroke-linejoin="round">
+    <path d="M506 439 H528 V350 H550"/>
+    <path d="M528 439 V528 H550"/>
+  </g>
+  <g fill="#0047b3">
+    <circle cx="506" cy="439" r="6"/><circle cx="550" cy="350" r="6"/><circle cx="550" cy="528" r="6"/>
+  </g>
+
+  <!-- right pane, first code file -->
+  <g>
+    <rect x="552" y="244" width="584" height="176" rx="12" fill="#f4f4f4" stroke="#dcdcdc"/>
+    <path d="M552 256 a12 12 0 0 1 12 -12 h560 a12 12 0 0 1 12 12 v26 h-584 z" fill="#e3e3e3"/>
+    <rect x="568" y="250" width="168" height="32" rx="6" fill="#f4f4f4" stroke="#dcdcdc"/>
+    <rect x="568" y="250" width="168" height="3" fill="#0047b3"/>
+    <path d="M584 259.5h6l3.2 3.2v9.8h-9.2z" fill="none" stroke="#555" stroke-width="1.4" stroke-linejoin="round"/>
+    <text x="604" y="272" class="mono" font-size="16" fill="#111">src/run.js</text>
+    <rect x="564" y="288" width="560" height="125" rx="8" fill="#fff1b8"/>
+    <rect x="564" y="288" width="4" height="125" fill="#0047b3"/>
+    <g class="mono" font-size="18" fill="#111">
+      <text x="582" y="307" class="m">// @clause run/turn</text>
+      <text x="582" y="332"><tspan class="k">export function</tspan> <tspan class="f">takeTurn</tspan>(game, dx, dy) {</text>
+      <text x="600" y="357"><tspan class="f">move</tspan>(game.player, dx, dy);</text>
+      <text x="600" y="382">...</text>
+      <text x="582" y="407">}</text>
+    </g>
+  </g>
+
+  <!-- right pane, second code file -->
+  <g>
+    <rect x="552" y="434" width="584" height="156" rx="12" fill="#f4f4f4" stroke="#dcdcdc"/>
+    <path d="M552 446 a12 12 0 0 1 12 -12 h560 a12 12 0 0 1 12 12 v26 h-584 z" fill="#e3e3e3"/>
+    <rect x="568" y="440" width="296" height="32" rx="6" fill="#f4f4f4" stroke="#dcdcdc"/>
+    <rect x="568" y="440" width="296" height="3" fill="#0047b3"/>
+    <path d="M584 449.5h6l3.2 3.2v9.8h-9.2z" fill="none" stroke="#555" stroke-width="1.4" stroke-linejoin="round"/>
+    <text x="604" y="462" class="mono" font-size="16" fill="#111">src/monsters/monsters.js</text>
+    <rect x="564" y="478" width="560" height="100" rx="8" fill="#fff1b8"/>
+    <rect x="564" y="478" width="4" height="100" fill="#0047b3"/>
+    <g class="mono" font-size="18" fill="#111">
+      <text x="582" y="497" class="m">// @clause run/turn</text>
+      <text x="582" y="522"><tspan class="k">export function</tspan> <tspan class="f">moveMonsters</tspan>(game) {</text>
+      <text x="600" y="547">...</text>
+      <text x="582" y="572">}</text>
+    </g>
+  </g>
+</svg>

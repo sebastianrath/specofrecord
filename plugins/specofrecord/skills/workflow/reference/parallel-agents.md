@@ -1,0 +1,66 @@
+# Working beside other agents
+
+Use this when more than one agent, or a person and an agent, work in the same project at once, or when you start
+subagents. The everyday rules (claim before you edit, what to do on REFUSED, lock only your own clauses, release when you
+stop) are in `SKILL.md`, under "Claims" and "Locking".
+
+## What a claim is
+A claim says which clauses you work on. The tool records it, `sor status` shows it in the `claims` group, and `sor lock`
+respects it. It is advice: an agent that never claims is not stopped. Claims expire (30 minutes unless you pass `--ttl`),
+so an agent that crashed does not block the project for good.
+
+## Who you are
+The tool knows who you are from your Claude Code session, so you do not have to say. Pass `--as <name>` (or set
+`SOR_AGENT`) only to act under another name. `--as` belongs to `sor claim`, `sor lock` and `sor release` only: any other
+command refuses it. An agent that is not Claude Code has no session: it chooses one name and passes `--as <name>` on every
+claim, lock and release. Another name is another agent.
+
+## Subagents
+Subagents share your session, so the tool cannot tell them apart from you by itself. When you run subagents in parallel:
+- Give each its own name and have it pass `--as <name>` on every claim, lock and release. A shell variable would not
+  survive between calls.
+- Do not claim what you delegate, because your claim would block your subagent's.
+- A subagent releases with its own name (`sor release --all --as <name>`): that frees only its claims, and another agent's
+  claim named by id is left alone ("NOT released (held by someone else; --force overrides)", exit 3). A subagent that
+  forgets `--as` looks like the parent: its `sor release --all` frees every claim made in the session, its siblings' too.
+- Your own final `sor release --all` has no `--as`, and `SOR_AGENT` is not set in your environment (it is a name too, and
+  your subagents share that environment). A caller that gives no name frees every claim of the session, so it also clears
+  what a subagent that crashed left behind.
+- Run `sor check <your parts>` instead of a plain `sor check`: only the problems and notes of those parts and of the parts
+  inside them are shown, and the exit code follows only them, so another agent's unfinished part does not fail yours.
+  `audio` covers `audio/mixer`, not `audio-fx`; `ROOT` is the root file alone.
+
+## When your claim runs out
+A claim that expired protects nothing, and another agent may have claimed the clause since. The tool tells you when you
+come back to `sor lock` or `sor release`:
+- `sor lock` with no ids, when all your claims expired, is refused with "your claims on X, Y expired at 00:31; claims
+  last 30 min by default: claim again, `--ttl 2h` for longer".
+- A `sor lock` with no ids that still covers live claims prints a `warning:` for the expired ones, which are not in that lock.
+- `sor release` says "nothing to release: your claims on X expired at ...", or adds the same as a `note:`.
+
+Then claim again (`sor claim <ids> --ttl 2h` for a long task) and re-read the clause before you go on, because someone may
+have changed it meanwhile. The tool keeps this news for a few hours only, and only `sor lock` and `sor release` say it: an
+agent that does neither is not told.
+
+## When a claim refuses you
+`sor claim` prints REFUSED and exits with 3. The refusal says who holds the clause and until when at the latest. A claim takes
+all its ids or none: the REFUSED line names only the ids in the way, and a line below it says which of the others were free
+but were not claimed either, so claim those on their own. Do not edit that clause or its code, and do not look for a way
+around it. Then decide:
+- take another clause, or
+- wait a little and try again (the holder may release sooner), or
+- ask the user.
+
+Tell the user which clause blocked you and who holds it.
+
+## Locking while others work
+Lock only your own clauses, as in "Locking" in `SKILL.md`. A plain `sor lock` locks what you claimed and also the child
+parts under a claimed part that have a change of their own (new, changed or removed), those you made after the claim
+included: it says "locking the parts under them too". A child part that another agent has claimed is left out and named
+("not locking audio/mixer, which is claimed: ..."): leave it to them. `ROOT` is not expanded, so claiming the root does
+not lock the whole project. A problem in a child part that is taken in (a `<fill in: ...>` left in it, say) refuses that
+lock like any other problem in its scope; `sor lock <ids>` locks exactly what you name and leaves the child part out.
+
+A claim on a part does not hold its child parts against other agents: someone may claim `audio/mixer` while you hold
+`audio`. So claim the child parts you will change as well when that matters. Never lock the whole project (`--all`) while
+others hold claims: the tool refuses it, because it would also accept their unfinished work.

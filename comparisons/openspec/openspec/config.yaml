@@ -1,0 +1,40 @@
+schema: spec-driven
+
+# Project context. Since OpenSpec 1.x this replaces the old openspec/project.md and is injected
+# into every planning request. It is prose: OpenSpec does not parse or validate it.
+context: |
+  Solar System viewer. Owner: sebastian.
+  Why: a calm, good-looking way to watch the planets move and learn one fact about each.
+
+  Target: one HTML file at out/index.html with everything inside (HTML, CSS, JavaScript);
+  it works opened straight from disk, with no network.
+
+  Parts (one capability each in openspec/specs/):
+  bodies (sun, planets, moon) · clock (time and speed) · camera (what is visible) ·
+  scene (everything drawn) · controls (slider, pause, reset) · selection (click to learn) ·
+  web-delivery (file, input, test probes) · solar-system-viewer (cross-cutting).
+
+  Journey: on open the start places are picked, the clock runs, and each frame the scene
+  draws the body positions through the camera's space-to-screen mapping. The user drags and
+  zooms (camera), clicks (selection) and steers (controls).
+
+  One writer per piece of state: only the clock changes time, paused and speed; only the
+  camera changes zoom and pan; the scene only reads. Reason: one owner per piece of state lets
+  agents work on parts in parallel.
+
+  Units: "px" are CSS pixels and never grow with zoom; "space units" are sizes in the solar
+  system and grow with zoom. "One year" is Earth's orbit time, 365 days.
+
+  Out of scope: elliptical orbits, true scale, sound, textures, other moons, saving state.
+
+  Scenario conventions: scenarios are executable checks against window.__probe (see the
+  web-delivery spec). Before each scenario: resize(1280, 720), use(reset), slider(40),
+  setPaused(false). Scenarios marked "(manual)" are checked by a person, not automated.
+  Tests run in headless Chrome; coverage comes from Chrome's built-in coverage.
+
+rules:
+  specs:
+    - Use the probe names from web-delivery in WHEN/THEN steps.
+    - Write numbers as literal values; repeat them where another spec depends on them.
+  tasks:
+    - End every change with running the scenario test suite and openspec validate --strict.

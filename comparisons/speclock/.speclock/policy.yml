@@ -1,0 +1,20 @@
+# Created with `speclock policy init`, then edited. Rules match file globs plus action types;
+# enforce is block, warn or log. Shape from the SpecLock README and src/core/policy.js.
+version: "1.0"
+name: "solar-system"
+description: "SpecLock policy-as-code rules"
+rules:
+  - name: "Spec changes need a person"
+    description: "The PRD and rule file are the requirements; agents propose, people edit"
+    match:
+      files: ["docs/PRD.md", "CLAUDE.md"]
+      actions: [modify, delete]
+    enforce: warn
+    severity: high
+  - name: "Single delivered file"
+    description: "The app is out/index.html only; it must not be deleted"
+    match:
+      files: ["out/**"]
+      actions: [delete]
+    enforce: block
+    severity: critical

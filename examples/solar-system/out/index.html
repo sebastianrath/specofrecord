@@ -1,0 +1,682 @@
+<!-- @clause glue -->
+<!doctype html>
+<!--
+  Compiler notes. Built: bodies, clock, camera, selection, scene, controls, probes.
+  Assumptions (clauses left these open):
+  - a comet takes 8 s to cross, the first one comes 3 s after opening;
+  - names sit 3 px under their body; a name box is 14 px tall;
+  - names also give way to the time display, the panel and the control bar;
+  - two-finger pinch: every 10% change in finger distance is one zoom step;
+  - orbit times from one year up show one decimal ("1.0 years");
+  - design colors and pictures are copied into the page at build time (COLORS, ASSETS), so it
+    still opens as one offline file; the panel shows the picture at 40 px, left of the name.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Solar System</title>
+<style>html, body { margin: 0; height: 100%; overflow: hidden; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<script>
+const canvas = document.getElementById('sky');
+const ctx = canvas.getContext('2d');
+const capital = name => name[0].toUpperCase() + name.slice(1);
+// @clause end
+
+// @clause from-design
+// Copied from design/tokens.json and design/assets/ (the Figma export) when the page is built.
+const COLORS = {
+  'sky/background': '#05060F',  // @clause design/sky/background
+  'sky/star': '#FFFFFF',  // @clause design/sky/star
+  'body/sun': '#FFC93C',  // @clause design/body/sun
+  'body/sun-core': '#FFF4C8',  // @clause design/body/sun-core
+  'body/sun-glow': '#FFC93C73',  // @clause design/body/sun-glow
+  'body/moon': '#CCCCCC',  // @clause design/body/moon
+  'planet/mercury': '#B1ADA7',  // @clause design/planet/mercury
+  'planet/venus': '#E8C98A',  // @clause design/planet/venus
+  'planet/earth': '#4F8FE6',  // @clause design/planet/earth
+  'planet/mars': '#D1623A',  // @clause design/planet/mars
+  'planet/jupiter': '#D9A66C',  // @clause design/planet/jupiter
+  'planet/saturn': '#E3CF8E',  // @clause design/planet/saturn
+  'planet/uranus': '#8FD3D9',  // @clause design/planet/uranus
+  'planet/neptune': '#111111',  // @clause design/planet/neptune
+  'saturn/ring': '#E3CF8EB3',  // @clause design/saturn/ring
+  'ui/orbit': '#A0AFDC33',  // @clause design/ui/orbit
+  'ui/label': '#DCE2F5D9',  // @clause design/ui/label
+  'ui/selection': '#FFFFFF',  // @clause design/ui/selection
+  'ui/panel-bg': '#14182CDB',  // @clause design/ui/panel-bg
+  'ui/panel-text': '#E6E8F2',  // @clause design/ui/panel-text
+  'ui/controls-text': '#CCCCDD',  // @clause design/ui/controls-text
+  'ui/time': '#DFE3F5',  // @clause design/ui/time
+  'comet/head': '#EEF6FF',  // @clause design/comet/head
+  'comet/tail': '#C8E1FF8C',  // @clause design/comet/tail
+};
+const ASSETS = {
+  sun: '<svg width="168" height="168" viewBox="0 0 168 168" fill="none" xmlns="http://www.w3.org/2000/svg"> <circle cx="84" cy="84" r="84" fill="#FFC93C"/> </svg>',  // @clause design/assets/sun
+  mercury: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"> <circle cx="12" cy="12" r="12" fill="#B1ADA7"/> </svg>',  // @clause design/assets/mercury
+  venus: '<svg width="42" height="42" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg"> <circle cx="21" cy="21" r="21" fill="#E8C98A"/> </svg>',  // @clause design/assets/venus
+  earth: '<svg width="42" height="42" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg"> <circle cx="21" cy="21" r="21" fill="#4F8FE6"/> </svg>',  // @clause design/assets/earth
+  mars: '<svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg"> <circle cx="15" cy="15" r="15" fill="#D1623A"/> </svg>',  // @clause design/assets/mars
+  jupiter: '<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg"> <circle cx="48" cy="48" r="48" fill="#D9A66C"/> </svg>',  // @clause design/assets/jupiter
+  saturn: '<svg width="164" height="78" viewBox="0 0 164 78" fill="none" xmlns="http://www.w3.org/2000/svg"> <circle cx="81.9" cy="39" r="39" fill="#E3CF8E"/> <path d="M89.2368 18.8434C110.062 26.4233 127.661 36.0248 139.285 45.2497C145.123 49.8822 149.187 54.2107 151.473 57.9041C153.804 61.6685 153.777 63.8748 153.364 65.0105C152.95 66.1463 151.553 67.8541 147.347 69.2401C143.222 70.5998 137.326 71.303 129.877 71.0995C115.042 70.6941 95.3894 66.7364 74.564 59.1566C53.7384 51.5766 36.1389 41.9757 24.5145 32.7508C18.677 28.1183 14.6126 23.7898 12.3262 20.0964C9.99579 16.3317 10.0227 14.1248 10.4361 12.9891C10.8495 11.8534 12.2475 10.1463 16.4522 8.76044C20.5777 7.40075 26.4736 6.69749 33.923 6.90102C48.7575 7.30633 68.4111 11.2634 89.2368 18.8434Z" stroke="#E3CF8E" stroke-opacity="0.701961" stroke-width="11.7"/> </svg>',  // @clause design/assets/saturn
+  uranus: '<svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg"> <circle cx="30" cy="30" r="30" fill="#8FD3D9"/> </svg>',  // @clause design/assets/uranus
+  neptune: '<svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg"> <circle cx="30" cy="30" r="30" fill="#111111"/> </svg>',  // @clause design/assets/neptune
+  moon: '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"> <circle cx="6" cy="6" r="6" fill="#CCCCCC"/> </svg>',  // @clause design/assets/moon
+};
+const picture = name => 'data:image/svg+xml,' + encodeURIComponent(ASSETS[name]);
+const clear = hex => hex.slice(0, 7) + '00';  // the same color, fully transparent (gradient ends)
+// @clause end
+
+// @clause bodies/sun looks/colors
+const SUN = { name: 'sun', size: 28, color: COLORS['body/sun'] };
+// @clause end
+
+// @clause bodies/planets looks/colors
+const PLANETS = [
+  { name: 'mercury', size: 4, orbit: 60, days: 88 },  // @clause bodies/planets/Mercury
+  { name: 'venus', size: 12, orbit: 90, days: 225 },  // @clause bodies/planets/Venus
+  { name: 'earth', size: 7, orbit: 125, days: 365 },  // @clause bodies/planets/Earth
+  { name: 'mars', size: 5, orbit: 160, days: 687 },  // @clause bodies/planets/Mars
+  { name: 'jupiter', size: 16, orbit: 230, days: 4333 },  // @clause bodies/planets/Jupiter
+  { name: 'saturn', size: 13, orbit: 300, days: 10759 },  // @clause bodies/planets/Saturn
+  { name: 'uranus', size: 10, orbit: 365, days: 30687 },  // @clause bodies/planets/Uranus
+  { name: 'neptune', size: 10, orbit: 420, days: 60190 },  // @clause bodies/planets/Neptune
+];
+for (const p of PLANETS) p.color = COLORS['planet/' + p.name];
+// @clause end
+
+// @clause bodies/moon looks/colors
+const MOON = { name: 'moon', size: 2, orbit: 14, days: 27, color: COLORS['body/moon'] };
+// @clause end
+
+// @clause bodies/start-places
+const startAngles = Object.fromEntries(
+  [...PLANETS, MOON].map(b => [b.name, Math.random() * Math.PI * 2]));
+// @clause end
+
+// @clause bodies/motion
+function angle(body, days) {
+  return startAngles[body.name] + Math.PI * 2 * (days / body.days);
+}
+function positions(days) {
+  const out = { sun: { x: 0, y: 0, r: SUN.size } };
+  for (const p of PLANETS) {
+    const a = angle(p, days);
+    out[p.name] = { x: Math.cos(a) * p.orbit, y: Math.sin(a) * p.orbit, r: p.size };
+  }
+  const e = out.earth, m = angle(MOON, days);
+  out.moon = { x: e.x + Math.cos(m) * MOON.orbit, y: e.y + Math.sin(m) * MOON.orbit, r: MOON.size };
+  return out;
+}
+// @clause end
+
+// @clause looks/fun-facts
+const FUN_FACTS = {
+  sun: 'The Sun holds about 99.8% of all the mass in the solar system.',
+  mercury: 'A year on Mercury lasts 88 Earth days, but one sunrise to the next takes 176.',
+  venus: 'Venus spins backwards compared with most planets, so there the Sun rises in the west.',
+  earth: 'Earth is the densest planet in the solar system.',
+  mars: 'Mars has the tallest known volcano in the solar system, Olympus Mons, about 22 km high.',
+  jupiter: "Jupiter's Great Red Spot is a storm wider than the whole Earth.",
+  saturn: 'Saturn is less dense than water.',
+  uranus: 'Uranus is tipped on its side: its axis is tilted by about 98 degrees.',
+  neptune: 'Neptune has the fastest winds measured in the solar system, over 2,000 km/h.',
+  moon: 'The Moon always shows Earth the same face, because it turns once per orbit.',
+};
+function table() {
+  return [SUN, ...PLANETS, MOON].map(b => ({ ...b, fact: FUN_FACTS[b.name] }));
+}
+// @clause end
+
+// @clause year
+const YEAR = PLANETS.find(p => p.name === 'earth').days;
+// @clause end
+
+// @clause clock/start clock/speed clock/pause screen/hud/space
+const clock = { days: 0, paused: false, slider: 40 };
+function yearsPerSecond() { return (clock.slider / 100) ** 2; }
+addEventListener('keydown', e => { if (e.code === 'Space') clock.paused = !clock.paused; });
+// @clause end
+
+// @clause clock/real-time year
+const CAP = 0.1;
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min((now - last) / 1000, CAP);
+  last = now;
+  if (!clock.paused) clock.days += dt * yearsPerSecond() * PLANETS[2].days;
+}
+// @clause end
+
+// @clause screen/view/zoom
+const view = { zoom: 1, panX: 0, panY: 0 };
+function resetView() { view.zoom = 1; view.panX = 0; view.panY = 0; }
+// @clause end
+
+// @clause screen/view/fit
+const BARS = { top: 56, bottom: 56 };
+const ROOM = 28, MOST_PX_PER_UNIT = 1;
+function baseScale() {
+  const outer = Math.max(...PLANETS.map(p => p.orbit));
+  const half = Math.min(innerWidth / 2, innerHeight / 2 - Math.max(BARS.top, BARS.bottom));
+  return Math.min(MOST_PX_PER_UNIT, Math.max(0.01, (half - ROOM) / outer));
+}
+// @clause end
+
+// @clause screen/view/units
+function scale() { return baseScale() * view.zoom; }
+function toScreen(p) {
+  const s = scale();
+  return { x: innerWidth / 2 + view.panX + p.x * s, y: innerHeight / 2 + view.panY + p.y * s };
+}
+function toSpace(q) {
+  const s = scale();
+  return { x: (q.x - innerWidth / 2 - view.panX) / s, y: (q.y - innerHeight / 2 - view.panY) / s };
+}
+// @clause end
+
+// @clause screen/view/zoom-step screen/view/zoom
+const ZOOM = { factor: 1.1, min: 0.3, max: 6 };
+function zoomAt(x, y, steps) {
+  const under = toSpace({ x, y });
+  view.zoom = Math.min(ZOOM.max, Math.max(ZOOM.min, view.zoom * ZOOM.factor ** steps));
+  const now = toScreen(under);
+  view.panX += x - now.x;
+  view.panY += y - now.y;
+}
+// @clause end
+
+// @clause screen/view/drag devices
+const CLICK_PX = 4;
+const pointers = new Map();
+let press = null, pinch = null;
+canvas.style.touchAction = 'none';
+const spread = () => { const [a, b] = [...pointers.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+canvas.addEventListener('pointerdown', e => {
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 2) { press = null; pinch = spread(); return; }
+  press = { x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, dragging: false };
+});
+addEventListener('pointermove', e => {
+  if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pinch && pointers.size === 2) {
+    const [a, b] = [...pointers.values()], d = spread(), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    while (d / pinch >= ZOOM.factor) { zoomAt(mx, my, 1); pinch *= ZOOM.factor; }
+    while (pinch / d >= ZOOM.factor) { zoomAt(mx, my, -1); pinch /= ZOOM.factor; }
+    return;
+  }
+  if (!press) return;
+  if (!press.dragging && Math.hypot(e.clientX - press.x, e.clientY - press.y) >= CLICK_PX) press.dragging = true;
+  if (press.dragging) { view.panX += e.clientX - press.lastX; view.panY += e.clientY - press.lastY; }
+  press.lastX = e.clientX;
+  press.lastY = e.clientY;
+});
+addEventListener('pointerup', e => {
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2) pinch = null;
+  if (press && !press.dragging) selectAt(e.clientX, e.clientY);
+  press = null;
+});
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (e.deltaY) zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1 : -1);
+}, { passive: false });
+// @clause end
+
+// @clause screen/select/click screen/select/miss
+const REACH_MIN_PX = 10;
+let selected = null;
+function selectAt(x, y) {
+  let best = null, bestDistance = Infinity;
+  const s = scale();
+  for (const [name, b] of Object.entries(positions(clock.days))) {
+    const p = toScreen(b), d = Math.hypot(p.x - x, p.y - y);
+    if (d <= Math.max(b.r * s, REACH_MIN_PX) && d < bestDistance) { best = name; bestDistance = d; }
+  }
+  selected = best;
+  showPanel();
+}
+function clearSelection() { selected = null; showPanel(); }
+// @clause end
+
+// @clause screen/select/panel
+const panel = document.createElement('div');
+panel.style.cssText = 'position:fixed;top:16px;right:16px;max-width:260px;padding:12px 14px;' +
+  `border-radius:8px;background:${COLORS['ui/panel-bg']};color:${COLORS['ui/panel-text']};` +
+  'font:13px/1.45 system-ui,sans-serif;display:none;';
+document.body.appendChild(panel);
+const PICTURE_PX = 40;
+function orbitTime(days) { return days < YEAR ? `${days} days` : `${(days / YEAR).toFixed(1)} years`; }
+function showPanel() {
+  const b = selected && table().find(t => t.name === selected);
+  panel.style.display = b ? 'block' : 'none';
+  panel.replaceChildren();
+  panel.dataset.picture = b && ASSETS[b.name] ? b.name : '';
+  if (!b) return;
+  const line = (text, css) => { const d = document.createElement('div'); d.textContent = text; d.style.cssText = css; return d; };
+  if (panel.dataset.picture) {
+    const img = Object.assign(document.createElement('img'), { src: picture(b.name), alt: '' });
+    img.style.cssText = `float:left;width:${PICTURE_PX}px;height:${PICTURE_PX}px;object-fit:contain;margin:0 10px 4px 0`;
+    panel.append(img);
+  }
+  panel.append(line(capital(b.name), 'font-weight:600;font-size:15px;margin-bottom:4px'), line(b.fact, ''));
+  if (b.days) panel.append(line('Orbit: ' + orbitTime(b.days), 'margin-top:6px;opacity:.7'));
+}
+// @clause end
+
+// @clause screen/scene/sky
+const SKY = { color: COLORS['sky/background'], stars: 300 };
+document.body.style.background = SKY.color;
+const STARS = Array.from({ length: SKY.stars }, () => ({
+  fx: Math.random(), fy: Math.random(), size: 0.4 + Math.random() * 1.1,
+  phase: Math.random() * Math.PI * 2, rate: 0.4 + Math.random() * 0.8,
+}));
+function starPoints() { return STARS.map(s => ({ x: s.fx * innerWidth, y: s.fy * innerHeight })); }
+function drawSky(t) {
+  ctx.fillStyle = SKY.color;
+  ctx.fillRect(0, 0, innerWidth, innerHeight);
+  ctx.fillStyle = COLORS['sky/star'];
+  for (const s of STARS) {
+    ctx.globalAlpha = 0.45 + 0.3 * Math.sin(t * s.rate + s.phase);
+    ctx.beginPath();
+    ctx.arc(s.fx * innerWidth, s.fy * innerHeight, s.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+// @clause end
+
+// @clause screen/scene/comet screen/ui-colors
+const COMET = { every: 20, crossing: 8, tail: 70 };
+let comet = null, cometWait = 3;
+function launchComet(progress = 0) {
+  const a = Math.random() * Math.PI * 2, far = 560, off = (Math.random() - 0.5) * 300;
+  const ux = Math.cos(a), uy = Math.sin(a);
+  comet = { from: { x: -ux * far - uy * off, y: -uy * far + ux * off },
+            to: { x: ux * far - uy * off, y: uy * far + ux * off }, t: progress };
+}
+function updateComet(dt) {
+  if (comet) {
+    comet.t += dt / COMET.crossing;
+    if (comet.t >= 1) { comet = null; cometWait = COMET.every - COMET.crossing; }
+  } else if ((cometWait -= dt) <= 0) launchComet();
+}
+function cometHead() {
+  if (!comet) return null;
+  const { from, to, t } = comet;
+  return { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
+}
+function drawComet() {
+  const head = cometHead();
+  if (!head) return;
+  const { from, to } = comet, len = Math.hypot(to.x - from.x, to.y - from.y);
+  const p = toScreen(head);
+  const q = toScreen({ x: head.x - (to.x - from.x) / len * COMET.tail, y: head.y - (to.y - from.y) / len * COMET.tail });
+  const tail = ctx.createLinearGradient(p.x, p.y, q.x, q.y);
+  tail.addColorStop(0, COLORS['comet/tail']);
+  tail.addColorStop(1, clear(COLORS['comet/tail']));
+  ctx.strokeStyle = tail;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y);
+  ctx.lineTo(q.x, q.y);
+  ctx.stroke();
+  ctx.fillStyle = COLORS['comet/head'];
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+  ctx.fill();
+}
+// @clause end
+
+// @clause screen/scene/orbits screen/ui-colors
+const ORBIT_PX = 1;
+function drawOrbits(pos) {
+  if (!switches.orbits) return;
+  const s = scale(), c = toScreen(pos.sun), e = toScreen(pos.earth);
+  ctx.strokeStyle = COLORS['ui/orbit'];
+  ctx.lineWidth = ORBIT_PX;
+  const ring = (x, y, r) => { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke(); };
+  for (const p of PLANETS) ring(c.x, c.y, p.orbit * s);
+  ring(e.x, e.y, MOON.orbit * s);
+}
+// @clause end
+
+// @clause looks/light looks/ring looks/colors
+function tint(hex, f) {
+  const n = parseInt(hex.slice(1), 16), c = [n >> 16, (n >> 8) & 255, n & 255];
+  const m = c.map(v => Math.round(f >= 0 ? v + (255 - v) * f : v * (1 + f)));
+  return `rgb(${m[0]},${m[1]},${m[2]})`;
+}
+function drawSun(pos) {
+  const p = toScreen(pos.sun), r = SUN.size * scale();
+  const glow = ctx.createRadialGradient(p.x, p.y, r * 0.6, p.x, p.y, r * 3);
+  glow.addColorStop(0, COLORS['body/sun-glow']);
+  glow.addColorStop(1, clear(COLORS['body/sun-glow']));
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r * 3, 0, Math.PI * 2);
+  ctx.fill();
+  const core = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+  core.addColorStop(0, COLORS['body/sun-core']);
+  core.addColorStop(1, SUN.color);
+  ctx.fillStyle = core;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+  ctx.fill();
+}
+function drawBody(body, b, pos) {
+  const p = toScreen(b), r = Math.max(b.r * scale(), 0.5), sun = toScreen(pos.sun);
+  const d = Math.hypot(sun.x - p.x, sun.y - p.y) || 1, ux = (sun.x - p.x) / d, uy = (sun.y - p.y) / d;
+  const ring = body.name === 'saturn' && { rx: r * 2.1, ry: r * 0.7, tilt: -0.35 };
+  const drawRing = (a0, a1) => {
+    ctx.strokeStyle = COLORS['saturn/ring'];
+    ctx.lineWidth = Math.max(r * 0.3, 1);
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y, ring.rx, ring.ry, ring.tilt, a0, a1);
+    ctx.stroke();
+  };
+  if (ring) drawRing(Math.PI, Math.PI * 2);  // the half behind the planet
+  const lit = ctx.createRadialGradient(p.x + ux * r * 0.5, p.y + uy * r * 0.5, r * 0.1, p.x, p.y, r);
+  lit.addColorStop(0, tint(body.color, 0.35));
+  lit.addColorStop(0.6, body.color);
+  lit.addColorStop(1, tint(body.color, -0.6));
+  ctx.fillStyle = lit;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+  ctx.fill();
+  if (ring) drawRing(0, Math.PI);  // the half in front
+}
+// @clause end
+
+// @clause screen/select/ring screen/ui-colors
+const RING = { width: 2, gap: 4 };
+function drawSelected(pos) {
+  const b = selected && pos[selected];
+  if (!b) return;
+  const p = toScreen(b);
+  ctx.strokeStyle = COLORS['ui/selection'];
+  ctx.lineWidth = RING.width;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, b.r * scale() + RING.gap + RING.width / 2, 0, Math.PI * 2);
+  ctx.stroke();
+}
+// @clause end
+
+// @clause screen/scene/names screen/ui-colors
+const NAME = { size: 12, moon: 30, gap: 3, height: 14 };
+let labels = [];
+const overlap = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+const boxOf = el => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; };
+function placeNames(pos) {
+  if (!switches.names) return [];
+  ctx.font = `${NAME.size}px system-ui, sans-serif`;
+  const taken = [hudBox(), boxOf(bar)];
+  if (panel.style.display !== 'none') taken.push(boxOf(panel));
+  const fromSun = n => Math.hypot(pos[n].x, pos[n].y);
+  const placed = [];
+  for (const name of Object.keys(pos).sort((a, b) => fromSun(a) - fromSun(b))) {
+    const b = pos[name], p = toScreen(b);
+    if (name === 'moon') {
+      const e = toScreen(pos.earth);
+      if (Math.hypot(p.x - e.x, p.y - e.y) < NAME.moon) continue;
+    }
+    const text = capital(name), w = ctx.measureText(text).width;
+    const box = { x: p.x - w / 2, y: p.y + b.r * scale() + NAME.gap, w, h: NAME.height, text };
+    if (taken.some(t => overlap(t, box))) continue;
+    taken.push(box);
+    placed.push(box);
+  }
+  return placed;
+}
+function drawNames(boxes) {
+  ctx.font = `${NAME.size}px system-ui, sans-serif`;
+  ctx.fillStyle = COLORS['ui/label'];
+  ctx.textBaseline = 'top';
+  for (const b of boxes) ctx.fillText(b.text, b.x, b.y + 1);
+}
+// @clause end
+
+// @clause screen/hud/time screen/ui-colors
+const HUD = { x: 16, y: 20, size: 14 };
+function hudText() {
+  const years = Math.floor(clock.days / YEAR);
+  return `Year ${years}, day ${Math.floor(clock.days - years * YEAR)}`;
+}
+function hudBox() {
+  ctx.font = `${HUD.size}px system-ui, sans-serif`;
+  return { x: HUD.x, y: HUD.y, w: ctx.measureText(hudText()).width, h: HUD.size + 4 };
+}
+function drawTime() {
+  ctx.font = `${HUD.size}px system-ui, sans-serif`;
+  ctx.fillStyle = COLORS['ui/time'];
+  ctx.textBaseline = 'top';
+  ctx.fillText(hudText(), HUD.x, HUD.y);
+}
+// @clause end
+
+// @clause screen/draw-order devices
+let lastDraw = null;
+function draw(now) {
+  if (now !== undefined) {
+    if (lastDraw !== null) updateComet(Math.min((now - lastDraw) / 1000, 0.1));
+    lastDraw = now;
+  }
+  const dpr = devicePixelRatio || 1, w = innerWidth, h = innerHeight;
+  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const pos = positions(clock.days);
+  drawSky((now ?? performance.now()) / 1000);
+  drawComet();
+  drawOrbits(pos);
+  drawSun(pos);
+  for (const p of PLANETS) drawBody(p, pos[p.name], pos);
+  drawBody(MOON, pos.moon, pos);
+  drawSelected(pos);
+  labels = placeNames(pos);
+  drawNames(labels);
+  drawTime();
+}
+// @clause end
+
+// @clause screen/hud/controls
+const switches = { orbits: true, names: true };
+// @clause end
+
+// @clause screen/hud/controls clock/slider screen/ui-colors
+const bar = document.createElement('div');
+bar.style.cssText = 'position:fixed;left:16px;bottom:0;height:56px;display:flex;align-items:center;' +
+  `gap:12px;color:${COLORS['ui/controls-text']};font:13px system-ui,sans-serif;`;
+document.body.appendChild(bar);
+function control(el) { el.addEventListener('click', () => el.blur()); bar.appendChild(el); return el; }
+const slider = control(Object.assign(document.createElement('input'),
+  { type: 'range', min: 0, max: 100, value: clock.slider, title: 'Speed' }));
+slider.addEventListener('input', () => { clock.slider = Number(slider.value); });
+slider.addEventListener('change', () => slider.blur());
+const pauseButton = control(document.createElement('button'));
+pauseButton.addEventListener('click', () => { clock.paused = !clock.paused; });
+(function label() { pauseButton.textContent = clock.paused ? 'Play' : 'Pause'; requestAnimationFrame(label); })();
+for (const name of ['orbits', 'names']) {
+  const box = Object.assign(document.createElement('input'), { type: 'checkbox', checked: switches[name] });
+  box.addEventListener('change', () => { switches[name] = box.checked; box.blur(); });
+  const tag = document.createElement('label');
+  tag.append(box, ' ' + name[0].toUpperCase() + name.slice(1));
+  bar.appendChild(tag);
+}
+// @clause end
+
+// @clause screen/hud/reset
+const resetButton = control(Object.assign(document.createElement('button'), { textContent: 'Reset' }));
+resetButton.addEventListener('click', () => { clock.days = 0; resetView(); clearSelection(); });
+// @clause end
+
+// @clause targets/web/probes targets/web/meanings
+const probeErrors = [];
+addEventListener('error', e => probeErrors.push(String(e.message)));
+addEventListener('unhandledrejection', e => probeErrors.push(String(e.reason)));
+let frozen = false;
+const realTick = tick;
+tick = now => { if (!frozen) realTick(now); else last = now; };
+const act = fn => (...args) => { frozen = true; const r = fn(...args); draw(); return r; };
+const controlsByName = {
+  pause: () => pauseButton, reset: () => resetButton,
+  orbits: () => bar.querySelectorAll('input[type=checkbox]')[0],
+  names: () => bar.querySelectorAll('input[type=checkbox]')[1],
+};
+function bodyOnScreen(name) {
+  const b = positions(clock.days)[name];
+  if (!b) return null;
+  const p = toScreen(b);
+  return { x: p.x, y: p.y, r: b.r * scale() };
+}
+function send(type, x, y, pointerId = 1) {
+  const target = type === 'pointerdown' ? canvas : document.elementFromPoint(x, y) || canvas;
+  target.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, pointerId, isPrimary: pointerId === 1, bubbles: true }));
+}
+function wheel(x, y, n) {
+  for (let i = 0; i < Math.abs(n); i++) {
+    canvas.dispatchEvent(new WheelEvent('wheel', { clientX: x, clientY: y, deltaY: n > 0 ? -100 : 100, bubbles: true, cancelable: true }));
+  }
+}
+function layout() {
+  const pos = positions(clock.days), s = scale(), c = toScreen(pos.sun);
+  let top = Infinity, bottom = -Infinity;
+  const add = (a, b) => { top = Math.min(top, a); bottom = Math.max(bottom, b); };
+  if (switches.orbits) {
+    for (const p of PLANETS) add(c.y - p.orbit * s, c.y + p.orbit * s);
+    const e = toScreen(pos.earth);
+    add(e.y - MOON.orbit * s, e.y + MOON.orbit * s);
+  }
+  for (const b of Object.values(pos)) { const p = toScreen(b); add(p.y - b.r * s, p.y + b.r * s); }
+  for (const l of labels) add(l.y, l.y + l.h);
+  const outer = Math.max(...PLANETS.map(p => p.orbit)) * s;
+  return { gapTop: top, gapBottom: innerHeight - bottom,
+           orbitTop: c.y - outer, orbitBottom: innerHeight - (c.y + outer) };
+}
+// colorOf reads what was really painted: the canvas style each draw step ended with
+const hex = css => {
+  const m = css.match(/^#([0-9a-f]{6})([0-9a-f]{2})?$/i);
+  if (m) return ('#' + m[1] + (m[2] && m[2].toLowerCase() !== 'ff' ? m[2] : '')).toUpperCase();
+  const [r, g, b, a = 1] = css.match(/[\d.]+/g).map(Number);
+  const two = v => Math.round(v).toString(16).padStart(2, '0');
+  return ('#' + two(r) + two(g) + two(b) + (a < 1 ? two(a * 255) : '')).toUpperCase();
+};
+const painted = {};
+for (const [name, fn, style] of [['orbits', 'drawOrbits', 'strokeStyle'], ['names', 'drawNames', 'fillStyle'],
+                                  ['time', 'drawTime', 'fillStyle'], ['ring', 'drawSelected', 'strokeStyle'],
+                                  ['comet', 'drawComet', 'fillStyle']]) {
+  const real = window[fn];
+  window[fn] = (...args) => {
+    ctx[style] = 'rgba(0,0,0,0)';  // every draw step sets its own color, so this paints nothing
+    const unset = ctx[style];
+    real(...args);
+    painted[name] = ctx[style] === unset ? null : hex(ctx[style]);  // null: it drew nothing
+  };
+}
+window.__probe = {
+  get time() { return clock.days; },
+  get paused() { return clock.paused; },
+  get speed() { return yearsPerSecond(); },
+  get zoom() { return view.zoom; },
+  get pan() { return { x: view.panX, y: view.panY }; },
+  get selected() { return selected; },
+  get bodies() { return Object.keys(positions(clock.days)); },
+  body: bodyOnScreen,
+  get startAngles() { return { ...startAngles }; },
+  get labels() { return labels.map(({ x, y, w, h }) => ({ x, y, w, h })); },
+  get strokes() {
+    return { orbitLines: switches.orbits ? ORBIT_PX : null, selectionRing: selected ? RING.width : null,
+             nameText: switches.names ? NAME.size : null };
+  },
+  get layout() { return layout(); },
+  get hud() { return hudText(); },
+  get panel() {
+    const lines = [...panel.children].filter(c => c.tagName !== 'IMG').map(c => c.textContent);
+    return { shown: panel.style.display !== 'none', text: lines.join('\n'), fact: lines[1] || null,
+             picture: panel.dataset.picture || null };
+  },
+  colorOf: name => {
+    if (name in painted) { draw(); return painted[name] ?? null; }
+    if (name === 'panel') return hex(getComputedStyle(panel).backgroundColor);
+    if (name === 'controls') return hex(getComputedStyle(bar).color);
+    const b = name === 'sky' ? SKY : [SUN, ...PLANETS, MOON].find(x => x.name === name);
+    if (!b) throw new Error('no body or part "' + name + '"');
+    return hex(b.color);
+  },
+  get errors() { return probeErrors.slice(); },
+  get comet() { const h = cometHead(); return h && toScreen(h); },
+  get stars() { return starPoints(); },
+  step: act(seconds => {
+    if (!clock.paused) clock.days += seconds * yearsPerSecond() * PLANETS[2].days;
+  }),
+  slider: act(v => { slider.value = v; slider.dispatchEvent(new Event('input')); }),
+  setPaused: act(on => { if (clock.paused !== Boolean(on)) pauseButton.click(); }),
+  click: act((x, y) => { send('pointerdown', x, y); send('pointerup', x, y); }),
+  clickBody: act(name => {
+    const b = bodyOnScreen(name);
+    if (!b) throw new Error('no body "' + name + '"');
+    send('pointerdown', b.x, b.y);
+    send('pointerup', b.x, b.y);
+  }),
+  clickNear: act((name, px) => {
+    const b = bodyOnScreen(name), sun = bodyOnScreen('sun');
+    if (!b) throw new Error('no body "' + name + '"');
+    const d = Math.hypot(b.x - sun.x, b.y - sun.y) || 1;
+    const x = b.x + (b.x - sun.x) / d * px, y = b.y + (b.y - sun.y) / d * px;
+    send('pointerdown', x, y);
+    send('pointerup', x, y);
+  }),
+  pinch: act(n => {
+    const x = innerWidth / 2, y = innerHeight / 2, half = 50;
+    const spread = half * ZOOM.factor ** n * (1 + 1e-9);
+    send('pointerdown', x - half, y, 1);
+    send('pointerdown', x + half, y, 2);
+    send('pointermove', x - half + 2 * spread, y, 2);
+    send('pointerup', x - half + 2 * spread, y, 2);
+    send('pointerup', x - half, y, 1);
+  }),
+  zoomSteps: act(n => wheel(innerWidth / 2, innerHeight / 2, n)),
+  zoomAt: act((name, n) => {
+    const b = bodyOnScreen(name);
+    if (!b) throw new Error('no body "' + name + '"');
+    wheel(b.x, b.y, n);
+  }),
+  drag: act((dx, dy) => {
+    const x = innerWidth / 2, y = innerHeight / 2;
+    send('pointerdown', x, y);
+    send('pointermove', x + dx, y + dy);
+    send('pointerup', x + dx, y + dy);
+  }),
+  press: act(key => {
+    const code = key === 'Space' ? 'Space' : key;
+    (document.activeElement || document.body).dispatchEvent(
+      new KeyboardEvent('keydown', { code, key: key === 'Space' ? ' ' : key, bubbles: true }));
+  }),
+  use: act(name => {
+    if (!controlsByName[name]) throw new Error('no control "' + name + '"');
+    const el = controlsByName[name]();
+    el.focus();
+    el.click();
+  }),
+  resize: act((w, h) => {
+    Object.defineProperty(window, 'innerWidth', { value: w, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: h, configurable: true });
+    dispatchEvent(new Event('resize'));
+  }),
+  showComet: act(() => launchComet(0.5)),
+};
+// @clause end
+
+// @clause glue
+function frame(now) { tick(now); draw(now); requestAnimationFrame(frame); }
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
+<!-- @clause end -->

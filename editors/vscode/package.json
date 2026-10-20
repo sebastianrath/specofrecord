@@ -1,0 +1,55 @@
+{
+  "name": "sor-vscode",
+  "displayName": "Spec of Record",
+  "description": "Shows which code comes from which clause of the spec, and whether they still agree.",
+  "publisher": "sor",
+  "version": "0.9.6",
+  "license": "MIT",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Other"],
+  "main": "./src/extension.js",
+  "activationEvents": ["workspaceContains:**/sor/SPECOFRECORD.md", "workspaceContains:**/sor/CLAUSES.md"],
+  "repository": { "type": "git", "url": "https://example.invalid/sor" },
+  "contributes": {
+    "languages": [
+      {
+        "id": "sor-markdown",
+        "aliases": ["Spec of Record"],
+        "filenamePatterns": ["**/sor/**/*.md"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "sor-markdown",
+        "scopeName": "text.html.markdown.sor",
+        "path": "./syntaxes/sor.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      { "command": "sor.refresh", "title": "Spec of Record: Refresh" },
+      { "command": "sor.toggleMarkerLines", "title": "Spec of Record: Toggle marker lines" },
+      { "command": "sor.toggleLivePreview", "title": "Spec of Record: Toggle live preview" },
+      { "command": "sor.showCode", "title": "Spec of Record: Show code of this clause" }
+    ],
+    "configuration": {
+      "title": "Spec of Record",
+      "properties": {
+        "sor.pythonPath": { "type": "string", "default": "", "description": "Python used to run the sor tool. Empty: py -3 on Windows, python3 elsewhere." },
+        "sor.toolPath": { "type": "string", "default": "", "description": "Path of tools/sor.py. Empty: looked for in the project folder and every folder above it." },
+        "sor.hideMarkerLines": { "type": "boolean", "default": true, "description": "Hide the @clause comment lines in code files (display only; the files never change)." },
+        "sor.livePreview": { "type": "boolean", "default": true, "description": "Show spec files formatted while you type: **, braces and backticks hidden except on the line you edit (display only)." }
+      }
+    }
+  },
+  "scripts": {
+    "test": "node test/grammar.js && node test/run.js ../../examples/solar-system",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.0.0",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.0.0"
+  }
+}

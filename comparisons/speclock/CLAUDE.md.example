@@ -1,0 +1,32 @@
+# Project Rules
+
+> Comparison example. `npx speclock protect` reads this file and turns every line that starts
+> with NEVER / ALWAYS / MUST / Keep / Ensure (and similar) into a text lock in
+> .speclock/brain.json. Headings and blockquotes are skipped. The full requirements live in
+> docs/PRD.md; the rules here are the ones a team would want guarded.
+
+## Delivery
+- MUST ship as one HTML file at out/index.html with all CSS and JS inline
+- NEVER load anything from the network; the page must work opened from disk
+- NEVER add a build step, package manager or framework
+
+## State ownership
+- NEVER change simulated time outside the clock code
+- NEVER change zoom or pan outside the camera code
+- NEVER let the scene drawing code write state; it only reads
+
+## Numbers that are decided
+- Keep the body table exactly as in docs/PRD.md (sizes, orbits, orbit days, colors)
+- Keep the zoom step at 1.1x per wheel notch or pinch step
+- Keep zoom limited to between 0.3x and 6x
+- Keep the speed formula (slider / 100)^2 years per second, slider 0 to 100, starting at 40
+- Keep the top and bottom 56 px bars free at the start
+- Keep line widths, names and click reach in screen px; they must never grow with zoom
+
+## Tests
+- ALWAYS keep window.__probe and its members as described in docs/PRD.md
+- NEVER weaken or delete an acceptance test to make it pass
+- ALWAYS run the acceptance tests in headless Chrome before committing
+
+## Scope
+- NEVER add elliptical orbits, true scale, sound, textures, other moons or saving state

@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"$CLAUDE_PROJECT_DIR\"; [ -f \"$d/tools/sor.py\" ] || { d=\"$PWD\"; while [ \"$d\" != / ] && [ ! -f \"$d/tools/sor.py\" ]; do d=$(dirname \"$d\"); done; }; [ -f \"$d/tools/sor.py\" ] || { echo \"sor guard: tools/sor.py not found (CLAUDE_PROJECT_DIR=$CLAUDE_PROJECT_DIR); the edit guard did not run\" >&2; exit 1; }; SOR_ENFORCE_CLAIMS=1 python3 \"$d/tools/sor.py\" hook pre-edit || exit 1",
+            "timeout": 30,
+            "statusMessage": "Checking clauses first"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"$CLAUDE_PROJECT_DIR\"; [ -f \"$d/tools/sor.py\" ] || { d=\"$PWD\"; while [ \"$d\" != / ] && [ ! -f \"$d/tools/sor.py\" ]; do d=$(dirname \"$d\"); done; }; [ -f \"$d/tools/sor.py\" ] || { echo \"sor guard: tools/sor.py not found (CLAUDE_PROJECT_DIR=$CLAUDE_PROJECT_DIR); the edit guard did not run\" >&2; exit 1; }; python3 \"$d/tools/sor.py\" hook post-read || exit 1",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

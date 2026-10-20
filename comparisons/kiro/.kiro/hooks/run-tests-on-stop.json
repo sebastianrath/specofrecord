@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "name": "run-tests-on-stop",
+  "description": "After the agent finishes a turn, run the automated tests; a failure is sent back to the agent.",
+  "enabled": true,
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "command",
+    "command": "npm test --silent"
+  },
+  "timeout": 120
+}

@@ -1,0 +1,10 @@
+{
+  "extraKnownMarketplaces": {
+    "speclock-marketplace": {
+      "source": { "source": "github", "repo": "sgroy10/speclock" }
+    }
+  },
+  "enabledPlugins": {
+    "speclock@speclock-marketplace": true
+  }
+}

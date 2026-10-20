@@ -1,0 +1,8 @@
+#!/bin/sh
+# Runs the Spec of Record tool that ships with this plugin: sor status, sor claim <id>, ...
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "sor: python3 is needed and was not found on the PATH" >&2
+  exit 127
+fi
+here=$(cd "$(dirname "$0")" && pwd)
+exec python3 "$here/../tools/sor.py" "$@"

@@ -1,0 +1,16 @@
+{
+  "specs": [
+    "solar-system.cs.md"
+  ],
+  "whitelisted_files": [
+    "package.json",
+    "package-lock.json"
+  ],
+  "strictManagedFilesControl": true,
+  "test_runner_configurations": {
+    "solar-system.cs.md": {
+      "run_all_tests_command": "node --test --test-reporter=junit --test-reporter-destination={tests_report_file} tests/",
+      "run_all_tests_with_coverage_command": "node --test --test-reporter=junit --test-reporter-destination={tests_report_file} tests/ && node tests/coverage-to-lcov.mjs {tests_coverage_report_file}"
+    }
+  }
+}

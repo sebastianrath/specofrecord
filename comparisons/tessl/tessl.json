@@ -1,0 +1,9 @@
+{
+  "//": "GUESS: tessl.json is the documented project manifest (installed tiles + versions). Its exact schema for Framework settings is not public; only the 'dependencies' shape is shown in third-party write-ups. JSON has no comments, hence this key.",
+  "name": "solar-system",
+  "dependencies": {
+    "tessl-labs/spec-driven-development": {
+      "version": "2.0.1"
+    }
+  }
+}

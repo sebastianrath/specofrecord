@@ -1,0 +1,716 @@
+{
+  "version": 2,
+  "project": {
+    "id": "sl_b6a231f67f95",
+    "name": "speclock",
+    "root": "C:\\Users\\sebastian\\Desktop\\fact\\comparisons\\speclock",
+    "createdAt": "2026-10-16T09:00:00.000Z",
+    "updatedAt": "2026-10-16T09:59:00.000Z"
+  },
+  "goal": {
+    "text": "A calm, good-looking way to watch the planets move and learn one fact about each",
+    "updatedAt": "2026-10-16T09:00:00.000Z"
+  },
+  "specLock": {
+    "items": [
+      {
+        "id": "lock_62aacd8deab7",
+        "text": "MUST ship as one HTML file at out/index.html with all CSS and JS inline",
+        "createdAt": "2026-10-16T09:01:00.000Z",
+        "source": "guardian",
+        "tags": [
+          "delivery"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_5acecfad6540",
+        "text": "NEVER load anything from the network; the page must work opened from disk",
+        "createdAt": "2026-10-16T09:02:00.000Z",
+        "source": "guardian",
+        "tags": [
+          "delivery"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_16c401dea7fc",
+        "text": "NEVER add a build step, package manager or framework",
+        "createdAt": "2026-10-16T09:03:00.000Z",
+        "source": "guardian",
+        "tags": [
+          "delivery"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_edc5b4447d92",
+        "text": "NEVER change simulated time outside the clock code",
+        "createdAt": "2026-10-16T09:04:00.000Z",
+        "source": "guardian",
+        "tags": [
+          "clock",
+          "architecture"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_767fef815455",
+        "text": "NEVER change zoom or pan outside the camera code",
+        "createdAt": "2026-10-16T09:05:00.000Z",
+        "source": "guardian",
+        "tags": [
+          "camera",
+          "architecture"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_93404c4135da",
+        "text": "NEVER let the scene drawing code write state; it only reads",
+        "createdAt": "2026-10-16T09:06:00.000Z",
+        "source": "guardian",
+        "tags": [
+          "scene",
+          "architecture"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_033fe0d7a3aa",
+        "text": "Keep the body table exactly as in docs/PRD.md (sizes, orbits, orbit days, colors)",
+        "createdAt": "2026-10-16T09:07:00.000Z",
+        "source": "guardian",
+        "tags": [
+          "bodies"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_62d7f3c563dd",
+        "text": "Keep the zoom step at 1.1x per wheel notch or pinch step",
+        "createdAt": "2026-10-16T09:08:00.000Z",
+        "source": "guardian",
+        "tags": [
+          "camera"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_6d47c398ae27",
+        "text": "Keep zoom limited to between 0.3x and 6x",
+        "createdAt": "2026-10-16T09:09:00.000Z",
+        "source": "guardian",
+        "tags": [
+          "camera"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_192e7cdef44c",
+        "text": "Keep the speed formula (slider / 100)^2 years per second, slider 0 to 100, starting at 40",
+        "createdAt": "2026-10-16T09:10:00.000Z",
+        "source": "guardian",
+        "tags": [
+          "clock",
+          "controls"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_15a2ccda74af",
+        "text": "Keep the top and bottom 56 px bars free at the start",
+        "createdAt": "2026-10-16T09:11:00.000Z",
+        "source": "guardian",
+        "tags": [
+          "camera"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_9b6b215478dd",
+        "text": "Keep line widths, names and click reach in screen px; they must never grow with zoom",
+        "createdAt": "2026-10-16T09:12:00.000Z",
+        "source": "guardian",
+        "tags": [
+          "units"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_4fb06d51de86",
+        "text": "ALWAYS keep window.__probe and its members as described in docs/PRD.md",
+        "createdAt": "2026-10-16T09:13:00.000Z",
+        "source": "guardian",
+        "tags": [
+          "tests"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_2b28460abc34",
+        "text": "NEVER weaken or delete an acceptance test to make it pass",
+        "createdAt": "2026-10-16T09:14:00.000Z",
+        "source": "guardian",
+        "tags": [
+          "tests"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_871e30144459",
+        "text": "ALWAYS run the acceptance tests in headless Chrome before committing",
+        "createdAt": "2026-10-16T09:15:00.000Z",
+        "source": "guardian",
+        "tags": [
+          "tests"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_7c0960223b8d",
+        "text": "NEVER add elliptical orbits, true scale, sound, textures, other moons or saving state",
+        "createdAt": "2026-10-16T09:16:00.000Z",
+        "source": "guardian",
+        "tags": [
+          "scope"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_aff5748e7f5b",
+        "text": "The page must run without errors or warnings",
+        "createdAt": "2026-10-16T09:17:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "quality"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_7555209fd15e",
+        "text": "Every body, the sun too, must have one true fun fact, one sentence long",
+        "createdAt": "2026-10-16T09:18:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "bodies",
+          "selection"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_8e0a88ae48ed",
+        "text": "Sun must stay size 28, color #FFC93C; moon size 2, orbit 14, 27 days, color #CCCCCC",
+        "createdAt": "2026-10-16T09:19:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "bodies"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_2d42bfb5a6b9",
+        "text": "Saturn's ring must not count toward Saturn's size",
+        "createdAt": "2026-10-16T09:20:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "bodies"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_e4659e9bcf1f",
+        "text": "Each planet and the moon must start at a random place, picked once per run",
+        "createdAt": "2026-10-16T09:21:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "bodies"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_9ae56c327a87",
+        "text": "Orbits must stay clockwise circles: angle = start + full turn x (time / own orbit time); the moon circles Earth's current position",
+        "createdAt": "2026-10-16T09:22:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "bodies"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_fbeda4a34e98",
+        "text": "Clock must start at 0 days and running; while paused time must not move",
+        "createdAt": "2026-10-16T09:23:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "clock"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_ece58f4f0111",
+        "text": "Each frame must add real seconds x speed, counting at most 0.1 s after a long gap",
+        "createdAt": "2026-10-16T09:24:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "clock"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_6dbbd206f8b5",
+        "text": "At start the outermost orbit plus 28 px must fit between the bars, at most 1 px per space unit; base scale recomputed on resize",
+        "createdAt": "2026-10-16T09:25:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "camera"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_a59e3a5425dc",
+        "text": "Start view must be zoom 1x with the sun in the middle of the screen",
+        "createdAt": "2026-10-16T09:26:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "camera"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_7cb90dce5a10",
+        "text": "Zooming must keep the point under the pointer in place",
+        "createdAt": "2026-10-16T09:27:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "camera"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_29ae9f118153",
+        "text": "A press that moves less than 4 px must count as a click, not a drag",
+        "createdAt": "2026-10-16T09:28:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "camera"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_4ea88282bbae",
+        "text": "Sky must stay #05060F with 300 twinkling stars that ignore zoom and pan",
+        "createdAt": "2026-10-16T09:29:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "scene"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_a5509a77460c",
+        "text": "Orbit lines must be 1 px; the selection ring 2 px wide and 4 px outside the body",
+        "createdAt": "2026-10-16T09:30:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "scene"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_2ce8ad39eb70",
+        "text": "Names must be 12 px; when two overlap the one closer to the sun stays; the moon's name shows from 30 px off Earth",
+        "createdAt": "2026-10-16T09:31:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "scene"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_46ab876fc6ae",
+        "text": "Time display must read 'Year 0, day 0' at start, top left, counting years and days",
+        "createdAt": "2026-10-16T09:32:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "scene"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_74695f3edee7",
+        "text": "A comet with a faint tail must cross every 20 s on a path in space units",
+        "createdAt": "2026-10-16T09:33:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "scene"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_21b7027a29a8",
+        "text": "Sun must glow; planets must be brighter on the side facing the sun; Saturn's ring passes behind and in front",
+        "createdAt": "2026-10-16T09:34:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "scene"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_d00b1b2d2a54",
+        "text": "Draw order must stay: sky, stars, comet, orbits, sun, planets, moon, selected ring, names, time",
+        "createdAt": "2026-10-16T09:35:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "scene"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_13dbcb0efd5b",
+        "text": "Pause button must read Pause or Play; Space must do the same even right after any control was clicked",
+        "createdAt": "2026-10-16T09:36:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "controls"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_984ac1d3291a",
+        "text": "Orbits and Names checkboxes must both be on at start",
+        "createdAt": "2026-10-16T09:37:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "controls"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_25862c745c0c",
+        "text": "Reset must restore time 0, start view and no selection, and must keep speed, play/pause and checkboxes",
+        "createdAt": "2026-10-16T09:38:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "controls"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_a39c5bc41d56",
+        "text": "Controls must sit in one small bar at the left of the bottom bar",
+        "createdAt": "2026-10-16T09:39:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "controls"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_5307075d2d2d",
+        "text": "A click must count within a body's on-screen size but at least 10 px",
+        "createdAt": "2026-10-16T09:40:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "selection"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_a117bf6164f7",
+        "text": "If several bodies are in reach, the nearest center must win, never a fixed order",
+        "createdAt": "2026-10-16T09:41:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "selection"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_1ea82e568b48",
+        "text": "Panel must show name, fun fact and orbit time ('88 days', or '11.9 years' from one year up); the sun shows no orbit time",
+        "createdAt": "2026-10-16T09:42:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "selection"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_42f70a189002",
+        "text": "A click on empty space must select nothing and hide the panel",
+        "createdAt": "2026-10-16T09:43:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "selection"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_03584a3e9e70",
+        "text": "Input must support mouse and touch; one wheel notch is one zoom step; drawing must stay sharp on dense screens",
+        "createdAt": "2026-10-16T09:44:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "web"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_4a0d7f079c76",
+        "text": "step(seconds) must move the clock by exactly seconds x speed, with no cap, not while paused",
+        "createdAt": "2026-10-16T09:45:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "tests"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_b7b387cb1119",
+        "text": "Zoom must stay between 0.3x and 6x",
+        "constraintType": "range",
+        "metric": "zoom",
+        "min": 0.3,
+        "max": 6,
+        "unit": "x",
+        "createdAt": "2026-10-16T09:46:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "camera"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_3370b3ad0e65",
+        "text": "Zoom step must equal 1.1x",
+        "constraintType": "numerical",
+        "metric": "zoom_step_factor",
+        "operator": "==",
+        "value": 1.1,
+        "unit": "x",
+        "createdAt": "2026-10-16T09:47:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "camera"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_62b123986aec",
+        "text": "Speed slider must stay between 0 and 100",
+        "constraintType": "range",
+        "metric": "speed_slider",
+        "min": 0,
+        "max": 100,
+        "createdAt": "2026-10-16T09:48:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "clock",
+          "controls"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_ca5c17fed996",
+        "text": "A long frame gap must count at most 0.1 s",
+        "constraintType": "temporal",
+        "metric": "frame_gap_cap_s",
+        "operator": "<=",
+        "value": 0.1,
+        "unit": "s",
+        "createdAt": "2026-10-16T09:49:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "clock"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_24795810b7a9",
+        "text": "Click reach must be at least 10 px",
+        "constraintType": "numerical",
+        "metric": "click_reach_min_px",
+        "operator": ">=",
+        "value": 10,
+        "unit": "px",
+        "createdAt": "2026-10-16T09:50:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "selection"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_8c1429bec288",
+        "text": "There must be exactly 10 bodies",
+        "constraintType": "numerical",
+        "metric": "body_count",
+        "operator": "==",
+        "value": 10,
+        "createdAt": "2026-10-16T09:51:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "bodies"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_3675e0a95826",
+        "text": "There must be exactly 300 stars",
+        "constraintType": "numerical",
+        "metric": "star_count",
+        "operator": "==",
+        "value": 300,
+        "createdAt": "2026-10-16T09:52:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "scene"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_054184780eb7",
+        "text": "At least 90% of requirements proven by a test",
+        "constraintType": "numerical",
+        "metric": "fact_coverage_pct",
+        "operator": ">=",
+        "value": 90,
+        "unit": "%",
+        "createdAt": "2026-10-16T09:53:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "quality"
+        ],
+        "active": true
+      },
+      {
+        "id": "lock_caebc3b2019b",
+        "text": "At least 80% of code lines exercised",
+        "constraintType": "numerical",
+        "metric": "line_coverage_pct",
+        "operator": ">=",
+        "value": 80,
+        "unit": "%",
+        "createdAt": "2026-10-16T09:54:00.000Z",
+        "source": "compiler",
+        "tags": [
+          "quality"
+        ],
+        "active": true
+      }
+    ]
+  },
+  "decisions": [
+    {
+      "id": "dec_6c3f9d164630",
+      "text": "Plain HTML, CSS and JavaScript in one file; no framework, no build",
+      "createdAt": "2026-10-16T09:55:00.000Z",
+      "source": "compiler",
+      "tags": [
+        "architecture"
+      ]
+    },
+    {
+      "id": "dec_0872f7203779",
+      "text": "Six parts: bodies, clock, camera, scene, controls, selection; one owner per piece of state so agents can work on parts in parallel",
+      "createdAt": "2026-10-16T09:56:00.000Z",
+      "source": "compiler",
+      "tags": [
+        "architecture"
+      ]
+    },
+    {
+      "id": "dec_56ca436e360c",
+      "text": "Nearest center wins for clicks, because at start zoom the moon's click area covers Earth",
+      "createdAt": "2026-10-16T09:57:00.000Z",
+      "source": "compiler",
+      "tags": [
+        "selection"
+      ]
+    },
+    {
+      "id": "dec_303897c2f4e2",
+      "text": "Tests run in headless Chrome against window.__probe; coverage from Chrome's built-in coverage",
+      "createdAt": "2026-10-16T09:58:00.000Z",
+      "source": "compiler",
+      "tags": [
+        "tests"
+      ]
+    },
+    {
+      "id": "dec_8eb03312e5a7",
+      "text": "Cap frame gaps at 0.1 s so a hidden tab does not make the planets jump",
+      "createdAt": "2026-10-16T09:59:00.000Z",
+      "source": "compiler",
+      "tags": [
+        "clock"
+      ]
+    }
+  ],
+  "notes": [
+    {
+      "id": "note_3ad09b0a0d9d",
+      "text": "Body table (size / orbit / days / color): Mercury 4/60/88/#B1ADA7, Venus 7/90/225/#E8C98A, Earth 7/125/365/#4F8FE6, Mars 5/160/687/#D1623A, Jupiter 16/230/4333/#D9A66C, Saturn 13/300/10759/#E3CF8E, Uranus 10/365/30687/#8FD3D9, Neptune 10/420/60190/#4468D6",
+      "createdAt": "2026-10-16T09:59:00.000Z",
+      "pinned": true
+    },
+    {
+      "id": "note_536c4f1b0666",
+      "text": "One year = Earth's orbit time, 365 days. px are screen pixels and never grow with zoom; space units grow with zoom.",
+      "createdAt": "2026-10-16T09:59:00.000Z",
+      "pinned": true
+    },
+    {
+      "id": "note_bc7bf04ee90a",
+      "text": "Look is a sketch: glow, shading, ring tilt and fonts are the developer's choice. Feel: calm planetarium, nothing jumps or overlaps.",
+      "createdAt": "2026-10-16T09:59:00.000Z",
+      "pinned": true
+    },
+    {
+      "id": "note_4be0981f76bd",
+      "text": "43 acceptance tests are listed in docs/PRD.md (5 manual). Regressions to keep: bug #3 (Space after Pause), first build drew no stars, first build drew flat circles.",
+      "createdAt": "2026-10-16T09:59:00.000Z",
+      "pinned": true
+    }
+  ],
+  "facts": {
+    "deploy": {
+      "provider": "unknown",
+      "autoDeploy": false,
+      "branch": "",
+      "url": "",
+      "notes": "Static file opened from disk"
+    },
+    "repo": {
+      "defaultBranch": "main",
+      "hasGit": true
+    }
+  },
+  "sessions": {
+    "current": null,
+    "history": []
+  },
+  "state": {
+    "head": {
+      "gitBranch": "main",
+      "gitCommit": "",
+      "capturedAt": "2026-10-16T09:00:00.000Z"
+    },
+    "recentChanges": [],
+    "reverts": [],
+    "violations": []
+  },
+  "events": {
+    "lastEventId": "",
+    "count": 0
+  },
+  "enforcement": {
+    "mode": "advisory",
+    "blockThreshold": 70,
+    "allowOverride": true,
+    "escalationLimit": 3
+  }
+}

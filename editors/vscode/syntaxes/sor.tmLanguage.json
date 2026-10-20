@@ -1,0 +1,230 @@
+{
+  "name": "Spec of Record (Markdown)",
+  "scopeName": "text.html.markdown.sor",
+  "patterns": [
+    {
+      "include": "text.html.markdown"
+    }
+  ],
+  "injections": {
+    "L:text.html.markdown.sor": {
+      "patterns": [
+        {
+          "include": "#header"
+        },
+        {
+          "include": "#section-rules"
+        },
+        {
+          "include": "#section-approach"
+        },
+        {
+          "include": "#section-contract"
+        },
+        {
+          "include": "#section-tests"
+        },
+        {
+          "include": "#item-head"
+        },
+        {
+          "include": "#value-ref"
+        },
+        {
+          "include": "#value-def"
+        },
+        {
+          "include": "#reference"
+        },
+        {
+          "include": "#approach-line"
+        },
+        {
+          "include": "#code-line"
+        },
+        {
+          "include": "#test-line"
+        },
+        {
+          "include": "#raw"
+        }
+      ]
+    }
+  },
+  "repository": {
+    "header": {
+      "match": "^(Why|Owner|Source|Run|Code)(?=:)|(?<=\\.\\s)(Owner|Run|Code|Source)(?=:)",
+      "captures": {
+        "1": {
+          "name": "keyword.other.header.sor"
+        },
+        "2": {
+          "name": "keyword.other.header.sor"
+        }
+      }
+    },
+    "section-rules": {
+      "match": "^(##)\\s+(Rules|Must|Requirements|Behaviou?r|What)\\s*$",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.heading.markdown"
+        },
+        "2": {
+          "name": "markup.heading.section.rules.sor"
+        }
+      }
+    },
+    "section-approach": {
+      "match": "^(##)\\s+(Approach|Notes|How|How it works|Design|Why|Decisions|Ideas)\\s*$",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.heading.markdown"
+        },
+        "2": {
+          "name": "markup.heading.section.approach.sor"
+        }
+      }
+    },
+    "section-contract": {
+      "match": "^(##)\\s+(Contract|Interface|API)\\s*$",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.heading.markdown"
+        },
+        "2": {
+          "name": "markup.heading.section.contract.sor"
+        }
+      }
+    },
+    "section-tests": {
+      "match": "^(##)\\s+(Tests|Checks|Examples|Acceptance|Proof)\\s*$",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.heading.markdown"
+        },
+        "2": {
+          "name": "markup.heading.section.tests.sor"
+        }
+      }
+    },
+    "item-head": {
+      "match": "^(\\s*[-*]\\s+)(?=(?:gives|needs|owns|offers|provides|exports|stores|uses|requires|depends on)\\b|\\*\\*)(?:(gives|needs|owns|offers|provides|exports|stores|uses|requires|depends on)\\b\\s*)?(?:(\\*\\*)([^*\\n]+)(\\*\\*))?",
+      "captures": {
+        "2": {
+          "name": "keyword.other.contract.sor"
+        },
+        "3": {
+          "name": "punctuation.definition.bold.markdown"
+        },
+        "4": {
+          "name": "entity.name.type.item.sor"
+        },
+        "5": {
+          "name": "punctuation.definition.bold.markdown"
+        }
+      }
+    },
+    "value-ref": {
+      "match": "(\\{)\\s*([^{}:\\s]+)\\s*(:)\\s*(=)\\s*([^{}\\s]+)\\s*(\\})",
+      "captures": {
+        "2": {
+          "name": "variable.other.constant.value-name.sor"
+        },
+        "4": {
+          "name": "keyword.operator.comparison.sor"
+        },
+        "5": {
+          "name": "variable.other.reference.sor"
+        }
+      }
+    },
+    "value-def": {
+      "match": "(\\{)\\s*([^{}:\\s]+)\\s*(:)\\s*([^{}\\s=][^{}\\s]*)(?:\\s+([^{}]*?))?\\s*(\\})",
+      "captures": {
+        "2": {
+          "name": "variable.other.constant.value-name.sor"
+        },
+        "4": {
+          "name": "constant.numeric.value.sor"
+        },
+        "5": {
+          "name": "keyword.other.unit.sor"
+        }
+      }
+    },
+    "reference": {
+      "match": "(\\{)([A-Za-z0-9_][^{}:\\s]*)(\\})",
+      "captures": {
+        "2": {
+          "name": "variable.other.reference.sor"
+        }
+      }
+    },
+    "approach-line": {
+      "match": "^(\\s+)(because|try|score|limit)(?=:)",
+      "captures": {
+        "2": {
+          "name": "keyword.control.approach.sor"
+        }
+      }
+    },
+    "test-line": {
+      "begin": "^(\\s+)(each|do|expect|measure|bug|manual|proves|given|when|then|should|shows|by eye|by hand|sign-off|fixes|regression)(?=:)",
+      "beginCaptures": {
+        "2": {
+          "name": "keyword.control.test.sor"
+        }
+      },
+      "end": "$",
+      "patterns": [
+        {
+          "include": "#value-ref"
+        },
+        {
+          "include": "#value-def"
+        },
+        {
+          "include": "#reference"
+        },
+        {
+          "include": "#raw"
+        },
+        {
+          "match": "\\b(changed by|unchanged|is|contains)\\b",
+          "name": "keyword.operator.word.sor"
+        },
+        {
+          "match": "\\bremember\\b",
+          "name": "keyword.other.remember.sor"
+        },
+        {
+          "match": "[=≈±<≤>≥]",
+          "name": "keyword.operator.comparison.sor"
+        },
+        {
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)(?=\\()",
+          "captures": {
+            "1": {
+              "name": "entity.name.function.probe.sor"
+            }
+          }
+        }
+      ]
+    },
+    "raw": {
+      "match": "`[^`\\n]*`",
+      "name": "markup.inline.raw.sor"
+    },
+    "code-line": {
+      "match": "^(\\s+)(code)(:)\\s*(\\S+)",
+      "captures": {
+        "2": {
+          "name": "keyword.other.code.sor"
+        },
+        "4": {
+          "name": "markup.underline.link.code.sor"
+        }
+      }
+    }
+  }
+}
