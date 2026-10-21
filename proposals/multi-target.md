@@ -1,6 +1,6 @@
 # Proposal: more than one code target
 
-Status: Phases 0, 1 and 2 are built (0 and 1 are merged). The decisions for the owner were made on 2026-10-21 (see the end), and nothing else is built. Written the same day after reading the tool and checking the points marked "shown" in a temporary project.
+Status: Phases 0, 1, 2 and the first slice of 3 are built (0 and 1 are merged). Per-target results and claims are open. The decisions for the owner were made on 2026-10-21 (see the end), and nothing else is built. Written the same day after reading the tool and checking the points marked "shown" in a temporary project.
 
 ## The goal
 One spec, code in more than one place: `src_py/` and `src_ts/`, or `src/py/` and `src/ts/`. Tests, environments and the evidence gate have to work with that. A first use is the tool itself, in Python and in TypeScript, so a VS Code user needs no Python.
@@ -89,7 +89,8 @@ Phase 1 built that (`DECISIONS.md`, "The lock has a format number"). Format 1 ha
 - **Phase 0, a bug fix of its own (built and merged):** normalization by file type.
 - **Phase 1 (built and merged):** a lock format version, and refusal by an older reader.
 - **Phase 2, nothing changes in the lock (built):** map regions to targets in the index, `sor check` problems for overlapping roots and reserved names, and a "no code for target" report.
-- **Phase 3:** per-target lock lines with `built`, the behind report and the refusing lock, per-target results and claims, `Targets:` with a root default.
+- **Phase 3, first slice (built):** per-target lock lines with `built`, the behind report and the refusing lock, `--allow-behind`, `Targets:` with a root default (`DECISIONS.md`, "Code per target in the lock").
+- **Phase 3, open:** per-target test results (`--results id@py`) and per-target claims and locks, so that one agent can work on one language of a clause. The second needs a lock of one language to accept the clause's text, and that is not decided.
 - **Phase 4:** per-target evidence and fingerprints.
 
 ## For the Python and TypeScript tool

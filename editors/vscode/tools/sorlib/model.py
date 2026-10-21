@@ -12,8 +12,8 @@ VDEF = re.compile(r'\{([A-Za-z][\w-]*):\s*([^{}]+)\}')
 REF = re.compile(r'\{([^{}:\s][^{}:]*)\}')
 BAD_VDEF = re.compile(r'\{[^{}\s]+:[^\s][^{}]*\}')
 CODE = re.compile(r'`[^`]*`')
-HEADER = re.compile(r'^(Why|Owner|Source|Run|Code|Design):\s*(.*)$')
-SETTING = re.compile(r'(?:^|\.\s+|\s+·\s+)(Why|Owner|Source|Run|Code|Design):\s*')
+HEADER = re.compile(r'^(Why|Owner|Source|Run|Code|Design|Targets):\s*(.*)$')
+SETTING = re.compile(r'(?:^|\.\s+|\s+·\s+)(Why|Owner|Source|Run|Code|Design|Targets):\s*')
 SECTION = re.compile(r'^## (.+?)\s*$')
 SECTIONS = ('Rules', 'Approach', 'Contract', 'Tests')
 # Headings a person may write, and the section each one means (SPEC §15, the plain format). A heading the
@@ -877,6 +877,34 @@ class Project:
         """The names of the targets that declare a path, sorted."""
         return sorted({name for name, _, _ in self.target_paths()})
 
+    def root_part(self):
+        return self.parts.get('')
+
+    def targeted(self):
+        """Whether the project says which targets its clauses apply to: its root file has a `Targets:` line (SPEC §9). Until it
+        does, the lock keeps one code hash for a clause whatever the number of targets, as it always did."""
+        root = self.root_part()
+        return bool(root and root.header.get('Targets', '').strip())
+
+    def targets_of_part(self, part):
+        """The targets the clauses of a part apply to: the nearest `Targets:` of the part or the parts around it, up to the root
+        file's, as a list of names. An empty list when the project is not targeted."""
+        if not self.targeted():
+            return []
+        pid = part.id if part is not None else ''
+        while True:
+            p = self.parts.get(pid)
+            text = p.header.get('Targets', '').strip() if p else ''
+            if text:
+                return [n.strip() for n in text.split(',') if n.strip()]
+            if not pid:
+                return []
+            pid = pid.rpartition('/')[0]
+
+    def applicable_targets(self, key, owners):
+        """The targets a lock key applies to; `owners` maps a lock key to the part it lives in."""
+        return self.targets_of_part(owners.get(key))
+
     def target_of(self, rel):
         """The target a file belongs to: the one whose path is the longest prefix of this project-relative path. None for a file
         in no target's path, and for a path two targets both name (`sor check` reports that)."""
@@ -916,6 +944,23 @@ class Project:
                         out.append(Problem('runs on', f'{item.file}:{item.lineno}',
                                            f'"{env}" is a target, so as an environment it would defer a test that runs here: '
                                            'give the environment another name'))
+        known = set(names)
+        for p in self.parts.values():
+            text = p.header.get('Targets', '').strip()
+            if not text:
+                continue
+            listed_names = [n.strip() for n in text.split(',')]
+            if p.id and not (self.root_part() and self.root_part().header.get('Targets', '').strip()):
+                out.append(Problem('targets', p.rel, 'a `Targets:` line on a part needs the default in the root file first: '
+                                                     'put `Targets:` with every target in `SPECOFRECORD.md`'))
+            if not all(listed_names):
+                out.append(Problem('targets', p.rel, '`Targets:` is a comma-separated list of target names, with none empty'))
+            for n in listed_names:
+                if n and n not in known:
+                    out.append(Problem('targets', p.rel, f'`Targets:` names "{n}", which is no target with a path '
+                                                         f'(targets: {", ".join(names) or "none"})'))
+            if len(set(listed_names)) != len(listed_names):
+                out.append(Problem('targets', p.rel, '`Targets:` names a target twice'))
         for p in self.parts.values():
             if any(piece.startswith('*') for piece in p.id.split('/')):
                 out.append(Problem('name', p.rel, 'a part name may not start with `*`: the lock marks its format with a key '

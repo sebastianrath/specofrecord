@@ -26,6 +26,14 @@ class Region:
         self.end = None
         self.lines = []
         self.keys = []   # lock keys after checking: item/row/part ids, test ids, or glue:<file>
+        self._normalized = {}
+
+    def normalized(self, style):
+        """This region's code as the lock sees it under a style (see `normalized`), worked out once: a clause's hash and the hash of
+        each of its targets both need it. The lines do not change once the scan is made."""
+        if style not in self._normalized:
+            self._normalized[style] = normalized(self.lines, style)
+        return self._normalized[style]
 
     @property
     def where(self):
@@ -316,7 +324,7 @@ def _hash_state(line, open_):
 def code_hash(regions, legacy=False):
     """The hash of the code of these regions: in file and line order, each region normalized by the rule of its file (`legacy`: the
     C-family rule for all), joined by a line that holds a NUL, then SHA-256, the first 12 hex digits. `vectors/hashing.json` pins it."""
-    parts = [normalized(r.lines, 'c' if legacy else style_of(r.file)) for r in sorted(regions, key=lambda r: (r.file, r.start))]
+    parts = [r.normalized('c' if legacy else style_of(r.file)) for r in sorted(regions, key=lambda r: (r.file, r.start))]
     return hashlib.sha256('\n\x00\n'.join(parts).encode('utf8')).hexdigest()[:12]
 
 
@@ -460,6 +468,18 @@ class Scan:
                     by_key.setdefault(k, []).append(r)
             self._hashes[legacy] = {k: code_hash(rs, legacy) for k, rs in by_key.items()}
         return dict(self._hashes[legacy])
+
+    def target_code_hashes(self):
+        """key -> {target -> hash} of the code marked with it, one hash for the regions in each target's paths (`code_hash`). Code in
+        no target's path is under the name `*`, which no target can have. Computed once, like `code_hashes`."""
+        if 'targets' not in self._hashes:
+            by_key = {}
+            for r in sorted(self.regions, key=lambda r: (r.file, r.start)):
+                target = self.project.target_of(r.file) or '*'
+                for k in r.keys:
+                    by_key.setdefault(k, {}).setdefault(target, []).append(r)
+            self._hashes['targets'] = {k: {t: code_hash(rs) for t, rs in by_target.items()} for k, by_target in by_key.items()}
+        return {k: dict(v) for k, v in self._hashes['targets'].items()}
 
     def at(self, file, line):
         file = file.replace('\\', '/')

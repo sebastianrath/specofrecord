@@ -826,8 +826,148 @@
    }
   ]
  },
+ "targets_digest": {
+  "how": "digest(targets) -> hash: text_hash of the lines \"<target>:<code>\" in the order of the target names, joined by LF. It is the `code` of a clause that keeps its code per target.",
+  "rows": [
+   {
+    "name": "one target",
+    "targets": {
+     "py": {
+      "code": "a1b2c3d4e5f6"
+     }
+    },
+    "digest": "31448b7f898b"
+   },
+   {
+    "name": "targets in the order of their names, whatever order they come in",
+    "targets": {
+     "ts": {
+      "code": "0f1e2d3c4b5a"
+     },
+     "py": {
+      "code": "a1b2c3d4e5f6"
+     }
+    },
+    "digest": "6423277cf92e"
+   },
+   {
+    "name": "code in no target is the target `*`",
+    "targets": {
+     "*": {
+      "code": "123456789abc"
+     },
+     "py": {
+      "code": "a1b2c3d4e5f6"
+     }
+    },
+    "digest": "808a40e8988e"
+   }
+  ]
+ },
+ "fold": {
+  "how": "fold(file entries) -> entries: a line of kind \"code\" goes into the entry named by its `of` as targets[<target>] = {code, built}, and that entry gets code = digest(targets); a line without its clause is dropped.",
+  "rows": [
+   {
+    "name": "a line goes into its clause and the clause gets the digest of its targets as its code",
+    "file": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1"
+     },
+     "g/h@py": {
+      "kind": "code",
+      "of": "g/h",
+      "target": "py",
+      "code": "a1b2c3d4e5f6",
+      "built": "text1"
+     },
+     "g/h@ts": {
+      "kind": "code",
+      "of": "g/h",
+      "target": "ts",
+      "code": "0f1e2d3c4b5a",
+      "built": "text0"
+     }
+    },
+    "entries": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1",
+      "code": "6423277cf92e",
+      "targets": {
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "text1"
+       },
+       "ts": {
+        "code": "0f1e2d3c4b5a",
+        "built": "text0"
+       }
+      }
+     }
+    }
+   },
+   {
+    "name": "a clause that keeps one joined code is left as it is",
+    "file": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1",
+      "code": "123456789abc"
+     }
+    },
+    "entries": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1",
+      "code": "123456789abc"
+     }
+    }
+   },
+   {
+    "name": "a line whose clause is not in the file is dropped",
+    "file": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1"
+     },
+     "g/x@py": {
+      "kind": "code",
+      "of": "g/x",
+      "target": "py",
+      "code": "a1b2c3d4e5f6",
+      "built": "text1"
+     }
+    },
+    "entries": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1"
+     }
+    }
+   }
+  ]
+ },
  "lock_render": {
-  "how": "render(entries, fmt) -> text of the lock file: keys sorted, one entry per line, entry keys sorted, separators \", \" and \": \", non-ASCII as written; a fmt above 1 opens with its marker line.",
+  "how": "render(entries, fmt) -> text of the lock file (fmt null: the format the entries need, 2 when a clause has `targets`, else 1): a clause with `targets` loses `targets` and `code` and gets a line `<clause>@<target>` of kind \"code\" per target; keys sorted, one entry per line, entry keys sorted, separators \", \" and \": \", non-ASCII as written; a fmt above 1 opens with its marker line.",
   "rows": [
    {
     "name": "sorted keys, one entry per line, entry keys sorted",
@@ -884,6 +1024,48 @@
      }
     },
     "text": "{\n\"*format\": 2,\n\"a\": {\"kind\": \"part\", \"text\": \"y\"}\n}\n"
+   },
+   {
+    "name": "a clause with code per target: its own line without code, then a line for each target",
+    "fmt": null,
+    "entries": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1",
+      "code": "ignored",
+      "targets": {
+       "ts": {
+        "code": "0f1e2d3c4b5a",
+        "built": "text0"
+       },
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "text1"
+       }
+      }
+     },
+     "g/b": {
+      "kind": "item",
+      "text": "t2",
+      "code": "123456789abc"
+     }
+    },
+    "text": "{\n\"*format\": 2,\n\"g/b\": {\"code\": \"123456789abc\", \"kind\": \"item\", \"text\": \"t2\"},\n\"g/h\": {\"kind\": \"item\", \"refs\": {\"x\": \"r1\"}, \"text\": \"text1\"},\n\"g/h@py\": {\"built\": \"text1\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"py\"},\n\"g/h@ts\": {\"built\": \"text0\", \"code\": \"0f1e2d3c4b5a\", \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"ts\"}\n}\n"
+   },
+   {
+    "name": "the format follows the entries: none with a line is format 1 with no marker",
+    "fmt": null,
+    "entries": {
+     "g/b": {
+      "kind": "item",
+      "text": "t2",
+      "code": "123456789abc"
+     }
+    },
+    "text": "{\n\"g/b\": {\"code\": \"123456789abc\", \"kind\": \"item\", \"text\": \"t2\"}\n}\n"
    }
   ]
  }

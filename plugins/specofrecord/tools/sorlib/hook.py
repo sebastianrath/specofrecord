@@ -22,7 +22,7 @@ from .invoke import CMD, PLUGIN, getenv
 from .markers import Scan
 from .model import LEGACY_LOCK_FILE, LOCK_FILE, PART_FILE_NAME, SPEC_DIR, Project, has_spec
 
-PENDING = ('new', 'changed', 'stale', 'removed')
+PENDING = ('new', 'changed', 'stale', 'removed', 'behind')
 MAX_CONTEXT = 6000
 INDEX_MAX = 1200   # characters of the parts index at session start (SPEC §15)
 
@@ -68,6 +68,9 @@ def where_to_change(project, key):
 class _NoCode:
     """Stands in for a Scan when only the clauses' own text matters."""
     def code_hashes(self, legacy=False):
+        return {}
+
+    def target_code_hashes(self):
         return {}
 
 
@@ -188,8 +191,8 @@ def pre_edit(payload):
     was, _ = lockfile.status(project, before, lock)
     now, _ = lockfile.status(project, after, lock)
     pending = {f.key for f in now if f.status in PENDING}
-    was_drift = {f.key for f in was if f.status == 'drift'}
-    drift = [f for f in now if f.status == 'drift' and f.key not in was_drift]
+    was_drift = {(f.key, f.detail) for f in was if f.status == 'drift'}   # a clause drifting in another target is more drift
+    drift = [f for f in now if f.status == 'drift' and (f.key, f.detail) not in was_drift]
     reasons, by_where = [], {}
     for f in drift:
         by_where.setdefault(f.where or rel, []).append(f.key)

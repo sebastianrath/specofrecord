@@ -48,7 +48,7 @@ def load(args):
 
 
 def problems(project, scan):
-    return project.check() + scan.problems
+    return project.check() + scan.problems + lockfile.line_collisions(project, scan)
 
 
 def home(project, ident):
@@ -194,7 +194,7 @@ def cmd_status(args):
     return 1 if findings else 0
 
 
-PENDING = ('new', 'changed', 'removed', 'stale', 'built')
+PENDING = ('new', 'changed', 'removed', 'stale', 'built', 'behind')
 
 
 def scope_plan(project, scan, old, findings, ids):
@@ -202,7 +202,7 @@ def scope_plan(project, scan, old, findings, ids):
     own and the ones that share a code region with them, since their code is one and the same.
     A clause that shares code but has a change of its own is not pulled in silently: whoever is
     working on it must finish it first, or lock it together."""
-    now = lockfile.snapshot(project, scan)
+    now = lockfile.conform(lockfile.snapshot(project, scan), old, scan)
     universe = set(now) | set(old)
     keys, unknown = claims.footprint(project, universe, ids)
     reasons = [claims.unknown_text(project, universe, unknown)] if unknown else []
@@ -221,7 +221,7 @@ def scope_plan(project, scan, old, findings, ids):
     pending = {f.key: f for f in findings if f.status in PENDING}
     # A clause that shares code but whose entry would not change needs no lock: leave it alone, so a
     # hub like `colors` does not get dragged into every lock.
-    unchanged = {k for k in wide - keys if now.get(k) == old.get(k)}
+    unchanged = {k for k in wide - keys if lockfile.without_built(now.get(k)) == lockfile.without_built(old.get(k))}
     wide -= unchanged
     shared = [k for k in shared if k not in unchanged]
     for k in sorted(wide - keys):
@@ -385,6 +385,11 @@ def cmd_lock(args):
         for r in reasons:
             print('  ' + r)
         return 2
+    allow_behind = [t.strip() for t in (args.allow_behind or '').split(',') if t.strip()]
+    unknown = sorted(set(allow_behind) - set(project.target_names()))
+    if unknown:
+        print(f'lock refused:\n  --allow-behind names {", ".join(unknown)}, which is no target (targets: {", ".join(project.target_names()) or "none"})')
+        return 2
     confirm = [c if '/test:' in c or c.startswith('test:') else lockfile.own_test(c) for c in args.confirm]
     results, external = {}, set()
     if args.run_tests:
@@ -403,7 +408,7 @@ def cmd_lock(args):
     elif args.results:
         with open(args.results, encoding='utf8') as fh:
             results = json.load(fh)
-    entries, more = lockfile.accept(project, scan, results, args.allow_incomplete, findings, old, confirm, scope)
+    entries, more = lockfile.accept(project, scan, results, args.allow_incomplete, findings, old, confirm, scope, allow_behind)
     gave = sorted(k for k, v in results.items() if entries.get(k, {}).get('result') == 'deferred' and (scope is None or k in scope))
     if gave:
         print(f'note: a result for {", ".join(gave)} is not recorded in the lock: it says `runs on:`, so a CI job proves it '
@@ -869,6 +874,9 @@ def build_parser():
                    help='manual tests you checked yourself, e.g. scene/test:bodies')
     s.add_argument('--allow-incomplete', action='store_true',
                    help='lock although some tests did not pass; they are recorded as such')
+    s.add_argument('--allow-behind', metavar='TARGETS',
+                   help='lock a clause although its code in these targets (comma-separated) was accepted for an older text of the '
+                        'clause; they stay listed as behind until their code changes')
     s.add_argument('--rehash', action='store_true',
                    help='rewrite the code hashes made with an older rule (no change is accepted, nothing else is rewritten)')
     s.set_defaults(fn=cmd_lock)

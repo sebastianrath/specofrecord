@@ -15,6 +15,7 @@ Why: <one sentence: why this part exists>          required
 Owner: <team or person>                            optional
 Source: spec | code at <path>                      optional, default: spec
 Design: <tokens.json>, exported from <design file>  optional, root SPECOFRECORD.md only
+Targets: py, ts                                    optional, the targets clauses apply to; a part may override
 
 ## Rules      What must be true?                   goals, rules, numbers, budgets, words
 ## Approach   How is it built, and why that way?   design, child parts, journeys, experiments

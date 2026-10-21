@@ -2,7 +2,8 @@
 
 `hashing.json` holds rows of input and expected output for the rules that decide whether a lock written by one implementation of the
 tool is read as unchanged by another (SPEC section 11): which style a file gets, how lines are split, how code is normalized, how the
-regions of a clause are joined and hashed, how a text is hashed, and how the lock file is written.
+regions of a clause are joined and hashed, how a text is hashed, how the code of a clause per target is digested and folded out of the
+lock file's lines, and how the lock file is written.
 
 An implementation passes when it gives the expected output for every row. The Python tool runs them in `tools/test_sor_vectors.py`;
 a port (for example a TypeScript one, so that an editor needs no Python) loads the same file.

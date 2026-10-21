@@ -18,6 +18,7 @@ Why: <one sentence: why this part exists>          required
 Owner: <team or person>                            optional
 Source: spec | code at <path>                      optional, default: spec
 Design: <tokens.json>, exported from <design file>  optional, root SPECOFRECORD.md only
+Targets: py, ts                                    optional, the targets clauses apply to; a part may override
 
 ## Rules      What must be true?                   goals, rules, numbers, budgets, words
 ## Approach   How is it built, and why that way?   design, child parts, journeys, experiments
@@ -322,12 +323,23 @@ A target is a part under `sor/targets/` that says how code is delivered and test
 
 A file belongs to the target whose `path` is the longest prefix of its project-relative path, so a target may have several paths
 (a page and a folder of tests) and a deeper path of another target wins (`src/` and `src/ts/`). A project may have several targets,
-for example `src_py/` and `src_ts/`; the lock does not tell them apart yet (§11). `sor check` reports as problems: a path that two
+for example `src_py/` and `src_ts/`. Until the root file says which targets the clauses apply to, the lock does not tell them apart (§11).
+`sor check` reports as problems: a path that two
 targets both name (no file belongs to either), a target named `glue`, `test` or `ROOT` (lock keys start with those), and a part whose
 name starts with `*`. With two targets or more it also reports a `Source: code at` area in no target's path, and a `runs on:` environment
 named like a target (it would defer a test that runs here). With one target the two checks that need two targets are skipped. A note, not a problem, says
 `N clause(s) have code in py but none in ts` for each target that lacks code another target has; a clause with no code anywhere, glue and
 test code are not counted.
+
+**`Targets:`** in the root file (`Targets: py, ts`) says which targets the clauses apply to, and the lock then keeps a clause's code per
+target (§11). A part may say `Targets: py` to override it, and the parts inside it follow; a part has nothing to override until the root
+file has the default. A target that applies to a clause is **behind** when its code was accepted for an older text of the clause, which
+is what happens to a language nobody rebuilt after the clause changed, or after a person changed the code of another language and the
+clause was brought in line with it. `sor status` lists what is behind with the recompile group, naming the targets, and `sor lock`
+refuses to lock a clause while a target that applies to it would stay behind. `sor lock --allow-behind ts` locks it anyway, and `ts`
+stays listed as behind until its code changes: nothing else clears it, and nothing lets an agent say that a language already fits.
+`sor check` reports as problems a `Targets:` that names no target, names one twice or has an empty name, and a `Targets:` on a part
+when the root file has none; and a clause whose lock line `clause@target` (§11) is also the name of something else.
 
 ## 10. Code markers
 - Every generated line sits in one region: `@clause <id> [<id> …]` … `@clause end`, written in the
@@ -377,9 +389,18 @@ test code are not counted.
   splitting of lines, the normalization of code, the hash of the regions of a clause, the hash of a text and the text of the lock file,
   written by hand and hashed with SHA-256 alone. An implementation of the tool, in any language, has to give the same answer for every
   row, or a lock written by one shows as drift in the other (`tools/test_sor_vectors.py` runs them for the Python tool).
-- **The lock has a format number.** The lock format described here is number 1. Format 1 has no marker in the file: a lock written
-  before the number existed is format 1, and a project that stays in format 1 keeps the same bytes. A later format opens the file with
-  `"*format": N`, a plain number and not an entry, and no item, row, value, test or glue key can start with `*`. A tool that reads a
+- **A project that says its targets keeps a clause's code per target (`Targets:`, §9).** The clause's entry keeps its text and
+  references, and each target with code gets a line of its own, `greet/hello@py`, with `kind: code`, `of` (the clause), `target`,
+  `code` (the hash of the code in that target's paths, in file and line order) and `built` (the text hash of the clause that code was
+  accepted for). Code in no target's path is under the target `*`. The clause has no `code` of its own then, so two agents working on
+  two languages write different lines. Tests and glue keep one joined hash. Locking a clause gives each target whose code is new or
+  changed since the last lock `built` = the clause's text now; a target whose code is the same keeps the `built` it had, which is how
+  it ends up behind (§9). A lock made before the project said its targets (one joined `code`) is read as it is: nothing is behind and
+  nothing is drift, and a clause moves to lines when it is next locked. The file holds both kinds until every clause has been locked.
+- **The lock has a format number.** The lock format described here is number 2. Format 1 has no marker in the file: a lock written
+  before the number existed is format 1, and a project that has no per-target lines keeps the same bytes. Format 2 opens the file with
+  `"*format": 2`, a plain number and not an entry, and is written exactly when a clause has per-target lines; no item, row, value, test
+  or glue key can start with `*`. A tool that reads a
   number it does not know stops with exit 2, says to update, and changes nothing. That covers `sor status`, `sor lock` in every form
   (a lock that a newer tool wrote while it was running is not replaced either), `sor changes`, and `sor test` when it runs tests.
   `sor check`, `sor parts`, `sor show` and the other commands that never read the lock go on working. The edit hook refuses edits to
@@ -450,7 +471,7 @@ with `-C <folder>`:
 | `sor lock --rehash` | the one-time rewrite after the rule for hashing code changed (§11): an entry whose code is unchanged under the old rule gets the new hash, and `text`, `refs` and results stay as they are. It takes nothing else and accepts no change |
 | `sor test --strength [id …]` | test strength (§8): reruns each passing test with every value it refers to changed; lists weak tests and the value that did not matter, and the passing tests it could not vary (`IDLE`) |
 | `sor lock [--run-tests \| --results F] [--confirm test …] [--allow-incomplete]` | writes the lock; refuses on problems, drift, or tests that did not pass. What a scoped lock waits for is in §16. With both `--run-tests` and `--results F`, F gives the results of the EXTERNAL tests only (§8). The refusal for tests without a result says `N test(s) did not pass (F failed, M not run)`, lists the first ten and the way out: with no web target a `manual:` line for a test nobody can run yet, or `--results F` for a test in the project's own framework; with a web target `sor lock --run-tests`, adding `--results F` for a test marked `@clause test <id>`; and `--allow-incomplete` in both |
-| `sor lock [<id …> \| --all]` | accepts the named clauses only, none of the child parts under them unless named (§11); with no ids, what you claimed, and the child parts under a claimed part that have a change of their own (new, changed or removed; parts made after the claim too): it prints `locking the parts under them too: …`, and leaves out a child part that another agent's claim overlaps, naming it (`not locking audio/mixer, which is claimed: …`); `ROOT` is not expanded; `--all` the whole project (§16). Refused while someone else claims them. With no ids and every claim of the agent expired, it is refused and says so; when only some expired, it warns (§16) |
+| `sor lock [<id …> \| --all] [--allow-behind TARGETS]` | accepts the named clauses only, none of the child parts under them unless named (§11); with no ids, what you claimed, and the child parts under a claimed part that have a change of their own (new, changed or removed; parts made after the claim too): it prints `locking the parts under them too: …`, and leaves out a child part that another agent's claim overlaps, naming it (`not locking audio/mixer, which is claimed: …`); `ROOT` is not expanded; `--all` the whole project (§16). Refused while someone else claims them. With no ids and every claim of the agent expired, it is refused and says so; when only some expired, it warns (§16) |
 | `sor claim <id …> [--as NAME] [--ttl 30m]` | says you are working on these clauses and for how long: `claimed audio until 00:31 (30 min)`; exit 3 and who holds them when someone else is: the refusal names the ids in the way, and says when the others asked for were free but not claimed either, for a claim takes all its ids or none (§16) |
 | `sor release [id … \| --all] [--as NAME] [--force]` | gives claims up again. A caller that names itself (`--as NAME` or `SOR_AGENT`) frees only that agent's claims; releasing another agent's claim by id prints `NOT released (held by someone else; --force overrides)` and exits 3. A caller that gives no name (the parent, or the only agent) frees every claim made in its session (§16). `--force` overrides. Claims that had expired are named: `nothing to release: your claims on X expired at 00:31`, or the same as a `note:` beside what was released |
 | `sor markers [id \| file:line]` | where an item's code is, or which clauses a line of code serves; `--json` gives every region with the `targetName` of the target its file belongs to (null when it belongs to none) |

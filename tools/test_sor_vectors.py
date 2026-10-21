@@ -27,7 +27,7 @@ from sorlib.model import split_lines         # noqa: E402
 PATH = os.path.join(REPO, 'vectors', 'hashing.json')
 with open(PATH, encoding='utf8') as fh:
     VECTORS = json.load(fh)
-CATEGORIES = ('style_of', 'split_lines', 'normalize', 'code_hash', 'text_hash', 'lock_render')
+CATEGORIES = ('style_of', 'split_lines', 'normalize', 'code_hash', 'text_hash', 'targets_digest', 'fold', 'lock_render')
 
 
 def rows(category):
@@ -54,6 +54,8 @@ class TestTheFile(unittest.TestCase):
             self.assertEqual(r['hash'], sha(r['normalized']), r['name'])
         for r in rows('text_hash'):
             self.assertEqual(r['hash'], sha(r['input']), r['name'])
+        for r in rows('targets_digest'):
+            self.assertEqual(r['digest'], sha('\n'.join(f'{t}:{r["targets"][t]["code"]}' for t in sorted(r['targets']))), r['name'])
 
     def test_the_hashes_the_tool_pinned_before_the_rule_followed_the_file_type_are_rows(self):
         pinned = {r['hash'] for r in rows('normalize') if r['style'] == 'c'}
@@ -93,10 +95,20 @@ class TestEveryRow(unittest.TestCase):
             with self.subTest(r['name']):
                 self.assertEqual(lockfile.h(r['input']), r['hash'])
 
+    def test_targets_digest(self):
+        for r in rows('targets_digest'):
+            with self.subTest(r['name']):
+                self.assertEqual(lockfile.digest(r['targets']), r['digest'])
+
+    def test_fold(self):
+        for r in rows('fold'):
+            with self.subTest(r['name']):
+                self.assertEqual(lockfile.fold(json.loads(json.dumps(r['file']))), r['entries'])
+
     def test_lock_render(self):
         for r in rows('lock_render'):
-            with self.subTest(r['name']), mock.patch.object(lockfile, 'FORMAT', max(lockfile.FORMAT, r['fmt'])):
-                self.assertEqual(lockfile.render(r['entries'], r['fmt']), r['text'])
+            with self.subTest(r['name']), mock.patch.object(lockfile, 'FORMAT', max(lockfile.FORMAT, r['fmt'] or 1)):
+                self.assertEqual(lockfile.render(json.loads(json.dumps(r['entries'])), r['fmt']), r['text'])
 
 
 if __name__ == '__main__':

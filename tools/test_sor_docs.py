@@ -170,7 +170,7 @@ class TestNumbersInTheDocuments(unittest.TestCase):
     def test_the_lock_format_spec_gives_is_the_one_in_the_code(self):
         spec = flat(read('SPEC.md'))
         self.assertEqual({int(n) for n in re.findall(r'lock format described here is number (\d+)', spec)}, {lockfile.FORMAT})
-        self.assertIn(f'`"{lockfile.FORMAT_KEY}": N`', spec)
+        self.assertIn(f'`"{lockfile.FORMAT_KEY}": {lockfile.FORMAT}`', spec)
 
     def test_the_claim_lifetime_the_skill_documents_give_is_the_one_in_the_code(self):
         minutes = claims.DEFAULT_TTL // 60

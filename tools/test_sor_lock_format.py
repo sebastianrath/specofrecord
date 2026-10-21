@@ -128,14 +128,15 @@ class TestAFormatThisToolDoesNotRead(Locked):
 
 
 class TestALaterFormatRoundTrip(Locked):
-    """A later tool, made here by moving FORMAT: it writes its marker first, and a tool with the real FORMAT refuses it."""
+    """A later tool, made here by moving FORMAT one up: it writes its marker first, and a tool with the real FORMAT refuses it."""
+    LATER = lockfile.FORMAT + 1
 
     def test_the_marker_is_the_first_line_and_the_entries_come_back_without_it(self):
         project = Project(self.dir)
         entries = lockfile.read(project)
-        with mock.patch.object(lockfile, 'FORMAT', 2):
-            lockfile.write(project, entries, fmt=2)
-            self.assertEqual(read(self.path).split('\n')[1], '"*format": 2,')
+        with mock.patch.object(lockfile, 'FORMAT', self.LATER):
+            lockfile.write(project, entries, fmt=self.LATER)
+            self.assertEqual(read(self.path).split('\n')[1], f'"*format": {self.LATER},')
             self.assertEqual(lockfile.read(project), entries)
         with self.assertRaises(lockfile.LockFormatError):
             lockfile.read(project)
@@ -143,8 +144,8 @@ class TestALaterFormatRoundTrip(Locked):
 
     def test_the_marker_does_not_move_the_other_lines(self):
         entries = lockfile.read(Project(self.dir))
-        with mock.patch.object(lockfile, 'FORMAT', 2):
-            self.assertEqual(lockfile.render(entries, 2).split('\n', 2)[2], lockfile.render(entries).split('\n', 1)[1])
+        with mock.patch.object(lockfile, 'FORMAT', self.LATER):
+            self.assertEqual(lockfile.render(entries, self.LATER).split('\n', 2)[2], lockfile.render(entries).split('\n', 1)[1])
 
 
 class TestRunningTestsOnALockItCannotRead(flows.Flow):
@@ -171,7 +172,7 @@ class TestTheEditGuardOnALockItCannotRead(Locked):
     def test_an_edit_to_code_is_refused_with_the_reason_and_an_edit_to_a_clause_is_not(self):
         self.mark(lockfile.FORMAT + 1)
         said = flows.reason(hook.pre_edit(flows.edit(self.app, '"Hello"', '"Hi"')))
-        self.assertIn('lock format 2', said)
+        self.assertIn(f'lock format {lockfile.FORMAT + 1}', said)
         self.assertIn('Update sor', said)
         self.assertIn('edits to code are refused', said)
         self.assertIsNone(flows.reason(hook.pre_edit(flows.edit(os.path.join(self.spec, 'greet.md'), '{text: Bye}', '{text: Ciao}'))))

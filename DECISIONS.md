@@ -738,7 +738,7 @@ apart from the new field.
 a hash would read each other's lock as drift, so the rules are written down as data before there is a second copy.
 - **`vectors/hashing.json`, language neutral,** with six kinds of rows: the style of a path, the splitting of lines, the normalization of
   code, the hash of the regions of a clause (order, join and rule per file type), the hash of a text, and the exact text of a lock file.
-  89 rows, each with a name so a failure names it. It sits outside `tools/` on purpose: that folder is copied into the plugin and the
+  The rows number in the dozens, each with a name so a failure names it. It sits outside `tools/` on purpose: that folder is copied into the plugin and the
   extension, and the rows are for implementations, not for users of one.
 - **Written by hand, hashed independently.** The expected texts were derived from the rules, and each hash was computed with SHA-256 alone.
   The three hashes the tool had pinned (TypeScript, C, HTML) came out the same, which is the check that the rows are not just the tool's output
@@ -747,6 +747,42 @@ a hash would read each other's lock as drift, so the rules are written down as d
   C-family rule that locks already depend on, so it is a row, marked as a limit.
 - `markers.code_hash` is the one function that hashes the regions of a clause, so the rows test the real path and not a copy of it.
 - **Not covered:** the evidence fingerprint and the status of a clause, which need a parsed project; a port needs the model first.
+
+## Code per target in the lock: lines, `built`, and "behind" (2026-10-21)
+Phase 3, first slice, of `proposals/multi-target.md`. Built on the decisions of that day: a line per clause and target, a root default with part
+overrides, and a lock that refuses while a target is behind unless a flag allows it. Checked on a scratch copy of a large outside project
+(274 parts, 1142 regions): adding `Targets: native` shows only the root file as changed, locking writes 460 lines (the lock grows 8%),
+a second lock gives the same bytes, and `sor status` takes 0.5 s.
+- **File shape, memory shape.** In the file a clause keeps `text` and `refs`, and each target with code has its own line `K@t` (`kind: code`,
+  `of`, `target`, `code`, `built`); the clause has no `code`, so two agents on two languages write different lines. In memory `read` folds the
+  lines into the clause's entry (`entry['targets']`) and sets its `code` to a digest of the targets', and `write` unfolds them. That is why
+  `checked_manual`, the evidence fingerprint, status, the scope of a lock, the hook and claims did not change: each still compares one `code`.
+  Rejected: a joined `code` kept on the clause line (a lock of one language would accept the other's unfinished code, and two agents would
+  write the same line) and lines everywhere in the code of the tool (every reader of `code` rewritten).
+- **The format follows the entries.** `render` writes format 2, with its marker, exactly when a clause has lines, and refuses a caller that
+  names a lower number; a project with no lines keeps format 1 and its bytes (the render test of both real locks covers it). Tests and glue
+  keep one joined hash, and code in no target's path is under the target `*`, which no part name can start with.
+- **Opt-in by the root file.** `Targets: py, ts` in `SPECOFRECORD.md` turns it on; a part's `Targets:` overrides it for the part and the parts
+  inside. Two targets without the line keep the old lock. A lock made before is read as it is (one joined hash per clause, no drift, nothing
+  behind) and a clause moves to lines when it is next locked, trusting its code then (`built` = the text). A lock may hold both kinds, and a
+  project that drops the line is read the same way back.
+- **Behind.** A target that applies to a clause is behind when its line's `built` is not the locked text. Locking gives a target `built` = the
+  text only if its code is new or changed since the last lock, so a language nobody touched falls behind when the clause changes, and a language
+  a person changed stays current. `sor status` lists it with the recompile group (a finding with the target in its detail, so the JSON has no new
+  key); drift names the languages that moved; rebuilding a language that is behind is "behind (being rebuilt)" and not drift, so the edit guard lets
+  it through while drift in a second language is refused (the guard compares a finding by its key and detail).
+- **The lock refuses, a flag allows.** `sor lock` names the targets that would stay behind. `--allow-behind ts` locks the clause anyway and `ts`
+  stays listed until its code changes. There is no way to say that a language already fits a changed clause, which is the conservative choice
+  and the user's to override: a wording change costs a code change in every language, or the flag. The skill tells an agent to rebuild, and to use
+  the flag only when the user says so.
+- **Not done, and why.** Per-target test results (a test's result per language, `--results id@py`) and per-target claims and locks (one agent
+  per language on one clause) are the next slices. Both change what "a test passed" and "a clause is locked" mean, and the second needs a lock
+  of one language to accept the clause's text, which is not decided. They are open in the proposal.
+- **Known:** the VS Code extension does not know the status `behind`, so a lens shows nothing for it (the JS is its own project and not changed
+  here). A key `K@t` that is also the name of something else is a problem in `sor check`. Evidence fingerprints change when a project starts
+  keeping its code per target, so its jobs write the evidence again.
+- `Region.normalized` works out a region's normalized code once; both hashes of a clause need it, and `sor status` on that project went from
+  0.73 s to 0.5 s.
 
 ## Still open
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for
