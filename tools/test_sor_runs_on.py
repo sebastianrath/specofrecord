@@ -380,6 +380,14 @@ class TestTheEvidenceFormat(Gate):
         data = json.loads(self.verify('--json')[1])
         self.assertEqual(data['sources'], {'win-ci': {'commit': 'abc1234def5678', 'run': 'ci-7'}})
 
+    def test_a_long_run_id_is_shown_whole_and_only_the_commit_is_cut(self):
+        run = '1234567890123456'
+        self.written('win-ci', 'windows', '--commit', 'a' * 40, '--run', run)
+        self.written('linux-ci', 'linux')
+        out = self.verify()[1]
+        self.assertIn(f'commit {"a" * 12}, run {run})', out)
+        self.assertNotIn('a' * 13, out)
+
     def test_a_format_this_tool_does_not_read_is_refused_with_a_message_to_update(self):
         self.by_hand('linux-ci', format=evidence.FORMAT + 1, **{'from': {'run': 'ci-7'}})
         code, out = self.verify()

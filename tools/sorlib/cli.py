@@ -11,7 +11,7 @@
     sor test [ID ...] [--out F]   run the tests in headless Chrome against the web target's probes
     sor test --strength [ID ...]  rerun each passing test with every value it refers to changed
     sor test --list [ID ...] [--provides NAMES] [--all]  the tests a run would run and the ones it leaves to CI; runs nothing
-    sor evidence --job NAME --provides NAMES --results F  write what a CI job proved about the tests that say `runs on:`
+    sor evidence --job NAME --provides NAMES --results F [--commit SHA] [--run ID]  write what a CI job proved about the tests that say `runs on:`
     sor verify [FILE|FOLDER ...]  the gate: every test that says `runs on:` has a current pass in every environment it names
     sor lock [IDS|--all] [--run-tests]  accept clauses, code and test results: IDS, else what you claimed (--all: the whole project)
     sor claim IDS --as NAME       say you are working on these clauses; refused (exit 3) when someone else is
@@ -806,7 +806,7 @@ def cmd_verify(args):
 
     def job_label(job):
         src = sources.get(job)
-        return job + (' (' + ', '.join(f'{k} {v[:12]}' for k, v in sorted(src.items())) + ')' if src else '')
+        return job + (' (' + ', '.join(f'{k} {v[:12] if k == "commit" else v}' for k, v in sorted(src.items())) + ')' if src else '')
     if args.json:
         print(json.dumps({'ok': not bad, 'tests': rows, 'unknown': [{'job': j, 'test': k} for j, k in stray],
                           'sources': sources}, indent=2))

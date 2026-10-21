@@ -708,7 +708,8 @@ The lock got a format number in Phase 1; evidence files, the other file a later 
   digits, dots, dashes and underscores. `sor verify` names them next to the job and has them under `sources` in `--json`. The gate does not
   use them: a result counts by its fingerprint, not by the commit it ran on.
 - **Old readers refuse loudly.** The reader of a tool from before the number accepts exactly three keys, so it refuses a format 2 file
-  (exit 2, "exactly the keys job, provides and results") instead of misreading it. That is the wanted property, and the reason provenance
+  (exit 2, "exactly the keys job, provides and results") instead of misreading it; shown by running `sor verify` of the tool before this change
+  on a format 2 file. That is the wanted property, and the reason provenance
   is a format and not an optional extra key.
 - **Not done:** the claims file is still unversioned. Claims last 30 minutes, so a file from another version rarely meets a reader.
 
