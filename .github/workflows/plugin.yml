@@ -1,0 +1,93 @@
+# Builds the Claude Code plugin (plugins/specofrecord, with its bundled copy of the `sor` tool) as a zip.
+#
+# Every push and pull request: the unit tests, then `plugins/build-plugin.py`, which checks that the bundled copy of
+# tools/ is current, zips the plugin, unpacks the zip into a folder with a space in its name and runs it from unrelated
+# folders (the launcher, a symlink to it, the commands that start a project, and the hook commands from hooks.json).
+# The tool needs Python 3.9 and nothing else, so one job runs in the python:3.9 image and the others on a current Python.
+#
+# Release: push a tag `plugin-v<version>` where <version> is the one in plugins/specofrecord/.claude-plugin/plugin.json,
+#   git tag plugin-v0.3.1 && git push origin plugin-v0.3.1
+# The zip and its checksum are then attached to a GitHub release. Marketplace installs read the committed
+# plugins/specofrecord folder, not this zip: the zip is for `claude --plugin-dir` and for people without the marketplace.
+name: Plugin
+
+on:
+  push:
+    branches: [main]
+    tags: ['plugin-v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: plugin-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  python39:
+    name: Build on Python 3.9
+    runs-on: ubuntu-latest
+    container: python:3.9
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python version
+        run: python3 --version
+      - name: Compile every file
+        run: python3 -m compileall -q tools plugins
+      - name: Unit tests
+        run: python3 -m unittest discover -s tools -p 'test_*.py'
+      - name: Build the plugin and smoke test the zip
+        run: |
+          args=""
+          case "$GITHUB_REF" in
+            refs/tags/plugin-v*) args="--expect-version ${GITHUB_REF_NAME#plugin-v}" ;;
+          esac
+          python3 plugins/build-plugin.py --out dist $args
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin
+          path: dist/
+          if-no-files-found: error
+
+  latest:
+    name: Build on ${{ matrix.os }}, current Python
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Unit tests
+        run: python3 -m unittest discover -s tools -p 'test_*.py'
+      - name: Build the plugin and smoke test the zip
+        run: python3 plugins/build-plugin.py --out dist
+
+  release:
+    name: Attach the zip to a release
+    if: startsWith(github.ref, 'refs/tags/plugin-v')
+    needs: [python39, latest]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: plugin
+          path: dist
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#plugin-v}"
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" \
+              --title "Claude Code plugin $version" --generate-notes
+          fi
