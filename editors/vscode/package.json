@@ -3,7 +3,7 @@
   "displayName": "Spec of Record",
   "description": "Shows which code comes from which clause of the spec, and whether they still agree.",
   "publisher": "sor",
-  "version": "0.9.7",
+  "version": "0.9.8",
   "license": "MIT",
   "engines": { "vscode": "^1.80.0" },
   "categories": ["Other"],
