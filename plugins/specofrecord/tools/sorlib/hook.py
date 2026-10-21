@@ -67,7 +67,7 @@ def where_to_change(project, key):
 
 class _NoCode:
     """Stands in for a Scan when only the clauses' own text matters."""
-    def code_hashes(self):
+    def code_hashes(self, legacy=False):
         return {}
 
 

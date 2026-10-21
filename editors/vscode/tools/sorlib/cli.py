@@ -177,6 +177,12 @@ def cmd_status(args):
             print(line)
         for line in lockfile.deferred_lines(project, deferred):
             print(line)
+        stale = lockfile.old_rule_keys(old, scan)
+        if stale:
+            print(f'note: {len(stale)} locked code hash(es) were made with the rule every file followed before it followed the file '
+                  'type (Python indentation and `#` comments, for one). `sor lock --rehash` rewrites them and accepts no change; until '
+                  'then a change only the old rule ignores is not seen.')
+            print()
         if not old and not args.all:
             print(f'{len(findings)} new entries (--all lists them)')
         if not_passed:
@@ -275,6 +281,28 @@ def with_holder(project, me, problem):
     return str(problem) + (f'  (in {item.id}, claimed by {" and ".join(sorted({c["agent"] for c in theirs}))})' if theirs else '')
 
 
+def cmd_rehash(args, project, scan):
+    """`sor lock --rehash`: the one-time rewrite SPEC §11 describes when the rule for hashing code changes. Only the code hash of an
+    entry whose code is unchanged under the old rule is replaced; text, refs and results stay as they are, and nothing is accepted."""
+    if args.ids or args.all or args.run_tests or args.results or args.confirm or args.allow_incomplete:
+        print('lock refused:\n  --rehash takes nothing else: it rewrites hashes and accepts no change')
+        return 2
+    try:
+        with claims.lock_mutex(project):
+            current = lockfile.read(project)
+            stale = lockfile.old_rule_keys(current, scan)
+            if stale:
+                lockfile.write(project, lockfile.upgrade(current, scan))
+    except (claims.ClaimError, lockfile.LockWriteError) as e:
+        print(f'lock: {e}', file=sys.stderr)
+        return 2
+    if not stale:
+        print('nothing to rewrite: every code hash in the lock follows the rule of its file type')
+        return 0
+    print(f'rewrote {len(stale)} code hash(es) in {os.path.relpath(project.lock_path, project.root)}; text, refs and results are as they were')
+    return 0
+
+
 def cmd_lock(args):
     project, scan = load(args)
     old = lockfile.read(project)
@@ -283,6 +311,8 @@ def cmd_lock(args):
     except lockfile.LockWriteError as e:
         print(f'lock refused:\n  {e}')
         return 2
+    if args.rehash:
+        return cmd_rehash(args, project, scan)
     findings, _ = lockfile.status(project, scan, old)
     me = claims.agent_name(args.agent)
     scope = None
@@ -829,6 +859,8 @@ def build_parser():
                    help='manual tests you checked yourself, e.g. scene/test:bodies')
     s.add_argument('--allow-incomplete', action='store_true',
                    help='lock although some tests did not pass; they are recorded as such')
+    s.add_argument('--rehash', action='store_true',
+                   help='rewrite the code hashes made with an older rule (no change is accepted, nothing else is rewritten)')
     s.set_defaults(fn=cmd_lock)
     s = sub.add_parser('claim', help='say you are working on these clauses or parts (advisory, expires)')
     s.add_argument('ids', nargs='+', help='clauses, rows or parts; to add a clause, claim its part')

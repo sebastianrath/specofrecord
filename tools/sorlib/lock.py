@@ -86,6 +86,25 @@ def snapshot(project, scan):
     return entries
 
 
+def old_rule_keys(lock, scan):
+    """{lock key: the hash it would have now} for entries whose code hash was made with the rule every file followed before the rule
+    followed the file type (see `markers.style_of`) and whose code has not changed under that rule. They are not changes: the next
+    `sor lock` (or `sor lock --rehash`) writes the new hash. Empty when no file has a rule of its own, which is every project
+    whose code is C-family, HTML or of a type that is not listed."""
+    if not lock or not getattr(scan, 'has_own_rules', lambda: False)():
+        return {}
+    new, legacy = scan.code_hashes(), scan.code_hashes(legacy=True)
+    return {k: new[k] for k, e in lock.items()
+            if e.get('code') and legacy.get(k) == e['code'] and new.get(k) not in (None, e['code'])}
+
+
+def upgrade(lock, scan):
+    """The lock with the hashes of `old_rule_keys` replaced by the ones the code has now, so that what the old rule did not see
+    as a change is not one. Anything the old rule did see as a change stays a change."""
+    stale = old_rule_keys(lock, scan)
+    return dict(lock, **{k: dict(lock[k], code=h) for k, h in stale.items()}) if stale else lock
+
+
 def read(project):
     path = existing_path(project)
     if not path:
@@ -174,6 +193,7 @@ GROUPS = [
 
 def status(project, scan, lock):
     """Findings, comparing the files now with the lock."""
+    lock = upgrade(lock, scan)
     now = snapshot(project, scan)
     hand = {p.key: p for p in project.parts.values() if p.source_code}
     owner_part = {}
@@ -278,6 +298,7 @@ def status(project, scan, lock):
 def checked_manual(project, scan, old):
     """Manual tests a person confirmed at the last lock that still stand: the test reads the
     same and the code of the item it checks did not change since."""
+    old = upgrade(old, scan)
     now, out = snapshot(project, scan), set()
     for key, e in old.items():
         n = now.get(key)
@@ -296,6 +317,7 @@ def accept(project, scan, results, allow_incomplete, findings=(), old=None, conf
     """The entries `sor lock` would write, or the reasons it refuses. `confirm` names manual
     tests a person has just checked; earlier confirmations carry over while they still stand.
     `scope`: lock keys to accept; every other key keeps its entry from `old` (SPEC §11)."""
+    old = upgrade(old, scan) if old else old
     entries = snapshot(project, scan)
     if scope is not None:
         full = entries

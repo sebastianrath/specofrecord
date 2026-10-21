@@ -630,6 +630,31 @@ the three questions it left open were settled by defaults, to overturn if wrong:
   the edit guard reads the lock; benchmark metrics and `each: N ×` generators are still not built, which is where a quick-and-extended split would
   matter most.
 
+## Code is hashed by the rule of its file type (2026-10-21)
+Shown in a temporary project, in any Python project under SoR: moving `return t` into a `for` loop changed what a function returns, and
+`sor status` said "clauses, code and lock agree"; editing only a `#` comment inside a region was drift. The lock hashed every file with
+one C-family rule: it stripped `//`, `/* */` and `<!-- -->` lines and all indentation. Found while exploring more than one code target
+(`proposals/multi-target.md`), but it is a bug of single-target projects, so it is fixed first and on its own. Decided with the user:
+- **The rule follows the type of the file, not the target.** A single target can mix types (C++ and Objective-C++, HTML and JS and CSS), and
+  adding `#` to the comment pattern for everyone would hide `#define` and `#include` changes in C. Python keeps its nesting, counted in levels
+  so a consistent change from 2 spaces to 4 is not a change. Shell, Ruby, Perl, R and TOML get `#` comments, SQL, Lua and Haskell get `--`.
+  Every type not listed keeps the old rule, and a test pins three hashes made before the change.
+- **A lock written under the old rule is not drift.** `sor lock` refuses on drift, so without a way through a Python project would be stuck on
+  the day it upgrades. An entry whose code is unchanged under the old rule is read as unchanged, `sor status` says how many there are, and
+  `sor lock --rehash` rewrites exactly those hashes: no text, refs or result is touched and nothing is accepted. Rejected: a version number in
+  the lock (a lock format version is the next phase of the multi-target proposal, and an old tool must refuse a newer lock), and rewriting
+  on every lock (it would accept other agents' unfinished work).
+- **The cost, said in the status note and the SPEC.** Until the rewrite, a change that only the old rule ignores (a Python line moved into a
+  loop) is read as unchanged, because the old hash cannot tell it from the original.
+- **Version skew, shown:** the new tool reads an old lock correctly, but an old tool reads a lock the new one wrote as drift on every Python
+  region and refuses to lock. Older copies are normal (a project keeps its own copy of the tool, and the editor extension prefers it), and an
+  evidence fingerprint of a test that proves Python clauses differs between the two, so a job and a gate on different versions would show
+  STALE. Update every copy together; a lock format version, which makes an old tool refuse with a message, is the next phase of the proposal.
+- **`sor status --json` does not say that hashes wait for the rewrite**, only the text does, because the JSON keys are pinned by a contract test.
+  The skill does not name `--rehash` either; it is a one-time migration.
+- **Not covered:** YAML and Makefiles, where indentation is meaning too; here-documents; Ruby and Perl block comments. Python is read with a
+  small scanner and not with `tokenize`, because a region is often a fragment (a method, a branch) that `tokenize` refuses.
+
 ## Still open
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for
   this format (SPEC §15). The old `fdd` prototype (previous syntax) is not in this folder.

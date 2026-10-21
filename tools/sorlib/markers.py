@@ -127,20 +127,112 @@ def _files(project, root):
 
 QUOTED = re.compile(r'("(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'|`(?:[^`\\]|\\.)*`)')
 COMMENT_LINE = re.compile(r'^(//.*|/\*.*\*/|<!--.*-->)$')
+HASH_COMMENT = re.compile(r'^#(?!!).*$')   # a `#!` line names the interpreter: that is code
+DASH_COMMENT = re.compile(r'^--.*$')
+
+# How a file's code is normalized follows its type. Whatever is not listed is read as C-family (`//`, `/* */`, `<!-- -->`;
+# indentation never counts), which is how every file was read before the rule followed the file type, so those hashes
+# are unchanged. In Python indentation is meaning: a line moved into a loop is a change.
+STYLE_BY_EXTENSION = {
+    **dict.fromkeys(('py', 'pyi', 'pyw'), 'python'),                      # `#` comments, indentation counts
+    **dict.fromkeys(('sh', 'bash', 'zsh', 'rb', 'pl', 'r', 'toml'), 'hash'),   # `#` comments, indentation does not
+    **dict.fromkeys(('sql', 'lua', 'hs'), 'dash'),                        # `--` comments
+}
 
 
-def normalized(lines):
+def style_of(rel):
+    """The normalization style of the file at this project-relative path: c (the default), python, hash or dash."""
+    name = os.path.basename(rel)
+    return STYLE_BY_EXTENSION.get(name.rpartition('.')[2].lower(), 'c') if '.' in name else 'c'
+
+
+def _collapse(t):
+    """One space for every run of spaces outside quotes; what is inside quotes stays as written."""
+    return ''.join(part if i % 2 else re.sub(r'[ \t]+', ' ', part) for i, part in enumerate(QUOTED.split(t)))
+
+
+def normalized(lines, style='c'):
     """Code as the lock sees it: no blank lines, no comment-only lines, no indentation, and one
     space for every run of spaces outside quotes. Text inside quotes and everything else stays
-    exactly as written, so re-indenting and re-spacing is not a change but a new word is."""
+    exactly as written, so re-indenting and re-spacing is not a change but a new word is.
+    `style` (see `style_of`) says which lines are comments and, for Python, that the nesting of lines is kept."""
+    if style == 'python':
+        return _python_normalized(lines)
+    comment = {'hash': HASH_COMMENT, 'dash': DASH_COMMENT}.get(style, COMMENT_LINE)
     out = []
     for line in lines:
         t = line.strip()
-        if not t or COMMENT_LINE.match(t):
+        if not t or comment.match(t):
             continue
-        out.append(''.join(part if i % 2 else re.sub(r'[ \t]+', ' ', part)
-                           for i, part in enumerate(QUOTED.split(t))))
+        out.append(_collapse(t))
     return '\n'.join(out)
+
+
+def _python_normalized(lines):
+    """Python code without layout but with its nesting: comment-only lines and blank lines are gone, spaces are collapsed, and
+    every line that starts a statement carries its depth (`2:return x`), counted in levels, not in columns, so changing 2 spaces
+    to 4 everywhere is not a change and moving a line into a loop is. Lines that continue a statement (inside brackets, after a
+    backslash, inside a multi-line string) carry no depth. A `#` line inside a multi-line string is text, not a comment."""
+    out, stack = [], []
+    triple, depth, continued = None, 0, False
+    for line in lines:
+        t = line.strip()
+        if triple is not None:
+            if t:
+                out.append(_collapse(t))
+        elif t and not HASH_COMMENT.match(t):
+            text = _collapse(t)
+            if depth == 0 and not continued:
+                width = len(line[:len(line) - len(line.lstrip())].expandtabs(8))
+                text = f'{_level(stack, width)}:{text}'
+            out.append(text)
+        triple, depth, continued = _python_state(line, triple, depth)
+    return '\n'.join(out)
+
+
+def _level(stack, width):
+    """The depth of a statement that starts at this column, given the columns of the open levels (changed in place). A first line
+    sets level 0; a deeper line opens a level; a shallower one closes levels down to the column it matches."""
+    if not stack:
+        stack.append(width)
+    elif width > stack[-1]:
+        stack.append(width)
+    else:
+        while len(stack) > 1 and width < stack[-1]:
+            stack.pop()
+        if width > stack[-1]:    # a dedent that matches no level there was: a new one
+            stack.append(width)
+        elif width < stack[-1]:  # shallower than the first line of a fragment: it becomes the first
+            stack[:] = [width]
+    return len(stack) - 1
+
+
+def _python_state(line, triple, depth):
+    """(open multi-line string or None, bracket depth, whether the statement goes on) after one line of Python."""
+    i, n, code_end = 0, len(line), len(line)
+    while i < n:
+        c = line[i]
+        if triple:
+            if line.startswith(triple, i):
+                i, triple = i + 3, None
+            else:
+                i += 2 if c == '\\' else 1
+        elif c == '#':
+            code_end = i
+            break
+        elif c in '\'"':
+            if line.startswith(c * 3, i):
+                triple, i = c * 3, i + 3
+            else:
+                j = i + 1
+                while j < n and line[j] != c:
+                    j += 2 if line[j] == '\\' else 1
+                i = j + 1
+        else:
+            depth += (c in '([{') - (c in ')]}')
+            depth = max(depth, 0)
+            i += 1
+    return triple, depth, triple is None and line[:code_end].rstrip().endswith('\\')
 
 
 class Scan:
@@ -266,13 +358,19 @@ class Scan:
     def regions_for(self, key):
         return [r for r in self.regions if key in r.keys]
 
-    def code_hashes(self):
+    def has_own_rules(self):
+        """Whether any file with code in it is of a type that is normalized in its own way (not as C-family)."""
+        return any(style_of(r.file) != 'c' for r in self.regions)
+
+    def code_hashes(self, legacy=False):
         """lock key -> hash of all code marked with it, in file and line order. The code is
-        hashed without layout (see `normalized`), so reformatting is not drift."""
+        hashed without layout (see `normalized`), so reformatting is not drift. legacy: with the rule every file followed
+        before the rule followed the file type, to recognise a lock written then (see `lock.old_rule_keys`)."""
         code = {}
         for r in sorted(self.regions, key=lambda r: (r.file, r.start)):
+            style = 'c' if legacy else style_of(r.file)
             for k in r.keys:
-                code.setdefault(k, []).append(normalized(r.lines))
+                code.setdefault(k, []).append(normalized(r.lines, style))
         return {k: hashlib.sha256('\n\x00\n'.join(v).encode('utf8')).hexdigest()[:12]
                 for k, v in code.items()}
 

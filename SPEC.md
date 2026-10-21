@@ -418,6 +418,7 @@ with `-C <folder>`:
 | `sor test --list [id …] [--provides NAMES] [--all] [--json]` | lists the tests a run would run and the ones it would leave to CI (§8): each with its environments, whether your own framework runs it and its fingerprint; runs nothing, so it needs no web target |
 | `sor evidence --job NAME --provides NAMES --results F [--out FILE]` | writes what a CI job proved (§8): F is `{test id: pass\|fail}`, as `sor test --out` writes it; only tests that say `runs on:` and name an environment the job provides are kept, the rest are named; default `evidence/NAME.json` |
 | `sor verify [FILE or FOLDER …] [--json]` | the gate over the evidence (§8): exit 0 when every environment of every deferred test has a current pass, 1 when one is missing, stale or failed, 2 for a bad evidence file or `runs on:` line |
+| `sor lock --rehash` | the one-time rewrite after the rule for hashing code changed (§11): an entry whose code is unchanged under the old rule gets the new hash, and `text`, `refs` and results stay as they are. It takes nothing else and accepts no change |
 | `sor test --strength [id …]` | test strength (§8): reruns each passing test with every value it refers to changed; lists weak tests and the value that did not matter, and the passing tests it could not vary (`IDLE`) |
 | `sor lock [--run-tests \| --results F] [--confirm test …] [--allow-incomplete]` | writes the lock; refuses on problems, drift, or tests that did not pass. What a scoped lock waits for is in §16. With both `--run-tests` and `--results F`, F gives the results of the EXTERNAL tests only (§8). The refusal for tests without a result says `N test(s) did not pass (F failed, M not run)`, lists the first ten and the way out: with no web target a `manual:` line for a test nobody can run yet, or `--results F` for a test in the project's own framework; with a web target `sor lock --run-tests`, adding `--results F` for a test marked `@clause test <id>`; and `--allow-incomplete` in both |
 | `sor lock [<id …> \| --all]` | accepts the named clauses only, none of the child parts under them unless named (§11); with no ids, what you claimed, and the child parts under a claimed part that have a change of their own (new, changed or removed; parts made after the claim too): it prints `locking the parts under them too: …`, and leaves out a child part that another agent's claim overlaps, naming it (`not locking audio/mixer, which is claimed: …`); `ROOT` is not expanded; `--all` the whole project (§16). Refused while someone else claims them. With no ids and every claim of the agent expired, it is refused and says so; when only some expired, it warns (§16) |
@@ -574,10 +575,23 @@ Choices the tool made where this spec is silent:
 - A region marked with several ids may change when any one of them changes; the others are
   listed for review and their tests must pass again.
 - The root part's lock key is `ROOT`; root items have no prefix (`year`). A lock written before the rename calls it `CLAUSES`: the tool reads that as `ROOT`, so nothing counts as changed, and the next lock writes `ROOT` with every hash as it was.
-- The lock hashes code without layout: no blank lines, no comment-only lines (`//`, `/* */`,
-  `<!-- -->`), no indentation, one space for each run of spaces outside quotes. Re-indenting or
-  reformatting is not drift; a changed word, number or string is. Changing this rule changes
-  every locked code hash once, so the lock is rewritten with `text` and `refs` unchanged.
+- The lock hashes code without layout, and the rule follows the type of the file. For every type not named below: no blank lines, no
+  comment-only lines (`//`, `/* */`, `<!-- -->`), no indentation, one space for each run of spaces outside quotes.
+  - **Python** (`.py`, `.pyi`, `.pyw`): comment-only lines are the `#` lines, and the nesting counts. Every statement carries its depth,
+    in levels and not in columns, so changing 2 spaces to 4 is not a change and moving a line into a loop is. Lines that go on inside
+    brackets, after a backslash or inside a multi-line string carry no depth, and a `#` line inside a multi-line string is text.
+  - **Shell, Ruby, Perl, R, TOML** (`.sh`, `.bash`, `.zsh`, `.rb`, `.pl`, `.r`, `.toml`): `#` lines are comments (a `#!` line is code);
+    indentation does not count.
+  - **SQL, Lua, Haskell** (`.sql`, `.lua`, `.hs`): `--` lines are comments.
+  - A comment after code is part of its line in every type.
+
+  Re-indenting or reformatting is not drift; a changed word, number or string is. Changing this rule changes every locked code hash
+  once, and `sor lock --rehash` is that rewrite: it gives the new hash to an entry whose code is unchanged under the old rule, and
+  leaves `text`, `refs` and results as they were. `sor status` says when hashes are waiting for it. Until then a change that only the old
+  rule ignores, such as a Python line moved into a loop, is not seen. Not covered: YAML and Makefiles (indentation is meaning there too),
+  here-documents and Ruby or Perl block comments. Tool copies of different ages disagree about Python code: an older tool reads a lock
+  that a newer one wrote as drift on every Python region, and refuses to lock, so update every copy of the tool together (the lock has no
+  format version yet).
 
 Not built yet: benchmark metrics in `measure:`, `each: N × x = gen()`, runners for non-web targets (no example here has
 one: `sor test` runs nothing there, so a test with steps stays `manual:` or takes its result from `--results F` when the
