@@ -165,7 +165,10 @@ def pre_edit(payload):
     before = Scan(project)
     if not before.covers(rel):
         return None
-    lock = lockfile.read(project)
+    try:
+        lock = lockfile.read(project)
+    except lockfile.LockFormatError as e:   # the guard cannot tell what drifted from a lock it cannot read
+        return deny(f'{e} Until then this copy cannot tell which edits the clauses allow, so edits to code are refused.')
     if not lock:
         return None  # nothing accepted yet, so nothing to drift from
     old_text = None
@@ -244,7 +247,10 @@ def post_read(payload):
     hand = scan.by_hand(rel)
     lines = [f'Spec of Record: {rel} is {"hand-written code guarded by" if hand else "built from"} the clauses '
              f'in {SPEC_DIR}/. Change a clause before its code: edits to code whose clause did not change are refused.']
-    lock = lockfile.read(project)
+    try:
+        lock = lockfile.read(project)
+    except lockfile.LockFormatError:
+        lock = {}   # the note below is about pending changes, which this copy cannot tell; the refusal comes with an edit
     if lock:
         findings, _ = lockfile.status(project, scan, lock)
         here = {k for r in regions for k in r.keys}

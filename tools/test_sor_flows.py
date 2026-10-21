@@ -219,7 +219,7 @@ class TestPreEditHook(Flow):
             self.assertIn('Clauses come first', reason(hook.pre_edit(edit(path, '"Hello"', '"Hi"'))), path)
 
     def test_every_refusal_the_hook_makes_contains_a_phrase_the_skill_lists(self):
-        listed = ('Clauses come first', 'Someone else is working on this', 'Do not rewrite', 'is written only by')
+        listed = ('Clauses come first', 'Someone else is working on this', 'Do not rewrite', 'is written only by', 'is in lock format')
         skill = read(os.path.join(REPO, 'plugins', 'specofrecord', 'skills', 'specofrecord', 'SKILL.md'))
         for phrase in listed:
             self.assertIn(phrase, skill, 'the skill must tell an agent what a refusal looks like')
@@ -236,6 +236,10 @@ class TestPreEditHook(Flow):
         for result in refusals:
             said = reason(result)
             self.assertTrue(any(p in said for p in listed), said[:90])
+        lock = os.path.join(self.spec, 'sor-lock.json')   # and a lock this copy of the tool cannot read
+        write(self.dir, 'sor/sor-lock.json', read(lock).replace('{\n', '{\n"*format": 99,\n', 1))
+        said = reason(hook.pre_edit(edit(self.app, '"Hello"', '"Hi"')))
+        self.assertTrue(any(p in said for p in listed), said[:90])
 
     def test_run_as_a_program_it_answers_on_stdout_and_never_blocks_on_its_own_failure(self):
         code, out, err = run_hook('pre-edit', edit(self.app, '"Hello"', '"Hi"'))

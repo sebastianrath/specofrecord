@@ -8,6 +8,10 @@ One entry per part, item, row, value and test:
     result  tests only: pass, fail, manual, deferred or none, as accepted by `sor lock`
             (deferred: the test says `runs on:`, so the CI jobs that provide those environments prove it, not this lock)
 Sorted, one entry per line, no timestamps: identical input gives identical bytes.
+
+The file has a format number. Format 1, the only one so far, has no marker, so a lock written before the number existed is
+format 1 and a project that stays in format 1 keeps the same bytes. A later format opens the file with `"*format": N`: no item,
+row, value, test or glue key can start with `*`. A tool that reads a number it does not know stops and says to update itself.
 """
 import glob
 import hashlib
@@ -23,6 +27,13 @@ from .model import LEGACY_ROOT_KEY, Item, Row, listed, test_keyword
 # What a test's entry may say. A lock refuses a test that is 'none' (not run) or 'fail'. The others are settled: it passed,
 # a person looks at it (manual, checked), or it is left to the CI jobs that provide its environment (deferred).
 SETTLED = ('pass', 'manual', 'checked', 'deferred')
+
+FORMAT = 1                # the newest lock format this tool reads and writes
+FORMAT_KEY = '*format'    # the marker of a format above 1: a scalar, so that a tool older than this one fails on it instead of dropping it
+
+
+class LockFormatError(Exception):
+    """The lock file is in a format this tool does not read."""
 
 
 def h(s):
@@ -108,12 +119,37 @@ def upgrade(lock, scan):
     return dict(lock, **{k: dict(lock[k], code=h) for k, h in stale.items()}) if stale else lock
 
 
-def read(project):
+def format_problem(project, path, number):
+    """The refusal for a lock whose marker is `number`, or None when this tool reads it."""
+    rel = os.path.relpath(path, project.root).replace(os.sep, '/')
+    if isinstance(number, bool) or not isinstance(number, int) or number < 1:
+        return (f'{rel} has {FORMAT_KEY} {json.dumps(number)}, which is not a lock format number (a whole number from 1 up). '
+                'The file may be damaged. Nothing was changed.')
+    if number > FORMAT:
+        return (f'{rel} is in lock format {number}, and this sor reads format {FORMAT} at most. Update sor, every copy of it '
+                '(the project\'s tools, the plugin and the editor extension), and try again. Nothing was changed.')
+    return None
+
+
+def load(project):
+    """(path, entries) of the lock there is, without its format marker. Raises LockFormatError for a format this tool does not
+    read, so that nothing reads, and nothing rewrites, a lock it would misread."""
     path = existing_path(project)
     if not path:
-        return {}
+        return None, {}
     with open(path, encoding='utf8') as fh:
         data = json.load(fh)
+    if isinstance(data, dict) and FORMAT_KEY in data:
+        problem = format_problem(project, path, data.pop(FORMAT_KEY))
+        if problem:
+            raise LockFormatError(problem)
+    return path, data
+
+
+def read(project):
+    path, data = load(project)
+    if not path:
+        return {}
     # A lock written before the root was called ROOT keeps it under CLAUSES. Every reader sees ROOT, with the
     # same entry, so nothing counts as changed; the next lock writes it back under the new key.
     if LEGACY_ROOT_KEY in data and project.root_key not in data:
@@ -142,13 +178,29 @@ def check_writable(project):
                              'need it opened for edit), then try again')
 
 
-def write(project, entries):
+def render(entries, fmt=1):
+    """The text of a lock file: a format above 1 opens with its marker, then one entry per line, sorted."""
+    if fmt > FORMAT:
+        raise ValueError(f'lock format {fmt} is newer than this tool ({FORMAT})')
     lines = [json.dumps(k, ensure_ascii=False) + ': ' +
              json.dumps(entries[k], sort_keys=True, separators=(', ', ': '), ensure_ascii=False)
              for k in sorted(entries)]
+    if fmt > 1:
+        lines.insert(0, json.dumps(FORMAT_KEY) + ': ' + str(fmt))
+    return '{\n' + ',\n'.join(lines) + '\n}\n'
+
+
+def write(project, entries, fmt=1):
+    """Writes the lock in format `fmt`, which the caller chooses (the marker is not kept from the file that was read). Refuses to
+    replace a lock that a newer sor wrote since it was read."""
+    text = render(entries, fmt)
     # Through a temp file and os.replace: a reader (the edit hook, an editor, another agent's
     # `sor status`) sees the old lock or the new one, never half of one.
     check_writable(project)
+    try:
+        load(project)
+    except (OSError, ValueError):
+        pass   # a lock that cannot be read is replaced, as it always was; only a newer format stops the write
     for old in glob.glob(project.lock_path + '.*.tmp'):   # left behind by a write that crashed
         try:
             if time.time() - os.path.getmtime(old) > 300:
@@ -157,7 +209,7 @@ def write(project, entries):
             pass
     tmp = f'{project.lock_path}.{os.getpid()}.tmp'
     with open(tmp, 'w', encoding='utf8', newline='\n') as fh:
-        fh.write('{\n' + ',\n'.join(lines) + '\n}\n')
+        fh.write(text)
     had = existing_path(project)
     if had:
         shutil.copymode(had, tmp)   # keep the permissions the file had

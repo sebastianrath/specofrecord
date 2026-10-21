@@ -938,6 +938,9 @@ def main(argv=None):
         return args.fn(args)
     except BrokenPipeError:
         raise
+    except lockfile.LockFormatError as e:   # a lock in a format this copy does not read: say to update, change nothing
+        print(f'sor: {e}', file=sys.stderr)
+        return 2
     except OSError as e:   # a file that cannot be read or written: say which, not a traceback
         print(f'sor: {e.strerror or e}' + (f': {e.filename}' if e.filename else ''), file=sys.stderr)
         return 2

@@ -673,6 +673,32 @@ one C-family rule: it stripped `//`, `/* */` and `<!-- -->` lines and all indent
     `--all` like `sor test`; a results file that is `null` or missing is refused.
   - *Docs:* the README no longer links the page that was removed.
 
+## The lock has a format number (2026-10-21)
+Phase 1 of `proposals/multi-target.md`: a later phase changes the shape of the lock (a line per clause and target), and an older tool
+would read those lines as removed entries or as drift. Built on the user's go-ahead for Phase 1; the shape of the marker and the hook's
+behavior come from trying the tool as it was and from the advisor's review. Nothing in the lock changes yet.
+- **Format 1 has no marker, and nothing writes one yet.** A lock made before the number existed is format 1, and a single-target project
+  keeps the same bytes (a test renders both real locks and compares). Only a later format opens the file with `"*format": N`.
+- **The marker is a number, not an entry, and its key starts with `*`.** Shown with the tool as it was: a marker written as an entry is
+  listed by an older `sor status` as "removed" and silently dropped by the next `sor lock`, which would also drop per-target lines (and
+  an older `status` says "delete its code" for a removed line that has code). A plain number makes the older tool stop with an
+  `AttributeError` on `status`, `lock` and `changes` before it writes anything. No item name can start with `*` (names stop at `*`) and
+  every other key has a prefix of its own. A part file whose name starts with `*` is not refused; reserved names are Phase 2's checks.
+- **One check, in the one place the lock is read.** `lockfile.read` raises `LockFormatError` for a number it does not know or one that is no
+  whole number from 1 up; `main` prints it to stderr and exits 2. That covers `status`, every form of `lock` (the scoped re-read too),
+  `--rehash`, `changes`, and `test` when it runs tests. `write` re-reads the file's marker right before it replaces it, so a newer tool's
+  lock written in between is not overwritten. A lock that cannot be read at all is still replaced, as before. The caller chooses the
+  number it writes (`write(..., fmt=N)`); the marker is not kept from what was read, because Phase 3 decides from the entries.
+- **The edit hook refuses edits to code** with the same message, since it cannot tell what drifted; clause edits stay free, and reading code
+  answers without the list of pending changes.
+- **Known cost, shown:** a tool older than the number stops with a Python error, not a message, and nothing now can change that. Its edit
+  hook fails open (exit 1, the error on stderr, the edit goes through), so on a newer lock an old copy's guard is off. Only the number
+  helps a lock from the tools that have it: update every copy (project, plugin, extension) before a format above 1 is written. The VS Code
+  extension runs `sor markers --json` and `sor status --json` together, so a lock it cannot read blanks the lenses of that project and the
+  reason appears only in the "Spec of Record" output channel.
+- **Not versioned:** the claims file, evidence files (their missing format number and provenance are still open) and `markers --json`,
+  which has its own `version`.
+
 ## Still open
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for
   this format (SPEC §15). The old `fdd` prototype (previous syntax) is not in this folder.

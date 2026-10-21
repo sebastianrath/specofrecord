@@ -107,8 +107,8 @@ in line. The steps are in `reference/code-a-person-changed.md`: read it first.
 - The edit guard governs only the spec folder, the declared code paths and files that contain `@clause` markers.
   Everything else (a website, docs, config, notes) is not governed: edit it normally.
 - A refusal starts with "Clauses come first", "Someone else is working on this", "Do not rewrite", or (for the lock and
-  claims files) a message with "is written only by". A hook *error* (a message that the hook could not run) is a broken
-  setup, not a refusal: tell the user. Never work around a refusal.
+  claims files) a message with "is written only by"; one with "is in lock format" means this sor is older than the lock: tell
+  the user to update it. A hook *error* (a message that the hook could not run) is a broken setup: tell the user. Never work around a refusal.
 - Never edit `sor-lock.json` or `sor/.sor-claims.json`; `sor lock` and `sor claim` write them.
 
 **Spec files and code**

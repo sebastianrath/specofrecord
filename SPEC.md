@@ -360,6 +360,15 @@ A target is a part under `sor/targets/` that says how code is delivered and test
   agent holds a claim.
 - The file is written whole through a temp file and a rename: a reader sees the old lock or the
   new one, never half of one.
+- **The lock has a format number.** The lock format described here is number 1. Format 1 has no marker in the file: a lock written
+  before the number existed is format 1, and a project that stays in format 1 keeps the same bytes. A later format opens the file with
+  `"*format": N`, a plain number and not an entry, and no item, row, value, test or glue key can start with `*`. A tool that reads a
+  number it does not know stops with exit 2, says to update, and changes nothing. That covers `sor status`, `sor lock` in every form
+  (a lock that a newer tool wrote while it was running is not replaced either), `sor changes`, and `sor test` when it runs tests.
+  `sor check`, `sor parts`, `sor show` and the other commands that never read the lock go on working. The edit hook refuses edits to
+  code, because it cannot tell what drifted, and answers reads without the list of pending changes. A tool older than the number
+  cannot be taught: given the marker it stops with a Python error, and its edit hook fails open as for any error of its own. So the
+  number protects a lock only from tools that have it; update every copy of the tool (the project's, the plugin's and the extension's).
 - Large projects may split it: a folder with a project of its own (§1) holds its own lock.
 
 ## 12. Where does it go?
@@ -538,6 +547,7 @@ the clause first.
 | the lock is written only when every test that is not manual or deferred passes (§11) | `sor lock` refuses |
 | a `runs on:` line under a test names valid environments, and the test is not manual (§8) | problem in `sor check` (`runs on`) |
 | a test that says `runs on:` has a current pass in every environment it names (§8) | `sor verify` exits 1 |
+| the lock is in a format this tool reads (§11) | `sor status`, `sor lock`, `sor changes` and `sor test` exit 2 and say to update; the edit hook refuses edits to code |
 | a test calls only probes, generators and metrics the target declares, and its `{values}` resolve (§8) | `sor test` fails the test before it runs |
 | the lock and claims files are not edited by hand; a spec file is not rewritten with Write, except one that is still the skeleton `sor new` wrote (§11, §15, §16) | the edit hook, in Claude Code only; for other agents, a rule in the skill (`SKILL.md`), which `AGENTS.md` points to |
 | nobody edits a clause, or code, that another agent claimed (§16) | `sor claim` and `sor lock` refuse; the edit hook only where `SOR_ENFORCE_CLAIMS=1` |
@@ -599,8 +609,8 @@ Choices the tool made where this spec is silent:
   leaves `text`, `refs` and results as they were. `sor status` says when hashes are waiting for it. Until then a change that only the old
   rule ignores, such as a Python line moved into a loop, is not seen. Not covered: YAML and Makefiles (indentation is meaning there too),
   Ruby and Perl block comments (`=begin`, `=pod`) and comments that span several lines in SQL, Lua and Haskell: their lines are code. Tool copies of different ages disagree about Python code: an older tool reads a lock
-  that a newer one wrote as drift on every Python region, and refuses to lock, so update every copy of the tool together (the lock has no
-  format version yet).
+  that a newer one wrote as drift on every Python region, and refuses to lock, so update every copy of the tool together (the format number above does not help
+  here: it protects against formats written from now on).
 
 Not built yet: benchmark metrics in `measure:`, `each: N × x = gen()`, runners for non-web targets (no example here has
 one: `sor test` runs nothing there, so a test with steps stays `manual:` or takes its result from `--results F` when the

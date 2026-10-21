@@ -30,6 +30,7 @@ REPO = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 
 from sorlib import claims, cli, hook, lint   # noqa: E402
+from sorlib import lock as lockfile          # noqa: E402
 
 SKILL_DIR = 'plugins/specofrecord/skills/specofrecord'
 SKILL = SKILL_DIR + '/SKILL.md'
@@ -165,6 +166,11 @@ class TestNumbersInTheDocuments(unittest.TestCase):
             found = [int(n) for n in re.findall(pattern, spec)]
             self.assertTrue(found, f'SPEC.md no longer says {what}')
             self.assertEqual(set(found), {value}, what)
+
+    def test_the_lock_format_spec_gives_is_the_one_in_the_code(self):
+        spec = flat(read('SPEC.md'))
+        self.assertEqual({int(n) for n in re.findall(r'lock format described here is number (\d+)', spec)}, {lockfile.FORMAT})
+        self.assertIn(f'`"{lockfile.FORMAT_KEY}": N`', spec)
 
     def test_the_claim_lifetime_the_skill_documents_give_is_the_one_in_the_code(self):
         minutes = claims.DEFAULT_TTL // 60
