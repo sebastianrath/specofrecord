@@ -12,6 +12,7 @@ VERSION = 2  # of this JSON; the editor extension reads it
 def region_dict(project, r):
     d = {'file': r.file, 'path': os.path.normpath(os.path.join(project.root, r.file)), 'start': r.start,
          'end': r.end, 'kind': r.kind, 'keys': r.keys, 'ids': r.ids}
+    d['targetName'] = project.target_of(r.file)   # the target the file belongs to, or None (`target` below is something else)
     if r.kind == 'anchor':
         d['target'] = r.target   # the `code: path#name` text the region came from
     return d

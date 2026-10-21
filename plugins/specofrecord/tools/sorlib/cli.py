@@ -123,7 +123,7 @@ def cmd_check(args):
     refs = sum(len(i.refs) for p in parts for i in p.items.values())
     print(f'{len(parts)} parts, {refs} references, {len(regions)} code regions; '
           f'{len(found)} problem(s)')
-    notes = list(filter(mine, lint.notes(project)))
+    notes = list(filter(mine, lint.notes(project, scan)))
     if notes:
         print(f'\nnotes ({len(notes)}): advice and open questions, not problems (SPEC §13); '
               'they never block a lock, `--strict` makes them fail the check')

@@ -26,6 +26,8 @@ SECTION_WORDS = {
 }
 
 
+RESERVED_TARGETS = ('glue', 'test', 'ROOT')   # a target may not have a name that a lock key starts with
+
 LINE_BREAK = re.compile(r'\r\n|\r|\n')
 
 
@@ -814,7 +816,7 @@ class Project:
                     problems.append(Problem('collision', p.rel, self.collision(k, keys[k], (what, p.rel))))
                 keys[k] = (what, p.rel)
         from . import lint   # lint imports this module, so it is loaded only when needed
-        return problems + lint.placeholders(self)
+        return problems + self.target_problems() + lint.placeholders(self)
 
     @staticmethod
     def collision(key, first, second):
@@ -856,6 +858,64 @@ class Project:
             if p.source_code:
                 roots.append(p.source_code)
         return sorted(set(r.rstrip('/') for r in roots)) or ['.']
+
+    def target_paths(self):
+        """[(target name, path, the part that says so)] for every `path` a target declares, in part order. A target is the part
+        `targets/<name>`; the parts inside it add paths to the same target. A target may have several (a page and a folder of tests)."""
+        if getattr(self, '_target_paths', None) is None:
+            self._target_paths = [(p.id.split('/')[1], it.values['path'].rstrip('/'), p)
+                                  for p in self.parts.values() if p.id.startswith('targets/')
+                                  for it in p.items.values() if it.section == 'Rules' and 'path' in it.values]
+        return self._target_paths
+
+    def target_names(self):
+        """The names of the targets that declare a path, sorted."""
+        return sorted({name for name, _, _ in self.target_paths()})
+
+    def target_of(self, rel):
+        """The target a file belongs to: the one whose path is the longest prefix of this project-relative path. None for a file
+        in no target's path, and for a path two targets both name (`sor check` reports that)."""
+        best, names = -1, []
+        for name, path, _ in self.target_paths():
+            if rel == path or rel.startswith(path + '/'):
+                if len(path) > best:
+                    best, names = len(path), [name]
+                elif len(path) == best and name not in names:
+                    names.append(name)
+        return names[0] if len(names) == 1 else None
+
+    def target_problems(self):
+        """Problems with how targets share the code (SPEC §9): a name a lock key could start with, a path two targets both name,
+        a hand-written area in no target (only where there are two targets or more, since with one there is nothing to choose
+        between), and an environment named like a target."""
+        out, owner, reserved = [], {}, set()   # owner: path -> (target, file that names it)
+        for name, path, part in self.target_paths():
+            if name in RESERVED_TARGETS and name not in reserved:
+                reserved.add(name)
+                out.append(Problem('target', part.rel, f'"{name}" is a reserved name: lock keys start with it; rename the target'))
+            if path in owner and owner[path][0] != name:
+                out.append(Problem('target', part.rel, f'{path} is named by target {owner[path][0]} ({owner[path][1]}) and by '
+                                                       f'{name}: a path belongs to one target'))
+            owner.setdefault(path, (name, part.rel))
+        names = self.target_names()
+        if len(names) >= 2:
+            for p in self.parts.values():
+                if p.source_code and not any(p.source_code == path or p.source_code.startswith(path + '/')
+                                             for _, path, _ in self.target_paths()):
+                    out.append(Problem('target', p.rel, f'the hand-written code at {p.source_code} is in no target\'s path: '
+                                                        'the project has several targets, so say which one it belongs to by '
+                                                        'putting it under that target\'s path'))
+            for item in self.all_items():
+                if item.is_test:
+                    for env in sorted({n for e in item.runs_on() for n in e} & set(names)):
+                        out.append(Problem('runs on', f'{item.file}:{item.lineno}',
+                                           f'"{env}" is a target, so as an environment it would defer a test that runs here: '
+                                           'give the environment another name'))
+        for p in self.parts.values():
+            if any(piece.startswith('*') for piece in p.id.split('/')):
+                out.append(Problem('name', p.rel, 'a part name may not start with `*`: the lock marks its format with a key '
+                                                  'that starts with it'))
+        return out
 
     def hand_written(self):
         """Folders whose code is written by people: unmarked lines are allowed there."""

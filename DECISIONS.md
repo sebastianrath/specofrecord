@@ -713,6 +713,26 @@ The lock got a format number in Phase 1; evidence files, the other file a later 
   is a format and not an optional extra key.
 - **Not done:** the claims file is still unversioned. Claims last 30 minutes, so a file from another version rarely meets a reader.
 
+## Targets own folders, and a region says which one (2026-10-21)
+Phase 2 of `proposals/multi-target.md`. It reads and reports; the lock is untouched (a test compares a two-target project's lock keys with the
+snapshot and finds no target in them). Checked first against `examples/solar-system`, `editors/vscode` and a large outside project (one target
+each, no `Source: code at`, no `@` in any name): `sor check`, `sor status --json` and `sor markers --json` give the same output as before,
+apart from the new field.
+- **A file belongs to the target whose path is the longest prefix.** One target may have several paths (the web target has a page and a folder
+  of tests; the outside project's has `src/` and `src/tests/`), which is not an overlap. A deeper path of another target wins. Only the same
+  path named by two targets is a problem, and then no file belongs to either.
+- **The region field is `targetName`, not `target`.** `target` is already in the index for an anchor region (the `code: path#name` text),
+  and the extension compares it. `version` stays 2; the extension ignores a field it does not read.
+- **What is a problem and what is not.** Always: a reserved target name (`glue`, `test`, `ROOT`), the same path in two targets, a part name
+  that starts with `*` (it would collide with the lock's marker key). Only with two targets or more: a `Source: code at` area in no target's
+  path, and a `runs on:` environment named like a target. Those two would break a one-target project for nothing, so it is told none of it.
+- **`no code for target` is a note, one per target,** `N clause(s) have code in py but none in ts`. A clause with no code anywhere (a rule
+  such as `out-of-scope`), glue and test code are not counted, or every project would be flooded. It is a note and not a status line, so the
+  JSON of `sor status` (pinned by a contract test) gets no new key.
+- **`@` in names is not restricted here.** Phase 3 reports a collision of `clause@target` with a real key when it happens, as it does for any
+  id, instead of forbidding a character now in projects that may use it.
+- `sor check` now hands its scan to the notes, so a project with several targets is not scanned twice.
+
 ## Still open
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for
   this format (SPEC §15). The old `fdd` prototype (previous syntax) is not in this folder.

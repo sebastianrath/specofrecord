@@ -140,7 +140,34 @@ def notes(project, scan=None):
             for n, question in item.opens:
                 out.append(Problem('open', f'{part.rel}:{n}', f'{item.id}: {question}'.rstrip()))
     out += value_twice(project)
+    if len(project.target_names()) >= 2:
+        out += no_code_for_target(project, scan or Scan(project))
     return sorted(out, key=_order)
+
+
+def no_code_for_target(project, scan):
+    """One note for each target that has no code for clauses another target has code for: `N clauses have code in py but none in
+    ts`. It says nothing for a project with fewer than two targets, and nothing for a clause with no code at all (a rule such as
+    `out-of-scope` has none anywhere)."""
+    names = project.target_names()
+    if len(names) < 2:
+        return []
+    where = {}   # clause key -> the targets that have code for it
+    for r in scan.regions:
+        target = project.target_of(r.file)
+        if target:
+            for k in r.keys:
+                if not k.startswith('glue:') and r.kind != 'test':
+                    where.setdefault(k, set()).add(target)
+    out = []
+    for name in names:
+        lacking = sorted(k for k, have in where.items() if name not in have)
+        if lacking:
+            part = next(p for n, _, p in project.target_paths() if n == name)
+            others = sorted({t for k in lacking for t in where[k]})
+            out.append(Problem('no code for target', f'{part.rel}:1',
+                               f'{len(lacking)} clause(s) have code in {", ".join(others)} but none in {name}: {listed(lacking, 5)}'))
+    return out
 
 
 def value_twice(project):

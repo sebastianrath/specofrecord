@@ -1,6 +1,6 @@
 # Proposal: more than one code target
 
-Status: Phases 0 and 1 are built and merged. The decisions for the owner were made on 2026-10-21 (see the end), and nothing else is built. Written the same day after reading the tool and checking the points marked "shown" in a temporary project.
+Status: Phases 0, 1 and 2 are built (0 and 1 are merged). The decisions for the owner were made on 2026-10-21 (see the end), and nothing else is built. Written the same day after reading the tool and checking the points marked "shown" in a temporary project.
 
 ## The goal
 One spec, code in more than one place: `src_py/` and `src_ts/`, or `src/py/` and `src/ts/`. Tests, environments and the evidence gate have to work with that. A first use is the tool itself, in Python and in TypeScript, so a VS Code user needs no Python.
@@ -41,7 +41,7 @@ A changed clause whose code is "not updated yet" is accepted by `sor lock`, and 
    - **The evidence fingerprint becomes per target.** Today it hashes the code of every region of the clauses it proves, so a TypeScript edit would make Python evidence stale.
    - `runs on:` stays about environments. A target name used as an environment name is a problem, or `runs on: py` would defer a test that should run locally.
 8. **Claims and `sor lock` get a target scope**, so a Python agent and a TypeScript agent can work on one clause.
-9. **Index and extension.** Regions get a `target` field in `markers --json`. The lens can show one title per target. Coverage becomes per target.
+9. **Index and extension.** Regions get a `targetName` field in `markers --json` (built in Phase 2; `target` is taken by the anchor text). The lens can show one title per target. Coverage becomes per target.
 
 ## A target that is behind, and code a person changed
 Shown in a temporary project: one clause with code in `src_py/` and in `src_ts/`, and a person changing the Python by hand.
@@ -88,7 +88,7 @@ Phase 1 built that (`DECISIONS.md`, "The lock has a format number"). Format 1 ha
 ## Order of work
 - **Phase 0, a bug fix of its own (built and merged):** normalization by file type.
 - **Phase 1 (built and merged):** a lock format version, and refusal by an older reader.
-- **Phase 2, nothing changes in the lock:** map regions to targets in the index, `sor check` problems for overlapping roots and reserved names, and a "no code for target" report.
+- **Phase 2, nothing changes in the lock (built):** map regions to targets in the index, `sor check` problems for overlapping roots and reserved names, and a "no code for target" report.
 - **Phase 3:** per-target lock lines with `built`, the behind report and the refusing lock, per-target results and claims, `Targets:` with a root default.
 - **Phase 4:** per-target evidence and fingerprints.
 
