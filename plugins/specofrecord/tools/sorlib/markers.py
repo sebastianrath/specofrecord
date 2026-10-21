@@ -313,6 +313,13 @@ def _hash_state(line, open_):
     return open_ if open_ or not words else ('heredoc', tuple(words))
 
 
+def code_hash(regions, legacy=False):
+    """The hash of the code of these regions: in file and line order, each region normalized by the rule of its file (`legacy`: the
+    C-family rule for all), joined by a line that holds a NUL, then SHA-256, the first 12 hex digits. `vectors/hashing.json` pins it."""
+    parts = [normalized(r.lines, 'c' if legacy else style_of(r.file)) for r in sorted(regions, key=lambda r: (r.file, r.start))]
+    return hashlib.sha256('\n\x00\n'.join(parts).encode('utf8')).hexdigest()[:12]
+
+
 class Scan:
     """Every region under the project's code roots, checked against the project's ids."""
 
@@ -447,13 +454,11 @@ class Scan:
         before the rule followed the file type, to recognise a lock written then (see `lock.old_rule_keys`).
         The regions do not change once the scan is made, so each of the two answers is worked out once."""
         if legacy not in self._hashes:
-            code = {}
+            by_key = {}
             for r in sorted(self.regions, key=lambda r: (r.file, r.start)):
-                style = 'c' if legacy else style_of(r.file)
                 for k in r.keys:
-                    code.setdefault(k, []).append(normalized(r.lines, style))
-            self._hashes[legacy] = {k: hashlib.sha256('\n\x00\n'.join(v).encode('utf8')).hexdigest()[:12]
-                                    for k, v in code.items()}
+                    by_key.setdefault(k, []).append(r)
+            self._hashes[legacy] = {k: code_hash(rs, legacy) for k, rs in by_key.items()}
         return dict(self._hashes[legacy])
 
     def at(self, file, line):

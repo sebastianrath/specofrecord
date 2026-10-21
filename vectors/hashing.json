@@ -1,0 +1,885 @@
+{
+ "about": "Rows of input and expected output for how Spec of Record hashes code and writes the lock (SPEC section 11). Any implementation of the tool runs every row. The expected texts are written by hand and the hashes are computed with SHA-256 alone, never with the tool. A line in a row is one string; a text is one string. Run them with tools/test_sor_vectors.py.",
+ "format": 1,
+ "style_of": {
+  "how": "style_of(path) -> \"c\" | \"python\" | \"hash\" | \"dash\": the lower-cased text after the last dot of the file name, if the name has a dot.",
+  "rows": [
+   {
+    "name": "python by extension",
+    "path": "src/a.py",
+    "style": "python"
+   },
+   {
+    "name": "python, in capitals",
+    "path": "src_py/pkg/a.PY",
+    "style": "python"
+   },
+   {
+    "name": "python stubs",
+    "path": "x.pyi",
+    "style": "python"
+   },
+   {
+    "name": "python for windows",
+    "path": "x.pyw",
+    "style": "python"
+   },
+   {
+    "name": "shell",
+    "path": "run.sh",
+    "style": "hash"
+   },
+   {
+    "name": "bash",
+    "path": "run.bash",
+    "style": "hash"
+   },
+   {
+    "name": "zsh",
+    "path": "run.zsh",
+    "style": "hash"
+   },
+   {
+    "name": "ruby",
+    "path": "a.rb",
+    "style": "hash"
+   },
+   {
+    "name": "perl",
+    "path": "a.pl",
+    "style": "hash"
+   },
+   {
+    "name": "r",
+    "path": "a.r",
+    "style": "hash"
+   },
+   {
+    "name": "toml",
+    "path": "conf.toml",
+    "style": "hash"
+   },
+   {
+    "name": "sql",
+    "path": "q.sql",
+    "style": "dash"
+   },
+   {
+    "name": "lua",
+    "path": "a.lua",
+    "style": "dash"
+   },
+   {
+    "name": "haskell",
+    "path": "a.hs",
+    "style": "dash"
+   },
+   {
+    "name": "typescript is the default",
+    "path": "a.ts",
+    "style": "c"
+   },
+   {
+    "name": "c is the default",
+    "path": "a.c",
+    "style": "c"
+   },
+   {
+    "name": "html is the default",
+    "path": "a.html",
+    "style": "c"
+   },
+   {
+    "name": "no extension",
+    "path": "Makefile",
+    "style": "c"
+   },
+   {
+    "name": "a dot only in the folder",
+    "path": "dir.py/file",
+    "style": "c"
+   },
+   {
+    "name": "a dot in a folder of another file",
+    "path": "a.b/c",
+    "style": "c"
+   },
+   {
+    "name": "an unlisted extension",
+    "path": "a.unknown",
+    "style": "c"
+   },
+   {
+    "name": "a name that is only an extension",
+    "path": ".py",
+    "style": "python"
+   },
+   {
+    "name": "the last dot counts",
+    "path": "a.py.txt",
+    "style": "c"
+   }
+  ]
+ },
+ "split_lines": {
+  "how": "split_lines(text) -> lines: a line ends at LF, CRLF or CR and nowhere else; no empty last line for a final break.",
+  "rows": [
+   {
+    "name": "line feed, and no empty line after the last",
+    "text": "a\nb\n",
+    "lines": [
+     "a",
+     "b"
+    ]
+   },
+   {
+    "name": "carriage return and line feed",
+    "text": "a\r\nb",
+    "lines": [
+     "a",
+     "b"
+    ]
+   },
+   {
+    "name": "a lone carriage return",
+    "text": "a\rb",
+    "lines": [
+     "a",
+     "b"
+    ]
+   },
+   {
+    "name": "a form feed is not a line break",
+    "text": "a\fb\nc",
+    "lines": [
+     "a\fb",
+     "c"
+    ]
+   },
+   {
+    "name": "a vertical tab is not a line break",
+    "text": "a\u000bb",
+    "lines": [
+     "a\u000bb"
+    ]
+   },
+   {
+    "name": "a Unicode line separator is not a line break",
+    "text": "a b\nc",
+    "lines": [
+     "a b",
+     "c"
+    ]
+   },
+   {
+    "name": "an empty text has no lines",
+    "text": "",
+    "lines": []
+   },
+   {
+    "name": "one line feed is one empty line",
+    "text": "\n",
+    "lines": [
+     ""
+    ]
+   },
+   {
+    "name": "a blank line in the middle and at the end",
+    "text": "a\n\n",
+    "lines": [
+     "a",
+     ""
+    ]
+   },
+   {
+    "name": "no line feed at the end",
+    "text": "a",
+    "lines": [
+     "a"
+    ]
+   }
+  ]
+ },
+ "normalize": {
+  "how": "normalized(lines, style) -> text: the code as the lock sees it.",
+  "rows": [
+   {
+    "name": "c: the TypeScript row whose hash was pinned before the rule followed the file type",
+    "style": "c",
+    "lines": [
+     "  // note",
+     "export const total = (items: number[]) => {",
+     "    return items.reduce((a, b) => a + b, 0);   ",
+     "};",
+     "",
+     "/* block */"
+    ],
+    "normalized": "export const total = (items: number[]) => {\nreturn items.reduce((a, b) => a + b, 0);\n};",
+    "hash": "5502253e7c35"
+   },
+   {
+    "name": "c: `#include` and `#define` are code in C",
+    "style": "c",
+    "lines": [
+     "#include <stdio.h>",
+     "#define N 3",
+     "  int main(void) {",
+     "      return  N;",
+     "  }"
+    ],
+    "normalized": "#include <stdio.h>\n#define N 3\nint main(void) {\nreturn N;\n}",
+    "hash": "03f73544624d"
+   },
+   {
+    "name": "c: html keeps the spaces inside quotes and drops a comment line",
+    "style": "c",
+    "lines": [
+     "<!-- c -->",
+     "<p   class=\"a  b\">hi   there</p>"
+    ],
+    "normalized": "<p class=\"a  b\">hi there</p>",
+    "hash": "a10cf9686abb"
+   },
+   {
+    "name": "c: spaces inside quotes stay as written, outside they collapse",
+    "style": "c",
+    "lines": [
+     "x  =  \"a   b\"  +  'c  d'"
+    ],
+    "normalized": "x = \"a   b\" + 'c  d'",
+    "hash": "6a694c2590a0"
+   },
+   {
+    "name": "c: a comment after code is part of its line",
+    "style": "c",
+    "lines": [
+     "a();  // note"
+    ],
+    "normalized": "a(); // note",
+    "hash": "559e91a817b3"
+   },
+   {
+    "name": "c: a line that starts with /* and ends with */ is a comment even when code sits between",
+    "style": "c",
+    "lines": [
+     "/* a */ b(); /* c */",
+     "d();"
+    ],
+    "normalized": "d();",
+    "note": "known limit, pinned because locks depend on it",
+    "hash": "59246e7c774c"
+   },
+   {
+    "name": "c: blank lines and tabs go, lines keep their order",
+    "style": "c",
+    "lines": [
+     "\tone();",
+     "",
+     "\t\ttwo();",
+     "   "
+    ],
+    "normalized": "one();\ntwo();",
+    "hash": "ec20c1fb6bf5"
+   },
+   {
+    "name": "python: every statement carries its depth in levels",
+    "style": "python",
+    "lines": [
+     "def total(items):",
+     "    t = 0",
+     "    for i in items:",
+     "        t += i",
+     "    return t"
+    ],
+    "normalized": "0:def total(items):\n1:t = 0\n1:for i in items:\n2:t += i\n1:return t",
+    "hash": "47adda468a23"
+   },
+   {
+    "name": "python: two spaces instead of four is the same",
+    "style": "python",
+    "lines": [
+     "def total(items):",
+     "  t = 0",
+     "  for i in items:",
+     "    t += i",
+     "  return t"
+    ],
+    "normalized": "0:def total(items):\n1:t = 0\n1:for i in items:\n2:t += i\n1:return t",
+    "hash": "47adda468a23"
+   },
+   {
+    "name": "python: eight spaces instead of four is the same",
+    "style": "python",
+    "lines": [
+     "def total(items):",
+     "        t = 0",
+     "        for i in items:",
+     "                t += i",
+     "        return t"
+    ],
+    "normalized": "0:def total(items):\n1:t = 0\n1:for i in items:\n2:t += i\n1:return t",
+    "hash": "47adda468a23"
+   },
+   {
+    "name": "python: tabs count as eight columns and a level each",
+    "style": "python",
+    "lines": [
+     "def f():",
+     "\treturn 1"
+    ],
+    "normalized": "0:def f():\n1:return 1",
+    "hash": "66a9a3afaedb"
+   },
+   {
+    "name": "python: a line moved into the loop is a different text",
+    "style": "python",
+    "lines": [
+     "def total(items):",
+     "    t = 0",
+     "    for i in items:",
+     "        t += i",
+     "        return t"
+    ],
+    "normalized": "0:def total(items):\n1:t = 0\n1:for i in items:\n2:t += i\n2:return t",
+    "hash": "fe90361250da"
+   },
+   {
+    "name": "python: comment-only and blank lines go, a comment after code stays",
+    "style": "python",
+    "lines": [
+     "# about it",
+     "",
+     "x = 1  # one",
+     "    # indented comment",
+     "y = 2"
+    ],
+    "normalized": "0:x = 1 # one\n0:y = 2",
+    "hash": "1bd7e6932c02"
+   },
+   {
+    "name": "python: else and elif sit at the level of their if",
+    "style": "python",
+    "lines": [
+     "if x:",
+     "    a()",
+     "elif y:",
+     "    b()",
+     "else:",
+     "    c()"
+    ],
+    "normalized": "0:if x:\n1:a()\n0:elif y:\n1:b()\n0:else:\n1:c()",
+    "hash": "7ec5620ed396"
+   },
+   {
+    "name": "python: lines inside brackets carry no depth and a comment line there goes",
+    "style": "python",
+    "lines": [
+     "x = foo(",
+     "        1,   ",
+     "   # between",
+     "    2,",
+     ")",
+     "y = 3"
+    ],
+    "normalized": "0:x = foo(\n1,\n2,\n)\n0:y = 3",
+    "hash": "58ad5dfdc4ea"
+   },
+   {
+    "name": "python: a backslash continuation carries no depth",
+    "style": "python",
+    "lines": [
+     "total = a + \\",
+     "        b",
+     "next = 1"
+    ],
+    "normalized": "0:total = a + \\\nb\n0:next = 1",
+    "hash": "c5c78dabcd4a"
+   },
+   {
+    "name": "python: brackets and hashes inside strings are text",
+    "style": "python",
+    "lines": [
+     "x = \"(\" + '#'",
+     "y = 1"
+    ],
+    "normalized": "0:x = \"(\" + '#'\n0:y = 1",
+    "hash": "b80b734724b6"
+   },
+   {
+    "name": "python: a # line inside a multi-line string is text",
+    "style": "python",
+    "lines": [
+     "DOC = \"\"\"",
+     "# Heading",
+     "text",
+     "\"\"\"",
+     "run()"
+    ],
+    "normalized": "0:DOC = \"\"\"\n# Heading\ntext\n\"\"\"\n0:run()",
+    "hash": "0076a2ca2248"
+   },
+   {
+    "name": "python: a string a backslash continues does not blind the lines after it",
+    "style": "python",
+    "lines": [
+     "def f(items):",
+     "    for item in items:",
+     "        x = 'a\\",
+     "(b'",
+     "        y = 1",
+     "        z = 2",
+     "    return 3"
+    ],
+    "normalized": "0:def f(items):\n1:for item in items:\n2:x = 'a\\\n(b'\n2:y = 1\n2:z = 2\n1:return 3",
+    "hash": "03cd032a969b"
+   },
+   {
+    "name": "python: an escaped backslash at the end of a string continues nothing",
+    "style": "python",
+    "lines": [
+     "x = 'a\\\\'",
+     "# note",
+     "y = 1"
+    ],
+    "normalized": "0:x = 'a\\\\'\n0:y = 1",
+    "hash": "a193a250cd7a"
+   },
+   {
+    "name": "python: a piece that dips below its first line counts a level below it",
+    "style": "python",
+    "lines": [
+     "        a = 1",
+     "    b = 2",
+     "        c = 3"
+    ],
+    "normalized": "0:a = 1\n-1:b = 2\n0:c = 3",
+    "hash": "22342b421fcf"
+   },
+   {
+    "name": "python: the same piece in other columns is the same",
+    "style": "python",
+    "lines": [
+     "  a = 1",
+     "b = 2",
+     "  c = 3"
+    ],
+    "normalized": "0:a = 1\n-1:b = 2\n0:c = 3",
+    "hash": "22342b421fcf"
+   },
+   {
+    "name": "python: a shebang and a coding cookie are code",
+    "style": "python",
+    "lines": [
+     "#!/usr/bin/env python3",
+     "# -*- coding: latin-1 -*-",
+     "# plain",
+     "x = 1"
+    ],
+    "normalized": "0:#!/usr/bin/env python3\n0:# -*- coding: latin-1 -*-\n0:x = 1",
+    "hash": "83132c55dcb3"
+   },
+   {
+    "name": "hash: a shebang is code, a comment line is not",
+    "style": "hash",
+    "lines": [
+     "#!/bin/sh",
+     "# a comment",
+     "ls"
+    ],
+    "normalized": "#!/bin/sh\nls",
+    "hash": "fa8ec872a6fe"
+   },
+   {
+    "name": "hash: indentation does not count",
+    "style": "hash",
+    "lines": [
+     "if true; then",
+     "        echo there",
+     "fi"
+    ],
+    "normalized": "if true; then\necho there\nfi",
+    "hash": "4cd341a7c7f2"
+   },
+   {
+    "name": "hash: a # line inside a here-document is text, and the comments after it are comments again",
+    "style": "hash",
+    "lines": [
+     "cat <<EOF",
+     "# not a comment",
+     "  text",
+     "EOF",
+     "# a comment",
+     "echo hi"
+    ],
+    "normalized": "cat <<EOF\n# not a comment\ntext\nEOF\necho hi",
+    "hash": "74d15f5585d9"
+   },
+   {
+    "name": "hash: a here-string opens no here-document",
+    "style": "hash",
+    "lines": [
+     "cat <<<\"x\"",
+     "# c",
+     "echo 1"
+    ],
+    "normalized": "cat <<<\"x\"\necho 1",
+    "hash": "9d578d803839"
+   },
+   {
+    "name": "hash: a # line inside a string over several lines is text",
+    "style": "hash",
+    "lines": [
+     "echo \"a",
+     "# inside",
+     "b\"",
+     "# outside",
+     "ls"
+    ],
+    "normalized": "echo \"a\n# inside\nb\"\nls",
+    "hash": "33dcda147383"
+   },
+   {
+    "name": "hash: a toml multi-line string keeps its # lines",
+    "style": "hash",
+    "lines": [
+     "text = \"\"\"",
+     "# a line",
+     "\"\"\"",
+     "# a comment",
+     "n = 1"
+    ],
+    "normalized": "text = \"\"\"\n# a line\n\"\"\"\nn = 1",
+    "hash": "55f18715b993"
+   },
+   {
+    "name": "hash: a Ruby interpolation line in a here-document is text",
+    "style": "hash",
+    "lines": [
+     "puts <<~TEXT",
+     "  #{name}",
+     "  # not a comment",
+     "TEXT",
+     "puts 1"
+    ],
+    "normalized": "puts <<~TEXT\n#{name}\n# not a comment\nTEXT\nputs 1",
+    "hash": "ed1280d913c2"
+   },
+   {
+    "name": "hash: an apostrophe in a comment opens nothing",
+    "style": "hash",
+    "lines": [
+     "# don't",
+     "ls  # it's here",
+     "# isn't",
+     "wc"
+    ],
+    "normalized": "ls # it's here\nwc",
+    "hash": "4c311d3073b3"
+   },
+   {
+    "name": "hash: a # inside a word is not a comment",
+    "style": "hash",
+    "lines": [
+     "echo ${#list}",
+     "# c",
+     "ls"
+    ],
+    "normalized": "echo ${#list}\nls",
+    "hash": "b20d607b4629"
+   },
+   {
+    "name": "hash: a quote nobody closes keeps the lines after it as code",
+    "style": "hash",
+    "lines": [
+     "echo 'x",
+     "# c"
+    ],
+    "normalized": "echo 'x\n# c",
+    "hash": "5ebc3d9ebf05"
+   },
+   {
+    "name": "hash: a magic comment is code",
+    "style": "hash",
+    "lines": [
+     "# frozen_string_literal: true",
+     "x = 1"
+    ],
+    "normalized": "# frozen_string_literal: true\nx = 1",
+    "hash": "56f4642e65f0"
+   },
+   {
+    "name": "hash: other comment forms are code",
+    "style": "hash",
+    "lines": [
+     "// a",
+     "x"
+    ],
+    "normalized": "// a\nx",
+    "hash": "1e7c9b19e029"
+   },
+   {
+    "name": "dash: -- lines, one-line block comments and a row of dashes are comments",
+    "style": "dash",
+    "lines": [
+     "-- one",
+     "/* about */",
+     "---- Section ----",
+     "select 1;",
+     "  -- two"
+    ],
+    "normalized": "select 1;",
+    "hash": "354b7196c9ba"
+   },
+   {
+    "name": "dash: a block comment that goes on with code is code",
+    "style": "dash",
+    "lines": [
+     "/* a */ select 1; /* b */"
+    ],
+    "normalized": "/* a */ select 1; /* b */",
+    "hash": "895affd7f48e"
+   },
+   {
+    "name": "dash: --> and --| are Haskell operators, so code",
+    "style": "dash",
+    "lines": [
+     "f",
+     "  --> g",
+     "  --| h"
+    ],
+    "normalized": "f\n--> g\n--| h",
+    "hash": "48218364a6b3"
+   },
+   {
+    "name": "dash: a Haskell pragma is code and a one-line block comment is not",
+    "style": "dash",
+    "lines": [
+     "{-# LANGUAGE Strict #-}",
+     "{- about -}",
+     "x = 1"
+    ],
+    "normalized": "{-# LANGUAGE Strict #-}\nx = 1",
+    "hash": "b68973c98a5b"
+   },
+   {
+    "name": "dash: // is code",
+    "style": "dash",
+    "lines": [
+     "arr",
+     "  // [(1, 2)]"
+    ],
+    "normalized": "arr\n// [(1, 2)]",
+    "hash": "a6834a6210a5"
+   }
+  ]
+ },
+ "code_hash": {
+  "how": "code_hash(regions) -> hash: regions sorted by (file, start), each normalized by style_of(file), joined with \"\\n\\u0000\\n\", SHA-256 of the UTF-8, first 12 hex digits.",
+  "rows": [
+   {
+    "name": "one region",
+    "regions": [
+     {
+      "file": "src/a.ts",
+      "start": 1,
+      "lines": [
+       "  one();",
+       "  two();"
+      ]
+     }
+    ],
+    "hash": "ec20c1fb6bf5"
+   },
+   {
+    "name": "two regions of a file are joined in line order, whatever order they are given in",
+    "regions": [
+     {
+      "file": "src/a.ts",
+      "start": 20,
+      "lines": [
+       "two();"
+      ]
+     },
+     {
+      "file": "src/a.ts",
+      "start": 3,
+      "lines": [
+       "one();"
+      ]
+     }
+    ],
+    "hash": "4fd41aa01443"
+   },
+   {
+    "name": "regions of several files are joined in file order, each by the rule of its type",
+    "regions": [
+     {
+      "file": "src_ts/a.ts",
+      "start": 1,
+      "lines": [
+       "export const A = 1;"
+      ]
+     },
+     {
+      "file": "src_py/a.py",
+      "start": 1,
+      "lines": [
+       "def total(items):",
+       "    t = 0",
+       "    for i in items:",
+       "        t += i",
+       "    return t"
+      ]
+     }
+    ],
+    "hash": "afee56036c1d"
+   },
+   {
+    "name": "the same text in one region or two gives different hashes (the join counts)",
+    "regions": [
+     {
+      "file": "src/a.ts",
+      "start": 1,
+      "lines": [
+       "one();"
+      ]
+     },
+     {
+      "file": "src/a.ts",
+      "start": 5,
+      "lines": [
+       "two();"
+      ]
+     }
+    ],
+    "hash": "4fd41aa01443"
+   },
+   {
+    "name": "no region is the hash of an empty text, and so is a region of only comments and blanks",
+    "regions": [
+     {
+      "file": "src/a.ts",
+      "start": 1,
+      "lines": [
+       "// only",
+       ""
+      ]
+     }
+    ],
+    "hash": "e3b0c44298fc"
+   },
+   {
+    "name": "a shell and a Python file of one clause",
+    "regions": [
+     {
+      "file": "a/run.sh",
+      "start": 1,
+      "lines": [
+       "# c",
+       "ls"
+      ]
+     },
+     {
+      "file": "b/x.py",
+      "start": 1,
+      "lines": [
+       "x = 1"
+      ]
+     }
+    ],
+    "hash": "d5ef5ad43d1a"
+   }
+  ]
+ },
+ "text_hash": {
+  "how": "text_hash(text) -> hash: SHA-256 of the UTF-8, first 12 hex digits (lock.h).",
+  "rows": [
+   {
+    "name": "the empty text",
+    "input": "",
+    "hash": "e3b0c44298fc"
+   },
+   {
+    "name": "ascii",
+    "input": "abc",
+    "hash": "ba7816bf8f01"
+   },
+   {
+    "name": "non-ascii is read as UTF-8",
+    "input": "é",
+    "hash": "4a99557e4033"
+   },
+   {
+    "name": "a line feed counts",
+    "input": "a\n",
+    "hash": "87428fc52280"
+   },
+   {
+    "name": "a part face with a value",
+    "input": "Camera\nWhy: it moves",
+    "hash": "f1ed3b1412c2"
+   }
+  ]
+ },
+ "lock_render": {
+  "how": "render(entries, fmt) -> text of the lock file: keys sorted, one entry per line, entry keys sorted, separators \", \" and \": \", non-ASCII as written; a fmt above 1 opens with its marker line.",
+  "rows": [
+   {
+    "name": "sorted keys, one entry per line, entry keys sorted",
+    "fmt": 1,
+    "entries": {
+     "b/item": {
+      "kind": "item",
+      "text": "x",
+      "code": "c"
+     },
+     "a": {
+      "kind": "part",
+      "text": "y"
+     }
+    },
+    "text": "{\n\"a\": {\"kind\": \"part\", \"text\": \"y\"},\n\"b/item\": {\"code\": \"c\", \"kind\": \"item\", \"text\": \"x\"}\n}\n"
+   },
+   {
+    "name": "non-ascii is written as it is",
+    "fmt": 1,
+    "entries": {
+     "é": {
+      "kind": "part",
+      "text": "ü"
+     }
+    },
+    "text": "{\n\"é\": {\"kind\": \"part\", \"text\": \"ü\"}\n}\n"
+   },
+   {
+    "name": "a test entry with a result",
+    "fmt": 1,
+    "entries": {
+     "a/test:x": {
+      "kind": "test",
+      "result": "pass",
+      "text": "t"
+     }
+    },
+    "text": "{\n\"a/test:x\": {\"kind\": \"test\", \"result\": \"pass\", \"text\": \"t\"}\n}\n"
+   },
+   {
+    "name": "no entries is an empty line between the braces",
+    "fmt": 1,
+    "entries": {},
+    "text": "{\n\n}\n"
+   },
+   {
+    "name": "a later format opens with its marker, then the entries as before",
+    "fmt": 2,
+    "entries": {
+     "a": {
+      "kind": "part",
+      "text": "y"
+     }
+    },
+    "text": "{\n\"*format\": 2,\n\"a\": {\"kind\": \"part\", \"text\": \"y\"}\n}\n"
+   }
+  ]
+ }
+}

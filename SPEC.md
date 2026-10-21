@@ -373,6 +373,10 @@ test code are not counted.
   agent holds a claim.
 - The file is written whole through a temp file and a rename: a reader sees the old lock or the
   new one, never half of one.
+- **The rules are pinned by rows.** `vectors/hashing.json` holds rows of input and expected output for the file type of a path, the
+  splitting of lines, the normalization of code, the hash of the regions of a clause, the hash of a text and the text of the lock file,
+  written by hand and hashed with SHA-256 alone. An implementation of the tool, in any language, has to give the same answer for every
+  row, or a lock written by one shows as drift in the other (`tools/test_sor_vectors.py` runs them for the Python tool).
 - **The lock has a format number.** The lock format described here is number 1. Format 1 has no marker in the file: a lock written
   before the number existed is format 1, and a project that stays in format 1 keeps the same bytes. A later format opens the file with
   `"*format": N`, a plain number and not an entry, and no item, row, value, test or glue key can start with `*`. A tool that reads a

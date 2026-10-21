@@ -733,6 +733,21 @@ apart from the new field.
   id, instead of forbidding a character now in projects that may use it.
 - `sor check` now hands its scan to the notes, so a project with several targets is not scanned twice.
 
+## The hashing rules are pinned by rows any implementation can run (2026-10-21)
+`proposals/multi-target.md` ends with the aim of a TypeScript copy of the tool, so that an editor needs no Python. Two copies that disagree on
+a hash would read each other's lock as drift, so the rules are written down as data before there is a second copy.
+- **`vectors/hashing.json`, language neutral,** with six kinds of rows: the style of a path, the splitting of lines, the normalization of
+  code, the hash of the regions of a clause (order, join and rule per file type), the hash of a text, and the exact text of a lock file.
+  89 rows, each with a name so a failure names it. It sits outside `tools/` on purpose: that folder is copied into the plugin and the
+  extension, and the rows are for implementations, not for users of one.
+- **Written by hand, hashed independently.** The expected texts were derived from the rules, and each hash was computed with SHA-256 alone.
+  The three hashes the tool had pinned (TypeScript, C, HTML) came out the same, which is the check that the rows are not just the tool's output
+  copied back. Mutation checks (a changed join, separator, line splitter, level rule or style table) each fail named rows.
+- **Pins what is, quirks included.** A line that starts with `/*` and ends with `*/` is a comment even with code between: a known limit of the
+  C-family rule that locks already depend on, so it is a row, marked as a limit.
+- `markers.code_hash` is the one function that hashes the regions of a clause, so the rows test the real path and not a copy of it.
+- **Not covered:** the evidence fingerprint and the status of a clause, which need a parsed project; a port needs the model first.
+
 ## Still open
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for
   this format (SPEC §15). The old `fdd` prototype (previous syntax) is not in this folder.

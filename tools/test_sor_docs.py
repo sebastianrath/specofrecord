@@ -221,7 +221,7 @@ class TestThePluginHasOneName(unittest.TestCase):
 
 class TestPathsAndSections(unittest.TestCase):
     def test_a_path_a_document_names_exists(self):
-        repo_path = re.compile(r'^(?:tools|plugins|examples|editors|proposals)/[\w./-]+$')
+        repo_path = re.compile(r'^(?:tools|plugins|examples|editors|proposals|vectors)/[\w./-]+$')
         wrong = []
         for name, rel in DOCS.items():
             for n, span in spans(read(rel)):

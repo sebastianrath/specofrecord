@@ -1,0 +1,103 @@
+"""Runs vectors/hashing.json: rows of input and expected output for how the tool hashes code and writes the lock (SPEC §11).
+
+Any implementation of the tool, in any language, has to give the same answer for every row, or a lock written by one would show
+as drift in the other. The expected texts were written by hand and the hashes computed with SHA-256 alone, so a row says what the
+rule is and not only what this tool happens to do.
+
+    cd <repo> && python3 -m unittest discover -s tools -p 'test_*.py' -v
+
+Python 3.9, standard library only.
+"""
+import hashlib
+import json
+import os
+import sys
+import unittest
+from unittest import mock
+
+sys.dont_write_bytecode = True
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.dirname(HERE)
+sys.path.insert(0, HERE)
+
+from sorlib import lock as lockfile          # noqa: E402
+from sorlib import markers                   # noqa: E402
+from sorlib.model import split_lines         # noqa: E402
+
+PATH = os.path.join(REPO, 'vectors', 'hashing.json')
+with open(PATH, encoding='utf8') as fh:
+    VECTORS = json.load(fh)
+CATEGORIES = ('style_of', 'split_lines', 'normalize', 'code_hash', 'text_hash', 'lock_render')
+
+
+def rows(category):
+    return VECTORS[category]['rows']
+
+
+def sha(text):
+    return hashlib.sha256(text.encode('utf8')).hexdigest()[:12]
+
+
+class TestTheFile(unittest.TestCase):
+    def test_it_has_every_category_with_rows_and_a_name_for_each_row(self):
+        self.assertEqual(VECTORS['format'], 1)
+        for category in CATEGORIES:
+            with self.subTest(category):
+                self.assertTrue(VECTORS[category]['how'])
+                self.assertTrue(rows(category))
+                self.assertTrue(all(r['name'] for r in rows(category)))
+        names = [r['name'] for c in CATEGORIES for r in rows(c)]
+        self.assertEqual(len(names), len(set(names)), 'a failing row must be found by its name')
+
+    def test_the_hashes_in_the_file_are_sha256_of_its_own_texts(self):
+        for r in rows('normalize'):
+            self.assertEqual(r['hash'], sha(r['normalized']), r['name'])
+        for r in rows('text_hash'):
+            self.assertEqual(r['hash'], sha(r['input']), r['name'])
+
+    def test_the_hashes_the_tool_pinned_before_the_rule_followed_the_file_type_are_rows(self):
+        pinned = {r['hash'] for r in rows('normalize') if r['style'] == 'c'}
+        self.assertLessEqual({'5502253e7c35', '03f73544624d', 'a10cf9686abb'}, pinned)
+
+
+class TestEveryRow(unittest.TestCase):
+    def test_style_of(self):
+        for r in rows('style_of'):
+            with self.subTest(r['name']):
+                self.assertEqual(markers.style_of(r['path']), r['style'])
+
+    def test_split_lines(self):
+        for r in rows('split_lines'):
+            with self.subTest(r['name']):
+                self.assertEqual(split_lines(r['text']), r['lines'])
+
+    def test_normalize(self):
+        for r in rows('normalize'):
+            with self.subTest(r['name']):
+                got = markers.normalized(r['lines'], r['style'])
+                self.assertEqual(got, r['normalized'])
+                self.assertEqual(sha(got), r['hash'])
+
+    def test_code_hash(self):
+        for r in rows('code_hash'):
+            with self.subTest(r['name']):
+                regions = []
+                for g in r['regions']:
+                    region = markers.Region(g['file'], g['start'], 'code', ['x'])
+                    region.lines = g['lines']
+                    regions.append(region)
+                self.assertEqual(markers.code_hash(regions), r['hash'])
+
+    def test_text_hash(self):
+        for r in rows('text_hash'):
+            with self.subTest(r['name']):
+                self.assertEqual(lockfile.h(r['input']), r['hash'])
+
+    def test_lock_render(self):
+        for r in rows('lock_render'):
+            with self.subTest(r['name']), mock.patch.object(lockfile, 'FORMAT', max(lockfile.FORMAT, r['fmt'])):
+                self.assertEqual(lockfile.render(r['entries'], r['fmt']), r['text'])
+
+
+if __name__ == '__main__':
+    unittest.main()
