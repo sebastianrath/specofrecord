@@ -94,6 +94,14 @@ class TestTheLockLines(Targeted):
         self.assertEqual(sorted(entries['greet/hello']['targets']), ['py', 'ts'])
         self.assertEqual(lockfile.render(entries).encode('utf8'), first)
 
+    def test_rehash_leaves_a_lock_with_lines_as_it_is(self):
+        self.lock_all()
+        before = flows.lock_bytes(self.dir)
+        code, out, _ = self.sor('lock', '--rehash')
+        self.assertEqual(code, 0, out)
+        self.assertIn('nothing to rewrite', out)
+        self.assertEqual(flows.lock_bytes(self.dir), before)
+
     def test_a_project_without_targets_setting_keeps_format_1_and_its_bytes(self):
         self.build(targets=None)
         self.lock_all()

@@ -782,6 +782,9 @@ a second lock gives the same bytes, and `sor status` takes 0.5 s.
   usually marked with the item, so `built` is compared with the item's text plus the text of each row that has no lines of its own. Without it
   a spec-only change to a cell left every language current (shown, then fixed, and tested). A row with lines of its own is behind on its own, and
   marking a row after the item was locked counts as a change of the item. A part's own regions are not widened to the rules of its items.
+- **Tests of a clause that is behind.** `sor status` does not list them as waiting for a result (`pending_tests` leaves `behind` out): the
+  clause cannot be locked while it is behind, and the lock that clears it resets and requires the results of what it locks, as it does for a
+  changed clause. Per-target results, which would say in which language a test passed, are the open slice.
 - **Known:** the VS Code extension does not know the status `behind`: its `classOf` returns nothing for it and the finding is skipped (as it
   already is for `built`, `fixing` and `glue`), so a clause that is only behind shows as agreed in its lenses and status bar (the JS is its own
   project and not changed here). A key `K@t` that is also the name of something else is a problem in `sor check`. Evidence fingerprints change when a project starts
