@@ -10,6 +10,9 @@
     sor status [--json]           what to recompile, review, or revert since the last lock
     sor test [ID ...] [--out F]   run the tests in headless Chrome against the web target's probes
     sor test --strength [ID ...]  rerun each passing test with every value it refers to changed
+    sor test --list [ID ...] [--provides NAMES] [--all]  the tests a run would run and the ones it leaves to CI; runs nothing
+    sor evidence --job NAME --provides NAMES --results F  write what a CI job proved about the tests that say `runs on:`
+    sor verify [FILE|FOLDER ...]  the gate: every test that says `runs on:` has a current pass in every environment it names
     sor lock [IDS|--all] [--run-tests]  accept clauses, code and test results: IDS, else what you claimed (--all: the whole project)
     sor claim IDS --as NAME       say you are working on these clauses; refused (exit 3) when someone else is
     sor release [IDS|--all]       give them up again
@@ -18,7 +21,7 @@
     sor hook pre-edit|post-read|session-start   Claude Code hooks (JSON on stdin; the session-start note lists the parts), see sorlib/hook.py
 
 Run from a project folder (the one holding sor/), or pass -C <folder>.
-Exit codes: 0 clean · 1 work pending (status) · 2 problems or drift, or lock refused · 3 claim refused.
+Exit codes: 0 clean · 1 work pending (status), or an environment not proven (verify) · 2 problems or drift, or lock refused · 3 claim refused.
 """
 import argparse
 import difflib
@@ -28,6 +31,7 @@ import sys
 
 from . import blame
 from . import claims
+from . import evidence
 from . import hook
 from . import index
 from . import lint
@@ -135,11 +139,13 @@ def cmd_status(args):
     findings, not_passed = lockfile.status(project, scan, old)
     blame.annotate(project, findings)
     pending = lockfile.pending_tests(project, findings, not_passed)
+    deferred = lockfile.deferred_tests(project)
     if args.json:
         print(json.dumps({'locked': bool(old), 'problems': [vars(p) for p in found],
                           'findings': [f.as_dict() for f in findings],
                           'tests_not_passed': not_passed,
                           'tests_pending': pending,
+                          'tests_deferred': deferred,
                           'claims': [{k: c[k] for k in ('agent', 'asked', 'since', 'until')}
                                      for c in claims.active(project)]}, indent=2, ensure_ascii=False))
     else:
@@ -168,6 +174,8 @@ def cmd_status(args):
                 print('  ' + claims.describe(c))
             print()
         for line in lockfile.pending_lines(project, pending):
+            print(line)
+        for line in lockfile.deferred_lines(project, deferred):
             print(line)
         if not old and not args.all:
             print(f'{len(findings)} new entries (--all lists them)')
@@ -242,7 +250,7 @@ def scope_files(project, scan, keys):
     return files
 
 
-ITEM_LOCAL = ('broken', 'needs', 'proves', 'expect')   # problems of one item's own text, fixed by whoever works on that item
+ITEM_LOCAL = ('broken', 'needs', 'proves', 'expect', 'runs on')   # problems of one item's own text, fixed by whoever works on that item
 # 'unnamed test' and 'placeholder' are not among them: a person's draft test and a half-filled skeleton keep a lock waiting
 # until they are tidied or filled in, wherever in the file they sit (DECISIONS: Loose tests).
 
@@ -364,7 +372,12 @@ def cmd_lock(args):
         with open(args.results, encoding='utf8') as fh:
             results = json.load(fh)
     entries, more = lockfile.accept(project, scan, results, args.allow_incomplete, findings, old, confirm, scope)
-    waiting = sorted(k for k in external if k not in results and (scope is None or k in scope))
+    gave = sorted(k for k, v in results.items() if entries.get(k, {}).get('result') == 'deferred' and (scope is None or k in scope))
+    if gave:
+        print(f'note: a result for {", ".join(gave)} is not recorded in the lock: it says `runs on:`, so a CI job proves it '
+              '(`sor evidence` writes that result for a job)')
+    waiting = sorted(k for k in external if k not in results and (scope is None or k in scope)
+                     and entries.get(k, {}).get('result') != 'deferred')
     if waiting and more and not args.allow_incomplete:
         more.append(f'EXTERNAL {", ".join(waiting)}: no result yet. Run your own tests and pass --results F with '
                     f'{{"{waiting[0]}": "pass"}} (a file of the framework\'s results)')
@@ -389,12 +402,17 @@ def cmd_lock(args):
     except (claims.ClaimError, lockfile.LockWriteError) as e:
         print(f'lock: {e}', file=sys.stderr)
         return 2
+    newly = sorted(k for k, e in entries.items() if e.get('kind') == 'test' and e.get('result') == 'deferred'
+                   and old.get(k, {}).get('result') != 'deferred' and (scope is None or k in scope))
+    if newly:   # a line in the spec is all it takes to leave a test to CI: say which tests that is
+        print(f'now left to CI, because they say `runs on:`: {", ".join(newly)}')
     tests = [e for e in entries.values() if e.get('kind') == 'test']
-    n = {r: sum(e['result'] == r for e in tests) for r in ('pass', 'checked', 'manual')}
+    n = {r: sum(e['result'] == r for e in tests) for r in ('pass', 'checked', 'manual', 'deferred')}
     what = f'{len(scope)} of {len(entries)} entries' if scope is not None else f'{len(entries)} entries'
     print(f'locked {what} in {os.path.relpath(project.lock_path, project.root)}; '
           f'tests: {n["pass"]} passed, {n["checked"]} manual checks confirmed, {n["manual"]} manual '
-          f'unconfirmed, {len(tests) - sum(n.values())} not passed')
+          f'unconfirmed, ' + (f'{n["deferred"]} deferred to CI, ' if n['deferred'] else '')
+          + f'{len(tests) - sum(n.values())} not passed')
     if scope is not None:
         left, _ = lockfile.status(project, scan, entries)
         left = [f for f in left if f.status in PENDING and f.key not in scope]
@@ -456,7 +474,7 @@ def cmd_release(args):
 
 
 def print_results(results):
-    marks = {'pass': 'PASS', 'fail': 'FAIL', 'skipped': 'SKIP', 'manual': 'MANUAL', 'external': 'EXTERNAL'}
+    marks = {'pass': 'PASS', 'fail': 'FAIL', 'skipped': 'SKIP', 'manual': 'MANUAL', 'external': 'EXTERNAL', 'deferred': 'DEFER'}
     width = max((len(k) for k in results), default=0)
     mark = max([6] + [len(marks[r['status']]) for r in results.values()])
     for tid, r in results.items():
@@ -464,7 +482,8 @@ def print_results(results):
         print(f'  {marks[r["status"]]:<{mark}} {tid:<{width}}  {msg}'.rstrip())
     n = {s: sum(r['status'] == s for r in results.values()) for s in marks}
     print(f'{n["pass"]} passed, {n["fail"]} failed, {n["skipped"]} skipped, {n["manual"]} manual'
-          + (f', {n["external"]} external' if n['external'] else ''))
+          + (f', {n["external"]} external' if n['external'] else '')
+          + (f', {n["deferred"]} deferred to CI' if n['deferred'] else ''))
     return n
 
 
@@ -486,15 +505,50 @@ def print_coverage(summary, detail):
             print(f'  {100 * ran / total:5.0f}%  {ran:>3}/{total:<3}  {key}')
 
 
+def cmd_test_list(args, project, scan, provides):
+    """`sor test --list`: the tests a run would run and the ones it would leave to CI, without running anything (so it needs no
+    web target). Each test with its environments, whether a framework of your own runs it and its fingerprint."""
+    fps = evidence.fingerprints(project, scan)
+    rows = []
+    for item in project.all_items():
+        if not item.is_test or (args.ids and not testrun.selects(project, item, args.ids)):
+            continue
+        manual = lockfile.is_manual(item)
+        why = None if manual else testrun.deferral(item, args.ids, provides, args.all)
+        steps = item.steps()
+        rows.append({'id': item.id, 'runs_on': [list(e) for e in item.runs_on()], 'manual': manual,
+                     'external': not manual and not any(k in ('do', 'expect', 'measure') for k, _ in steps)
+                                 and bool(scan.regions_for(item.id)),   # as `sor test` decides: only code marked `@clause test`
+                     'selected': not manual and why is None, 'fingerprint': fps[item.id]})
+    if args.json:
+        print(json.dumps({'tests': rows}, indent=2))
+        return 0
+    width = max((len(r['id']) for r in rows), default=0)
+    for r in rows:
+        mark = 'MANUAL' if r['manual'] else 'RUN' if r['selected'] else 'DEFER'
+        where = ('runs on ' + ', '.join('+'.join(e) for e in r['runs_on'])) if r['runs_on'] else ''
+        print(f'  {mark:<6} {r["id"]:<{width}}  {where}'.rstrip())
+    print(f'{sum(r["selected"] for r in rows)} to run, {sum(r["runs_on"] != [] and not r["selected"] and not r["manual"] for r in rows)} '
+          f'left to CI, {sum(r["manual"] for r in rows)} manual')
+    return 0
+
+
 def cmd_test(args):
-    project = Project(args.root)
+    project, scan = load(args) if args.list else (Project(args.root), None)
+    prov, err = evidence.names(args.provides or '', '--provides')
+    if err:
+        print(f'sor test: {err}', file=sys.stderr)
+        return 2
+    prov = frozenset(prov)
     unmatched = [o for o in args.ids if not any(testrun.selects(project, item, [o]) for item in project.all_items())]
     if unmatched:   # a typo must not look like "0 failed"
         print(f'sor test: no test matches {", ".join(unmatched)} (name a test, the item it proves, or a part)', file=sys.stderr)
         return 2
+    if args.list:
+        return cmd_test_list(args, project, scan, prov)
     if args.strength:
         return cmd_strength(project, args.ids or None)
-    results, summary = testrun.run(project, args.ids or None)
+    results, summary = testrun.run(project, args.ids or None, provides=prov, everything=args.all)
     n = print_results(results)
     print_coverage(summary, args.coverage)
     if args.out:
@@ -654,6 +708,84 @@ def cmd_show(args):
     return 0
 
 
+def cmd_evidence(args):
+    """Writes what this job proved: its results for the tests that say `runs on:` and name an environment it provides."""
+    project, scan = load(args)
+    prov, err = evidence.names(args.provides, '--provides')
+    bad_job = evidence.job_problem(args.job)
+    err = (f'--job {bad_job}' if bad_job else None) or err or (None if prov else '--provides names at least one environment')
+    results = None
+    if not err:
+        try:
+            with open(args.results, encoding='utf8') as fh:
+                results = json.load(fh)
+        except ValueError as e:
+            err = f'{args.results} is not JSON ({e})'
+        if results is not None and not isinstance(results, dict):
+            err = f'{args.results} holds {{"part/test:name": "pass"}}, as `sor test --out` writes it'
+    if err:
+        print(f'evidence refused:\n  {err}')
+        return 2
+    data, notes, errors = evidence.build(project, scan, args.job, prov, results)
+    if errors:
+        print('evidence refused:')
+        for e in errors:
+            print('  ' + e)
+        return 2
+    out = args.out or os.path.join(project.root, 'evidence', args.job + '.json')
+    evidence.write(out, data)
+    n = {s: sum(r['status'] == s for r in data['results'].values()) for s in evidence.STATUSES}
+    print(f'wrote {os.path.relpath(out, project.root)}: job {args.job} provides {", ".join(prov)}; '
+          f'{n["pass"]} passed, {n["fail"]} failed')
+    for note in notes:
+        print('note: ' + note)
+    return 0
+
+
+VERIFY_MARKS = {'pass': 'ok', 'fail': 'FAILED', 'stale': 'STALE', 'missing': 'MISSING'}
+
+
+def cmd_verify(args):
+    """The gate over the evidence: exit 0 when every test that says `runs on:` has a current pass in every environment it
+    names, 1 when one has not, 2 for a problem in the spec or in an evidence file."""
+    project, scan = load(args)
+    found = [p for p in problems(project, scan) if p.kind == 'runs on']
+    if found:
+        print('verify refused: fix these `runs on:` lines first')
+        for p in found:
+            print('  ' + str(p))
+        return 2
+    folder = os.path.join(project.root, 'evidence')
+    paths = args.files or ([folder] if os.path.isdir(folder) else [])
+    files, errors = evidence.collect(paths)
+    if errors:
+        print('verify refused: evidence that cannot be read')
+        for e in errors:
+            print('  ' + e)
+        return 2
+    rows = evidence.verify(project, scan, files)
+    stray = evidence.unknown(project, files)
+    if rows and not files and not args.json:
+        print('note: no evidence files (*.json) found in ' + (', '.join(paths) if paths else 'the evidence folder, which does not exist'))
+    bad = [r for r in rows if any(e['status'] != 'pass' for e in r['environments'])]
+    if args.json:
+        print(json.dumps({'ok': not bad, 'tests': rows, 'unknown': [{'job': j, 'test': k} for j, k in stray]}, indent=2))
+    else:
+        if not rows:
+            print('no test says `runs on:`: nothing to verify')
+        for r in rows:
+            print(r['id'])
+            width = max(len('+'.join(e['needs'])) for e in r['environments'])
+            for e in r['environments']:
+                print(f'  {"+".join(e["needs"]):<{width}}  {VERIFY_MARKS[e["status"]]:<7} {", ".join(e["jobs"])}'.rstrip())
+        if rows:
+            left = sum(1 for r in bad)
+            print(f'{len(rows)} deferred test(s): {len(rows) - left} proven, {left} not' + (' proven' if left else ''))
+        if stray:
+            print(f'note: results for tests that no longer say `runs on:` are ignored: {", ".join(k for _, k in stray[:10])}')
+    return 1 if bad else 0
+
+
 def build_parser():
     ap = argparse.ArgumentParser(prog='sor', description=__doc__.split('\n')[0],
                                  formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__)
@@ -715,7 +847,21 @@ def build_parser():
     s.add_argument('--coverage', action='store_true', help='list unproven clauses and line coverage per clause')
     s.add_argument('--strength', action='store_true',
                    help='list weak tests: ones that still pass with a value they refer to changed')
+    s.add_argument('--provides', help='the environments this run provides, comma-separated: it also runs the tests that say `runs on:` one of them')
+    s.add_argument('--all', action='store_true', help='also run every test that says `runs on:`, whatever it names')
+    s.add_argument('--list', action='store_true', help='list the tests this run would run and the ones it leaves to CI; runs nothing')
+    s.add_argument('--json', action='store_true', help='with --list: machine-readable')
     s.set_defaults(fn=cmd_test)
+    s = sub.add_parser('evidence', help='write what a CI job proved about the tests that say `runs on:`')
+    s.add_argument('--job', required=True, help='the job name; it is also the file name')
+    s.add_argument('--provides', required=True, help='the environments this job provides, comma-separated: linux,db')
+    s.add_argument('--results', required=True, help='JSON file {test id: pass|fail}, as `sor test --out` writes it')
+    s.add_argument('--out', help='where to write it (default: evidence/<job>.json)')
+    s.set_defaults(fn=cmd_evidence)
+    s = sub.add_parser('verify', help='check that every test that says `runs on:` has a current pass in every environment it names')
+    s.add_argument('files', nargs='*', help='evidence files or folders (default: the evidence folder)')
+    s.add_argument('--json', action='store_true')
+    s.set_defaults(fn=cmd_verify)
     s = sub.add_parser('markers')
     s.add_argument('target', nargs='?', help='an id, or FILE:LINE')
     s.add_argument('--json', action='store_true',

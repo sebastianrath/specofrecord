@@ -543,9 +543,22 @@ def selects(project, item, only):
     return any(item.id == o or item.id.startswith(o + '/') or item.part.id == o or o in proves for o in only)
 
 
-def run(project, only=None, timeout=90, confirmed=()):
+def deferral(item, only=None, provides=None, everything=False):
+    """Why a test that says `runs on:` is not run now, or None when it is. A run provides the environments it was given
+    (`--provides`), says `--all`, or names the test by its own id; any other run leaves the test to the CI jobs that provide
+    one of its environments. A test that does not say `runs on:` is always run."""
+    envs = item.runs_on()
+    if not envs or everything or item.id in (only or ()):
+        return None
+    if provides and any(set(env) <= provides for env in envs):
+        return None
+    return 'runs on ' + ', '.join('+'.join(env) for env in envs) + ': left to the CI jobs that provide it'
+
+
+def run(project, only=None, timeout=90, confirmed=(), provides=None, everything=False):
     """Runs the tests. Returns (results, summary): results is {test id: {'status': pass|fail|
-    skipped|manual|external, 'message': …}}; external is a test without steps whose code is marked `@clause test`:
+    skipped|manual|external|deferred, 'message': …}}; deferred says `runs on:` and this run does not provide its environments;
+    external is a test without steps whose code is marked `@clause test`:
     it is not run here and not failed, and its result comes from the project's own run. The summary holds clause
     coverage and the line coverage per clause."""
     results, tests, measured = {}, {}, []
@@ -559,6 +572,10 @@ def run(project, only=None, timeout=90, confirmed=()):
     checked = lockfile.checked_manual(project, scan, lockfile.read(project)) | set(confirmed)
     for item in project.all_items():
         if not item.is_test or (only and not selects(project, item, only)):
+            continue
+        why = None if lockfile.is_manual(item) else deferral(item, only, provides, everything)
+        if why:
+            results[item.id] = {'status': 'deferred', 'message': why}
             continue
         t = Test(project, target, item)
         tests[t.id] = t

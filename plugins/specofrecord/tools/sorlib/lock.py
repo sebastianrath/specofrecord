@@ -5,7 +5,8 @@ One entry per part, item, row, value and test:
     text    hash of its own text
     refs    {referenced id: that id's text hash} — any reference is a dependency
     code    hash of the code marked with it
-    result  tests only: pass, fail, manual or none, as accepted by `sor lock`
+    result  tests only: pass, fail, manual, deferred or none, as accepted by `sor lock`
+            (deferred: the test says `runs on:`, so the CI jobs that provide those environments prove it, not this lock)
 Sorted, one entry per line, no timestamps: identical input gives identical bytes.
 """
 import glob
@@ -17,6 +18,11 @@ import time
 
 from .model import LEGACY_ROOT_KEY, Item, Row, listed, test_keyword
 
+
+
+# What a test's entry may say. A lock refuses a test that is 'none' (not run) or 'fail'. The others are settled: it passed,
+# a person looks at it (manual, checked), or it is left to the CI jobs that provide its environment (deferred).
+SETTLED = ('pass', 'manual', 'checked', 'deferred')
 
 
 def h(s):
@@ -74,7 +80,7 @@ def snapshot(project, scan):
         if targets:
             entries[it.id]['refs'] = {t: text.get(t, '') for t in sorted(targets)}
         if it.is_test:
-            entries[it.id]['result'] = 'manual' if is_manual(it) else 'none'
+            entries[it.id]['result'] = 'manual' if is_manual(it) else 'deferred' if it.runs_on() else 'none'
     for key, c in scan.code_hashes().items():
         entries.setdefault(key, {'kind': 'glue'})['code'] = c
     return entries
@@ -265,7 +271,7 @@ def status(project, scan, lock):
                 need = f'its test {test} must pass again' if test in now else 'review it: it has no test'
                 f.status, f.detail = 'shared', f'code changed with {", ".join(sorted(shared))}; {need}'
     not_passed = sorted(k for k, e in now.items() if e.get('kind') == 'test'
-                        and k in lock and lock[k].get('result') not in ('pass', 'manual', 'checked'))
+                        and k in lock and lock[k].get('result') not in SETTLED)
     return findings, not_passed
 
 
@@ -323,11 +329,11 @@ def accept(project, scan, results, allow_incomplete, findings=(), old=None, conf
             continue   # a run of all tests also reports the tests of clauses that are not being locked
         if key not in entries or entries[key].get('kind') != 'test':
             reasons.append(f'results: {key} is not a test')
-        elif entries[key]['result'] not in ('manual', 'checked'):
+        elif entries[key]['result'] not in ('manual', 'checked', 'deferred'):   # a result never settles what CI proves
             entries[key]['result'] = res if res in ('pass', 'fail') else 'none'
     for f in findings:
         test = own_test(f.key)
-        if f.status == 'shared' and test in entries and entries[test]['result'] not in ('pass', 'manual', 'checked'):
+        if f.status == 'shared' and test in entries and entries[test]['result'] not in SETTLED:
             reasons.append(f'shared  {f.key}  its code changed with another clause, so {test} must pass '
                            '(--allow-incomplete does not cover this)')
     pending = [k for k, e in entries.items() if e.get('result') in ('none', 'fail')
@@ -349,7 +355,7 @@ def is_manual(test):
 def pending_tests(project, findings, not_passed):
     """Keys of the tests a lock would refuse for want of a passing result (`accept`): the tests that are new or changed,
     the tests of a clause that is (of every clause, for a part: locking a part takes all of its items), and the tests
-    that had not passed at the last lock. A manual test needs no result."""
+    that had not passed at the last lock. A manual test needs no result, and a deferred one is left to CI."""
     wanted = set(not_passed)
     parts = {p.key: p for p in project.parts.values()}
     for f in findings:
@@ -362,7 +368,20 @@ def pending_tests(project, findings, not_passed):
             elif f.key in parts:
                 wanted |= {i.id for i in parts[f.key].items.values() if i.is_test}
     return sorted(k for k in wanted if k in project.items and isinstance(project.items[k], Item)
-                  and project.items[k].is_test and not is_manual(project.items[k]))
+                  and project.items[k].is_test and not is_manual(project.items[k]) and not project.items[k].runs_on())
+
+
+def deferred_tests(project):
+    """Keys of the tests left to CI: the ones that say `runs on:` (a manual test with one is a problem and stays manual)."""
+    return sorted(i.id for i in project.all_items() if i.is_test and i.runs_on() and not is_manual(i))
+
+
+def deferred_lines(project, keys):
+    """The lines `sor status` prints for the tests CI proves: which, and where they run. No lines when there are none."""
+    if not keys:
+        return []
+    return [f'tests deferred ({len(keys)}) — left to the CI jobs that provide their environment; `sor verify` checks their evidence: '
+            + listed(keys), '']
 
 
 def pending_lines(project, pending):

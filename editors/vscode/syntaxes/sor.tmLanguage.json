@@ -169,7 +169,7 @@
       }
     },
     "test-line": {
-      "begin": "^(\\s+)(each|do|expect|measure|bug|manual|proves|given|when|then|should|shows|by eye|by hand|sign-off|fixes|regression)(?=:)",
+      "begin": "^(\\s+)(each|do|expect|measure|bug|manual|proves|runs on|given|when|then|should|shows|by eye|by hand|sign-off|fixes|regression)(?=:)",
       "beginCaptures": {
         "2": {
           "name": "keyword.control.test.sor"

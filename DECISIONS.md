@@ -598,6 +598,38 @@ probed with one command in a temporary project, never in the engine project itse
   command.
 - **Not tool problems:** the harness refusing compound commands, heredocs and `sed -i` in background sub-agents.
 
+## Tests that CI proves (2026-10-21)
+A generic tool cannot assume every test runs on the machine of the person who locks: an integration test reads a database
+replica for an hour, a rendering test needs a GPU, a UI test must pass on three operating systems. Before this, a lock was refused
+until every test that is not manual had a passing result, so such tests either blocked every lock or were faked. Decided with the user;
+the three questions it left open were settled by defaults, to overturn if wrong:
+- **One line, `runs on:`, not `needs:` and not a generic tag.** `needs` already means "what a part uses from other parts" (SPEC §7), and
+  a tag that skips mixes labelling with skipping: the first `db` or `smoke` label would drop a test from every local run. `runs on:`
+  names where a test can run and carries no other meaning; a test without it always runs, so a forgotten line costs time and never
+  hides a test. Several environments are separated by commas, names one machine must have together by a plus (`linux+db`).
+- **The lock records `deferred` from the spec alone, and never a result of a job.** The lock has no timestamps and no measurements, and
+  benchmark results already never go into it (SPEC §8); a Windows pass next to a Linux failure would break both and every job would
+  rewrite the same lines. So the build record keeps what was agreed locally, and what each job proved goes into its own evidence file.
+  Rejected: carrying a pass forward in the lock until the test or its code changes (as manual confirmations are); it puts a result of
+  one machine in a file all machines share, and the fingerprint it needs is the evidence's, not the lock's.
+- **Evidence: one file per job, a fingerprint per test, no timestamps.** `{job, provides, results}`; the fingerprint hashes the test, what it
+  refers to, and the text, rows, values and code of every clause it proves (the manual-confirmation check looks only at the clause the
+  test is named after, which is not enough for a test that proves others with `proves:`). Jobs never write the same file. Whether the files
+  are committed or kept as CI artifacts is the team's choice; the tool reads files and folders either way.
+- **`sor verify` is the gate** (exit 0, 1 for a missing, stale or failed environment, 2 for bad input). A current failure is not outvoted by another
+  job's pass. Neither `sor status` nor `sor check --strict` could be the gate: `sor status` reports tests that had not passed without
+  changing its exit code, and the notes of `sor check` say nothing about results.
+- **Found in review, fixed:** a `runs on:` line under anything but a test is plain text, not a problem, so an existing rule that says
+  `  runs on: macOS 14` stays valid; `sor lock` names the tests that just became deferred, because one line is all it takes to leave a test
+  to CI; `sor verify` searches folders all the way down, as an artifact download makes one folder per artifact; a job's results file may
+  hold tests that are not kept, whatever their status; a job name that is not a string, or is a Windows device name, is refused.
+  Open: evidence files have no format version and no reference to the commit or CI run they came from, and the fingerprint does not cover
+  code a test only uses as input.
+- **Not done, to decide later:** a scoped `sor lock --run-tests` still runs every test and drops the results outside the scope (running only the
+  tests a lock needs would make clause-coverage budgets fail on a partial run); a failure only CI sees does not free the code of a bug fix, because
+  the edit guard reads the lock; benchmark metrics and `each: N ×` generators are still not built, which is where a quick-and-extended split would
+  matter most.
+
 ## Still open
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for
   this format (SPEC §15). The old `fdd` prototype (previous syntax) is not in this folder.

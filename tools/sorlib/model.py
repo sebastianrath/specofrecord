@@ -77,7 +77,7 @@ OPEN = re.compile(r'^\s+open:\s*(.*?)\s*$', re.I)   # an open question about an 
 TEST_WORDS = {'each': 'each', 'do': 'do', 'given': 'do', 'when': 'do', 'expect': 'expect',
               'then': 'expect', 'should': 'expect', 'shows': 'expect', 'measure': 'measure',
               'manual': 'manual', 'by eye': 'manual', 'by hand': 'manual', 'sign-off': 'manual',
-              'bug': 'bug', 'fixes': 'bug', 'regression': 'bug', 'proves': 'proves'}
+              'bug': 'bug', 'fixes': 'bug', 'regression': 'bug', 'proves': 'proves', 'runs on': 'runs_on'}
 TEST_LINE = re.compile(r'^\s+(' + '|'.join(sorted(TEST_WORDS, key=len, reverse=True)) + r'):\s*(.*)$', re.I)
 
 
@@ -85,6 +85,29 @@ def test_keyword(line):
     """(keyword, rest) for an indented test line such as `  then: zoom = 6x`, else None."""
     m = TEST_LINE.match(line)
     return (TEST_WORDS[m.group(1).lower()], m.group(2).strip()) if m else None
+
+
+ENV_NAME = re.compile(r'^[a-z0-9][a-z0-9._-]*$')   # what an environment is called: also safe to use in a file name
+
+
+def parse_runs_on(text):
+    """([tuple of names], error) for the words after `runs on:`, in the order they were written. A comma separates the
+    environments a test must pass in, a plus joins the names one machine must provide together: `windows, macos,
+    linux+db` is three environments, the last one on a machine that has both `linux` and `db`. Names are lowercase
+    letters, digits, dots, dashes and underscores. The error is None, or says what is wrong."""
+    if not text.strip():
+        return [], 'name the environments after `runs on:`, for example `runs on: linux, windows`'
+    out = []
+    for entry in text.split(','):
+        names = [n.strip().lower() for n in entry.split('+')]
+        bad = [n for n in names if not ENV_NAME.match(n)]
+        if bad:
+            return [], (f'"{bad[0]}" is not an environment name: use lowercase letters, digits, dots, dashes and '
+                        'underscores, with a comma between environments and a plus between names one machine must have')
+        env = tuple(dict.fromkeys(names))
+        if frozenset(env) not in [frozenset(e) for e in out]:
+            out.append(env)
+    return out, None
 
 
 def join(pid, name):
@@ -135,6 +158,32 @@ class Item:
     def target_name(self):
         """The item a test proves (its name without `test:`)."""
         return self.name[5:] if self.is_test else self.name
+
+    def steps(self):
+        """[(keyword, text)] of the keyword lines under the bullet; a line that wraps belongs to the keyword above it.
+        `open:` questions are no part of it."""
+        out = []
+        for n, t in self.lines[1:]:
+            if n in self.open_lines:
+                continue
+            kw = test_keyword(t)
+            if kw:
+                out.append(kw)
+            elif out and t.strip():
+                k, v = out[-1]
+                out[-1] = (k, v + ' ' + t.strip())
+        return out
+
+    def runs_on(self):
+        """The environments a test must pass in, one tuple of names for each, as written ([] for a test that runs anywhere).
+        A test with any is deferred: a local run and a lock leave it to the jobs that provide those names."""
+        if not self.is_test:
+            return []
+        out = []
+        for k, v in self.steps():
+            if k == 'runs_on':
+                out += [e for e in parse_runs_on(v)[0] if frozenset(e) not in [frozenset(x) for x in out]]
+        return out
 
     def text(self):
         """The item's own text: table rows are items of their own, so only their names count
@@ -705,6 +754,16 @@ class Project:
             elif item.is_test and kw and kw[0] == 'expect' and re.fullmatch(r'\{[^{}]+\}', kw[1]):
                 out.append(Problem('expect', where, f'`expect: {kw[1]}` compares nothing, so `sor test` cannot run it: '
                                                     f'say what the test proves with `proves: {kw[1]}` and add an expect that compares'))
+        if item.is_test:
+            first = next((n for n, t in item.lines[1:] if (test_keyword(t) or ('',))[0] == 'runs_on'), None)
+            if first is not None:
+                where = f'{item.file}:{first}'
+                steps = item.steps()
+                out += [Problem('runs on', where, err) for k, v in steps if k == 'runs_on'
+                        for err in [parse_runs_on(v)[1]] if err]
+                if any(k == 'manual' for k, _ in steps):
+                    out.append(Problem('runs on', where, 'a manual test is never run by the tool, so it has no environment: '
+                                                         'drop `runs on:` or `manual:`'))
         if item.is_test and item.target_name not in item.part.items:
             if not any(how == 'says' for _, how in self.proof_links(item)) \
                     and not any((test_keyword(t) or ('',))[0] == 'bug' for _, t in item.lines):

@@ -43,6 +43,7 @@ DOCS = {
     'new-project.md': SKILL_DIR + '/reference/new-project.md',
     'parallel-agents.md': SKILL_DIR + '/reference/parallel-agents.md',
     'plain-clauses.md': SKILL_DIR + '/reference/plain-clauses.md',
+    'ci-evidence.md': SKILL_DIR + '/reference/ci-evidence.md',
     'plugin README.md': 'plugins/specofrecord/README.md',
     'SPEC.md': 'SPEC.md',
 }

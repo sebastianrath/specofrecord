@@ -42,7 +42,7 @@ class TestStatusJson(Flow):
         replace_in(os.path.join(self.spec, 'greet.md'), '{text: Hello}', '{text: Hi}')
         code, data = self.status()
         self.assertEqual(code, 1)
-        self.assertEqual(sorted(data), ['claims', 'findings', 'locked', 'problems', 'tests_not_passed', 'tests_pending'])
+        self.assertEqual(sorted(data), ['claims', 'findings', 'locked', 'problems', 'tests_deferred', 'tests_not_passed', 'tests_pending'])
         self.assertTrue(data['locked'])
         finding = next(f for f in data['findings'] if f['key'] == 'greet/hello')
         self.assertEqual((finding['status'], finding['where']), ('changed', 'out/app.js:4-6'))

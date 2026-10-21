@@ -110,6 +110,14 @@ def notes(project, scan=None):
         if idle:
             scan = scan or Scan(project)
             idle = [t for t in idle if not scan.regions_for(t.id)]   # code marked `@clause test` runs in its own framework
+        left_to_ci = [t for t in idle if t.runs_on()]
+        idle = [t for t in idle if not t.runs_on()]
+        if left_to_ci:   # `manual:` is no way out for these: a CI job has to run them
+            out.append(Problem('never run', f'{left_to_ci[0].file}:{left_to_ci[0].lineno}',
+                               f'{len(left_to_ci)} test(s) of {part.key} say `runs on:` but have do:, expect:, each: or measure: '
+                               f'lines that nothing will run ({listed((t.id for t in left_to_ci), 5)}): the project has no web '
+                               "target, so `sor test` has no runner for them. Write them in the project's own framework, mark "
+                               'their code `@clause test <id>`, and have the CI job report them with `sor evidence`'))
         if idle:
             out.append(Problem('never run', f'{idle[0].file}:{idle[0].lineno}',
                                f'{len(idle)} test(s) of {part.key} have do:, expect:, each: or measure: lines that nothing will '

@@ -65,7 +65,8 @@ How to read it:
 4. Test lines call only what the target declares. `id = add(…)` keeps a result for later lines;
    `each: 1000 × todos = randomTodos(50)` names each generated input; `measure:` is a benchmark.
 5. Indented lines are two spaces, a keyword and a colon. Approach: `because:` `try:` `score:`
-   `limit:`. Tests: `each:` `do:` `expect:` `measure:` `bug:` `manual:` `proves:`. Any item but a test: `open:`.
+   `limit:`. Tests: `each:` `do:` `expect:` `measure:` `bug:` `manual:` `proves:` `runs on:`. Any item but a test: `open:`.
+   `runs on: linux, windows+gpu` leaves a test to the CI jobs that provide those environments (§8).
    Operators: `=` `≈ … ± tol` `<` `≤` `>` `≥` `is` `contains` `unchanged` `changed by`.
    The right side may add values: `{bars.top} + {fit.room}`.
 6. References `{…}` are looked up from this part outward (§4); a value of another part is `{part/item.value}`, and
@@ -274,6 +275,23 @@ for that item) or `bug:` (a regression test).
   tool reads no jest or pytest output. External
   tests are not run by `sor test`, so they do not count toward its clause coverage, and the tool trusts the framework's
   result, as it does for `--results` alone.
+- **A test left to CI.** A test that needs a place (an OS, a GPU, a database replica, an hour) says `runs on: linux, windows+gpu`.
+  A comma separates the environments it must pass in; a plus joins the names one machine must provide together; a name is
+  lowercase letters, digits, dots, dashes and underscores. Such a test is **deferred**: its lock entry says `deferred`, from the spec
+  alone, so the lock holds no result for it and never waits for one (§11); `sor lock` names the tests that just became deferred. `sor test` leaves it out unless the run provides one of its
+  environments (`--provides`), says `--all`, or names the test by its own id; `sor test --list` says which, and runs nothing. A CI job
+  that ran it writes evidence with `sor evidence` (`--job`, `--provides`, `--results`): one file per job, `{job, provides, results}`,
+  with a fingerprint and `pass` or `fail` for each test, so two jobs never write the same file and a team decides whether to commit
+  them. The fingerprint hashes the test, what it refers to, and the text, rows, values and code of every clause it proves: a result
+  goes stale when any of them changes, and there is no timestamp. It does not cover code a test only uses as input (`do:` and
+  `each:` lines) or code outside the marked regions: a result can stay current while such code changes. `sor verify` is the gate: exit 0 when every environment of every
+  deferred test has a current pass, 1 when one is missing, stale or failed (a current failure is not outvoted by another job's pass),
+  2 for an evidence file that cannot be read or a bad `runs on:` line. Evidence is as trustworthy as the job that wrote it: the gate
+  checks that a result is current and which environments the job said it provides, not that it ran the test. A deferred test proves
+  nothing for clause coverage until a run includes it: a project with a coverage budget (`measure: clause-coverage …`) gives that test its
+  own `runs on:` and has a job run it with `sor test --all`. A `manual:` test with `runs on:` is a problem; under anything but a test the line is plain text. `runs on:` is for a test that
+  needs a place, never for one that fails: that is weakening the test. A failure only CI sees does not free the code of a bug fix (the
+  edit guard reads the lock): change the test first, or give it a `bug:` line.
 - **A ticket is input, not authority.** Before any edit, ask: is it a bug against a clause? must the clause change?
   must the code change? The cases and what to do in each are in the plugin's `reference/bugs.md`. A ticket that
   contradicts a clause does not rewrite it: ask the owner (an `open:` question on the clause), and do not write back to the
@@ -320,7 +338,8 @@ A target is a part under `sor/targets/` that says how code is delivered and test
 
 ## 11. sor-lock.json
 - One entry per item, row, value and test: the hash of its text, of everything it refers to,
-  and of its code regions; for tests, whether they passed when accepted.
+  and of its code regions; for tests, whether they passed when accepted, or `deferred` when the test says `runs on:` (§8): a CI
+  job proves it, so no environment and no result of a job is ever in the lock.
 - Sorted, one entry per line, no line numbers, no timestamps, no measurements: identical
   input gives identical bytes; a line-based merge keeps different entries apart.
 - Hashes do not depend on line endings: spec text is read with universal newlines and code is hashed
@@ -329,7 +348,7 @@ A target is a part under `sor/targets/` that says how code is delivered and test
   stale temp files (older than 5 minutes, left by a crashed write) are removed. If the file exists and
   is read-only, `sor lock` refuses and changes nothing: some environments keep files read-only until
   they are opened for edit, and replacing the file would bypass that.
-- `sor lock` refuses on problems in what it locks, drift, a clause another agent holds, and a non-manual test without a passing result (the refusal lists the tests and the way out, §15); the points below and §15 give the exact rules. `--allow-incomplete` records a test that did not pass, but does not cover a test of code shared with a changed clause. It does not wait for code: a clause locked before its code exists is reported as `built` once the code arrives.
+- `sor lock` refuses on problems in what it locks, drift, a clause another agent holds, and a test that is neither manual nor deferred without a passing result (the refusal lists the tests and the way out, §15); the points below and §15 give the exact rules. `--allow-incomplete` records a test that did not pass, but does not cover a test of code shared with a changed clause. It does not wait for code: a clause locked before its code exists is reported as `built` once the code arrives.
 - `sor lock <ids>` accepts only the named clauses (and parts), and the clauses that share a
   code region with them when their entry would change; every other entry keeps what it had, so
   one agent never accepts another's unfinished work (§16). With no ids it accepts what the agent
@@ -394,8 +413,11 @@ with `-C <folder>`:
 | Command | Does |
 |---|---|
 | `sor check [--strict] [PART ...]` | problems: header, names (a name used twice says where the first is), `heading` (a section heading written twice in one part: same text, case and spacing ignored), values, references (§4; one that names nothing says what was found and suggests the nearest valid ids, as in `{core/spawn} names no item, row, value or part; did you mean {core/ecs/spawn}?`), `needs` → `gives` (a `needs` on a part says it is a part and lists the `gives` ids inside it), a `collision` of a part and an item with one id (`"scene/modes" names both a part (scene/modes.md) and an item of scene.md: rename one of them`), orphan tests (named after nothing, with neither `proves:` nor `bug:`), `proves:` lines that name no clause, `expect: {ref}` alone, markers, unmarked lines, `placeholder`, and in a `<part>.tests.md`: a test also named in the part's file (`duplicate`), anything but tests (`misplaced`), no part to belong to (`tests file`) (a `<fill in …>` left in a spec file, for example by `sor new`). Notes, which never change the exit code: a breach of the limits of §13 (items in a section of Rules, Approach or Contract, words in an item (`too long`), lines above `## Tests`, lines in a test, parts directly under one part (`too wide`)), every `open:` question (§3), `loose text` (a line under the title or in a section that belongs to no item: it is not locked, and a change to it goes unnoticed), and `never run` (a test with `do:`, `expect:`, `each:` or `measure:` lines that nothing will run: the project has no web target, the test is not `manual:` and has no `@clause test` code; one note per part); `--strict` makes these exit 2. With parts, `sor check audio` reports only the problems and notes of those parts and of the parts inside them (`audio` covers `audio/mixer`, not `audio-fx`; `ROOT` is the root file alone), and its exit code follows only them; a name that is no part is exit 2 and lists the closest ids. Without parts nothing changes |
-| `sor status [--json]` | compares files and code with `sor-lock.json`: **recompile** (new, changed, removed clauses), **review** (a referenced item or value, or shared code, changed), **drift** (code changed, its clause did not), **built**, **info**; and a block `tests (N)` of the tests a lock would refuse for want of a passing result, with the way out (as in the refusal of `sor lock`). `--json` has them as `tests_pending`, a superset of `tests_not_passed` (the tests that had not passed at the last lock) |
-| `sor test [id …] [--coverage] [--out F]` | runs the tests in headless Chrome against the web target's probes; reports clause and line coverage. An id is a test, the item it proves, or a part; an id that matches no test is exit 2, not a pass. A test without steps whose code is marked `@clause test` is shown as EXTERNAL: not run, not failed (§8) |
+| `sor status [--json]` | compares files and code with `sor-lock.json`: **recompile** (new, changed, removed clauses), **review** (a referenced item or value, or shared code, changed), **drift** (code changed, its clause did not), **built**, **info**; and a block `tests (N)` of the tests a lock would refuse for want of a passing result, with the way out (as in the refusal of `sor lock`). `--json` has them as `tests_pending`, a superset of `tests_not_passed` (the tests that had not passed at the last lock); `tests deferred (N)` lists the tests a CI job proves (§8), and `--json` has them as `tests_deferred` |
+| `sor test [id …] [--coverage] [--out F] [--provides NAMES] [--all]` | runs the tests in headless Chrome against the web target's probes; reports clause and line coverage. An id is a test, the item it proves, or a part; an id that matches no test is exit 2, not a pass. A test without steps whose code is marked `@clause test` is shown as EXTERNAL: not run, not failed (§8) |
+| `sor test --list [id …] [--provides NAMES] [--all] [--json]` | lists the tests a run would run and the ones it would leave to CI (§8): each with its environments, whether your own framework runs it and its fingerprint; runs nothing, so it needs no web target |
+| `sor evidence --job NAME --provides NAMES --results F [--out FILE]` | writes what a CI job proved (§8): F is `{test id: pass\|fail}`, as `sor test --out` writes it; only tests that say `runs on:` and name an environment the job provides are kept, the rest are named; default `evidence/NAME.json` |
+| `sor verify [FILE or FOLDER …] [--json]` | the gate over the evidence (§8): exit 0 when every environment of every deferred test has a current pass, 1 when one is missing, stale or failed, 2 for a bad evidence file or `runs on:` line |
 | `sor test --strength [id …]` | test strength (§8): reruns each passing test with every value it refers to changed; lists weak tests and the value that did not matter, and the passing tests it could not vary (`IDLE`) |
 | `sor lock [--run-tests \| --results F] [--confirm test …] [--allow-incomplete]` | writes the lock; refuses on problems, drift, or tests that did not pass. What a scoped lock waits for is in §16. With both `--run-tests` and `--results F`, F gives the results of the EXTERNAL tests only (§8). The refusal for tests without a result says `N test(s) did not pass (F failed, M not run)`, lists the first ten and the way out: with no web target a `manual:` line for a test nobody can run yet, or `--results F` for a test in the project's own framework; with a web target `sor lock --run-tests`, adding `--results F` for a test marked `@clause test <id>`; and `--allow-incomplete` in both |
 | `sor lock [<id …> \| --all]` | accepts the named clauses only, none of the child parts under them unless named (§11); with no ids, what you claimed, and the child parts under a claimed part that have a change of their own (new, changed or removed; parts made after the claim too): it prints `locking the parts under them too: …`, and leaves out a child part that another agent's claim overlaps, naming it (`not locking audio/mixer, which is claimed: …`); `ROOT` is not expanded; `--all` the whole project (§16). Refused while someone else claims them. With no ids and every claim of the agent expired, it is refused and says so; when only some expired, it warns (§16) |
@@ -509,7 +531,9 @@ the clause first.
 | a test with `do:`, `expect:`, `each:` or `measure:` lines that nothing will run: no web target, not `manual:`, no `@clause test` code (§8) | note in `sor check` (`never run`) |
 | an `open:` question stays visible until it is answered (§3) | note in `sor check` |
 | code changes after the clause it serves (§15) | drift in `sor status`, which `sor lock` refuses; the edit hook refuses an agent's edit, and a person's edit is flagged and not blocked |
-| the lock is written only when every non-manual test passes (§11) | `sor lock` refuses |
+| the lock is written only when every test that is not manual or deferred passes (§11) | `sor lock` refuses |
+| a `runs on:` line under a test names valid environments, and the test is not manual (§8) | problem in `sor check` (`runs on`) |
+| a test that says `runs on:` has a current pass in every environment it names (§8) | `sor verify` exits 1 |
 | a test calls only probes, generators and metrics the target declares, and its `{values}` resolve (§8) | `sor test` fails the test before it runs |
 | the lock and claims files are not edited by hand; a spec file is not rewritten with Write, except one that is still the skeleton `sor new` wrote (§11, §15, §16) | the edit hook, in Claude Code only; for other agents, a rule in the skill (`SKILL.md`), which `AGENTS.md` points to |
 | nobody edits a clause, or code, that another agent claimed (§16) | `sor claim` and `sor lock` refuse; the edit hook only where `SOR_ENFORCE_CLAIMS=1` |

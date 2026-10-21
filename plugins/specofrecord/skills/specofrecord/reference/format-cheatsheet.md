@@ -62,7 +62,8 @@ How to read it:
 4. Test lines call only what the target declares. `id = add(…)` keeps a result for later lines;
    `each: 1000 × todos = randomTodos(50)` names each generated input; `measure:` is a benchmark.
 5. Indented lines are two spaces, a keyword and a colon. Approach: `because:` `try:` `score:`
-   `limit:`. Tests: `each:` `do:` `expect:` `measure:` `bug:` `manual:` `proves:`. Any item but a test: `open:`.
+   `limit:`. Tests: `each:` `do:` `expect:` `measure:` `bug:` `manual:` `proves:` `runs on:`. Any item but a test: `open:`.
+   `runs on: linux, windows+gpu` leaves a test to the CI jobs that provide those environments (§8).
    Operators: `=` `≈ … ± tol` `<` `≤` `>` `≥` `is` `contains` `unchanged` `changed by`.
    The right side may add values: `{bars.top} + {fit.room}`.
 6. References `{…}` are looked up from this part outward (§4); a value of another part is `{part/item.value}`, and

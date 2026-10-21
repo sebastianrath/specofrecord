@@ -24,6 +24,7 @@ pass `-C <folder>`. The format is in `reference/format-cheatsheet.md`.
 | "keep my change", or drift that was there before you started | "Code a person changed", below |
 | plain sentences: bullets without **names**, or `sor check` says `unnamed test` or `loose text` | `reference/plain-clauses.md` |
 | other agents work at the same time | `reference/parallel-agents.md` |
+| a test that needs a place (an OS, a GPU, a database) or must run in CI | `reference/ci-evidence.md` |
 
 A new project: nothing else is asked of the user, and there is no `sor init`. Write the specs and stop: write code
 only when asked, or when the project is tiny like hello world.
@@ -40,6 +41,7 @@ only when asked, or when the project is tiny like hello world.
 | `sor show <id>`, `sor markers <id or file:line>` | a part's clauses with their code; where a clause's code is, or which clause a line serves |
 | `sor parts [--tree] [<parts>]` | an index of every part, or of those and the parts inside them: run it first in a project you do not know |
 | `sor needs [part]`, `sor changes` | what a part uses from other parts; the pending changes in words |
+| `sor evidence …`, `sor verify` | what a CI job proved about tests that say `runs on:`, and the gate over it (`reference/ci-evidence.md`) |
 
 ## Your routine
 The user says what to build or change, in their own words, and mentions Spec of Record once. They never run or ask for
@@ -77,7 +79,7 @@ and the changed parts under a claimed part; `sor lock <ids>` locks only the ids 
 - Failures that were already there: add `--allow-incomplete` and say so; it does not cover a test of code shared with a
   changed clause.
 - A person checks a `manual:` test: `sor lock --confirm <test>` is for people, never for you.
-- A lock is refused while a test that is not `manual:` has no passing result: the `tests (N)` block of `sor status`
+- A lock is refused while a test that is not `manual:` or `runs on:` has no passing result: the `tests (N)` block of `sor status`
   lists them and says the way out (for a test nobody can run yet, a `manual:` line saying what a person checks).
 - The lock takes the code of the clauses and the glue files with it (a file that is only glue, such as `__init__.py`,
   goes with every lock). If `sor status` still lists something afterwards, claim that clause or part and lock it.
@@ -123,5 +125,5 @@ in line. The steps are in `reference/code-a-person-changed.md`: read it first.
 - `sor check` lists open questions, and a part that outgrows the limits in `reference/format-cheatsheet.md`, as notes.
   Report a note only for a part you wrote or changed in this task, and mention older notes at most once. Split a part
   only when you are writing it now or when asked, never as a side effect of other work.
-- `sor test` is the independent check the spec asks for: never weaken a test to make it pass, and never confirm a
+- `sor test` is the independent check the spec asks for: never weaken a test to make it pass (moving it to `runs on:` is weakening it), and never confirm a
   `manual:` test (`sor lock --confirm` is for people).
