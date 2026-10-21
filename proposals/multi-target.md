@@ -1,6 +1,6 @@
 # Proposal: more than one code target
 
-Status: draft for discussion, nothing built. Written 2026-10-21 after reading the tool and checking the points marked "shown" in a temporary project.
+Status: Phases 0 and 1 are built and merged. The decisions for the owner were made on 2026-10-21 (see the end), and nothing else is built. Written the same day after reading the tool and checking the points marked "shown" in a temporary project.
 
 ## The goal
 One spec, code in more than one place: `src_py/` and `src_ts/`, or `src/py/` and `src/ts/`. Tests, environments and the evidence gate have to work with that. A first use is the tool itself, in Python and in TypeScript, so a VS Code user needs no Python.
@@ -22,18 +22,19 @@ Phase 0 makes normalization follow the file type. The cure was not to add `#` to
 Changing the rule changes every locked code hash once. SPEC §11 already describes that case, and the migration is a relock.
 
 ## Also shown
-A changed clause whose code is "not updated yet" is accepted by `sor lock`, and `sor status` then says everything agrees. So the lock does not require code to be rebuilt today. A rule like "a clause is built only when every target has code" would be new behaviour. This proposal does not add it: each target follows whatever the single-target rules are.
+A changed clause whose code is "not updated yet" is accepted by `sor lock`, and `sor status` then says everything agrees. So the lock does not require code to be rebuilt today. With more than one language that leaves one behind without a word (shown below, under "A target that is behind"). A project with one target keeps today's rule.
 
 ## Design
 1. **Targets own folders.** A file belongs to the target whose `path` is the longest prefix of its project-relative path. No new marker syntax.
    - Two targets claiming the same folder, or one folder holding code of two targets, is a `sor check` problem. The tool does not guess.
    - A `Source: code at` area outside every target root needs an owner, or it is a problem.
    - Target names must not collide with reserved key prefixes (`glue`, `test`) or with environment names.
-2. **Which clauses apply to which target.** A `Targets: py, ts` setting. The root file holds the default and a part may override it, so adding a second target does not turn every clause into "ts not built" in one step. `sor status` summarizes ("N clauses have no ts code") and does not list thousands of lines.
+2. **Which clauses apply to which target (decided).** A `Targets: py, ts` setting. The root file holds the default and a part may override it, so adding a second target does not turn every clause into "ts not built" in one step. `sor status` summarizes ("N clauses have no ts code") and does not list thousands of lines.
 3. **Compatibility.** A project with one code target behaves as today, with the same lock bytes.
 4. **Lock.** With two or more targets, separate lines: the clause's text and refs entry stays single, and each target gets its own code-only entry (`clause@py`, as `glue:<file>` is a prefixed key). Reasons:
    - SPEC §11 and §16 want line-level merges, and work on two targets is naturally parallel, one agent per language.
    - `status` can reuse its per-key logic for new, changed, drift and built.
+   - Each per-target line also records `built`, the text hash of the clause that target's code was accepted against. That is what makes a target "behind" (next section).
 5. **Normalization by file type** (a table by extension: comment styles, and whether indentation is significant). Python and YAML keep indentation, and Python strips `#` comment lines.
 6. **Tests.** A test applies to its clause's targets. Test code lives per target, results are per (test, target), and `--results` takes `id@py` keys or one file per target. Running each target's own framework from `sor test` is still "not built yet", so every target hands in external results.
 7. **Environments and targets are separate.** A target is what was built, an environment is where a job ran it. A result key becomes (test, target).
@@ -41,6 +42,28 @@ A changed clause whose code is "not updated yet" is accepted by `sor lock`, and 
    - `runs on:` stays about environments. A target name used as an environment name is a problem, or `runs on: py` would defer a test that should run locally.
 8. **Claims and `sor lock` get a target scope**, so a Python agent and a TypeScript agent can work on one clause.
 9. **Index and extension.** Regions get a `target` field in `markers --json`. The lens can show one title per target. Coverage becomes per target.
+
+## A target that is behind, and code a person changed
+Shown in a temporary project: one clause with code in `src_py/` and in `src_ts/`, and a person changing the Python by hand.
+- `sor status` reported drift on the clause and listed both files.
+- The clause was brought in line with the Python, as the workflow says to. `sor status` then said "changed, code updated" with both files listed, and `sor lock` said clauses, code and lock agree, while the TypeScript still said the old greeting.
+- The single code hash cannot tell a language that was rebuilt from one that was forgotten. Per-target lines can, if they record what they were built for.
+
+The rule, decided on 2026-10-21:
+- A target is **behind** for a clause when the target applies to it (`Targets:`), it has a line for the clause, and that line's `built` is not the clause's current text hash. A clause with no code at all for a target is not behind. It is counted in the "no code for target" report of Phase 2, so adding a second target does not make every clause behind at once.
+- `sor status` lists what is behind in a group of its own, naming the clause and the target, and the exit code is 1 as for any pending change.
+- A lock accepts a target's code with the clause when that code changed since the last lock: it was rebuilt, or a person changed it and the clause was brought in line with it. Code that did not change stays behind.
+- **`sor lock` refuses while a target is behind for a clause it locks,** and names the target. A flag (called `--allow-behind <target>` here) accepts the clause anyway. The target stays listed as behind until its code changes, so the flag hides nothing. It means "I rebuild it later". A clause that does not concern a language is the job of `Targets:`.
+- A project with one target has no per-target lines and behaves as today.
+
+A person changes the Python by hand, in order:
+1. `sor status` reports drift on `greeting@py` only.
+2. The clause is brought in line with the Python (`reference/code-a-person-changed.md`). `greeting@ts` is now behind.
+3. The TypeScript is rebuilt from the clause, and the lock accepts both: the Python because the person's code is the reference, the TypeScript because its code changed.
+
+A person changes the spec instead: every target that applies is behind until it is rebuilt.
+
+Open: a language whose code is already right for the new wording, because the change was to a sentence that does not concern it. The tool cannot tell it from a language that was forgotten, and a changed code hash is its only proof. Options are a confirmation that only a person may give (as `--confirm` is for a `manual:` test), or touching the code. Not decided.
 
 ## Layouts: what works today, and what usually sits around a source folder
 Shown in a temporary project with two targets, `src_py/` and `src_ts/`:
@@ -60,17 +83,22 @@ Phase 0 already shows it, in one direction: a tool that follows the file type re
 
 Tool copies of different ages meet in practice: a project keeps its own copy and the VS Code extension prefers it to its bundled one. An old tool reading per-target lock lines would report them as removed or as drift, with no complaint. So the lock needs a format version first, and an old reader must refuse with a message that says to update the tool.
 
+Phase 1 built that (`DECISIONS.md`, "The lock has a format number"). Format 1 has no marker, and a later format opens the file with `"*format": N`. A tool from Phase 1 on refuses a number it does not know, with exit 2 and a message to update. A tool older than Phase 1 cannot be taught: given the marker it stops with a Python error, and its edit hook fails open. So every copy of the tool has to be updated before Phase 3 writes a lock in a later format.
+
 ## Order of work
-- **Phase 0, a bug fix of its own:** normalization by file type.
-- **Phase 1:** a lock format version, and refusal by an older reader.
+- **Phase 0, a bug fix of its own (built and merged):** normalization by file type.
+- **Phase 1 (built and merged):** a lock format version, and refusal by an older reader.
 - **Phase 2, nothing changes in the lock:** map regions to targets in the index, `sor check` problems for overlapping roots and reserved names, and a "no code for target" report.
-- **Phase 3:** per-target lock lines, per-target results and claims, `Targets:` with a root default.
+- **Phase 3:** per-target lock lines with `built`, the behind report and the refusing lock, per-target results and claims, `Targets:` with a root default.
 - **Phase 4:** per-target evidence and fingerprints.
 
 ## For the Python and TypeScript tool
 The risk is that the two copies disagree on a hash. So the hashing and normalization rules should be clauses with tables of test vectors (input, expected hash), and both implementations should run against the same rows. Not part of this proposal to build.
 
-## Decisions for the owner
-1. **Lock shape:** separate lines per (clause, target), or a dict inside one entry. Recommended: separate lines.
-2. **Applicability:** a default in the root file with part overrides, or "all targets" everywhere. Recommended: the root default.
-3. **Phase 0 now,** on its own, ahead of everything else. Recommended: yes, because it fixes projects that are single-target today.
+## Decisions (made on 2026-10-21)
+1. **Lock shape:** separate lines per (clause, target), each with `built`. Not a dict inside one entry.
+2. **Applicability:** a default in the root file, with part overrides.
+3. **Phase 0 now,** on its own, ahead of everything else. Done: merged, with the fixes from its reviews.
+4. **A lock refuses while a target is behind,** with a flag to allow it. Status reports it either way.
+
+Still open: how a language confirms that its code already fits a changed clause (above), and the name of the flag.
