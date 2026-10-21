@@ -1,6 +1,5 @@
 # Project and tool
-Why: find the Spec of Record projects and the `sor` tool, ask the tool, and hand the answers to the other
-parts.
+Why: find the Spec of Record projects and the `sor` tool (a project's own, or the copy that ships in the extension), ask the tool, and hand the answers to the other parts.
 
 ## Rules
 - **wake** — it starts when the workspace holds a `sor/SPECOFRECORD.md` (or the older `sor/CLAUSES.md`) at any depth; without one it stays
@@ -9,7 +8,8 @@ parts.
   `node_modules` is skipped.
 - **tool-path** — the tool is `tools/sor.py`, looked for in the project folder
   and every folder above it, in each also under `.claude/skills/specofrecord/` (or the earlier name
-  `.claude/skills/spec-of-record/`); the setting `sor.toolPath` wins when set.
+  `.claude/skills/spec-of-record/`); the setting `sor.toolPath` wins when set. When none is found there, the
+  copy that ships inside the extension (`tools/sor.py`, next to `src/`) is used, so it works with no tool installed.
 - **python** — Python is `sor.pythonPath` when set, otherwise `py -3` on Windows and `python3`
   elsewhere.
 - **from-json** — everything comes from `sor markers --json` and `sor status --json`, run with
@@ -37,6 +37,13 @@ parts.
 - **from-json** — index and status come back from the tool and every lens, hover and gutter
   check works on them (test/suite.js).
 - **tool-path** — `sor.toolPath` and `sor.pythonPath` win over the defaults.
+  manual: by eye
+- **bundled-tool** — the copy that ships in the extension equals the repository's `tools/` and, run away from the
+  repository, answers `sor status --json` and `sor markers --json` (test/bundle.js).
+  proves: {tool-path}
+- **tool-fallback** — in a project with no tool in it or above it, the bundled tool runs and the project shows
+  its lenses and marks.
+  proves: {tool-path}
   manual: by eye
 - **failures** — a missing tool or Python gives a line in the Spec of Record output and no crash.
   manual: by eye

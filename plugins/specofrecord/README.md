@@ -13,8 +13,8 @@ The format itself is in `skills/workflow/reference/format-cheatsheet.md` (full v
 project this came from).
 
 ## Requirements
-- **Python 3** on the PATH. The tools are plain Python (standard library only). Without it the hooks do
-  nothing and `sor` prints a message.
+- **Python 3.9 or newer** as `python3` on the PATH. The tools are plain Python (standard library only). Without
+  it the hooks do nothing and `sor` prints a message; with an older Python `sor` says which version it found.
 - **Chrome or Edge** only for `sor test` on web projects (set `SOR_CHROME` if it is not found).
 - macOS or Linux. **Windows is untested**: the hooks and `bin/sor` are POSIX shell.
 

@@ -10,7 +10,7 @@ Shows, inside the editor, which code comes from which clause, and whether they s
 - `@clause` comment lines are hidden (display only, the files never change). "Spec of Record: Toggle marker lines" flips it.
 - Syntax colors for files under `sor/`.
 
-Everything comes from the `sor` tool (`tools/sor.py`). Settings: `sor.pythonPath`, `sor.toolPath`, `sor.hideMarkerLines`, `sor.livePreview`.
+Everything comes from the `sor` tool. The extension uses `tools/sor.py` from the project or a folder above it when there is one, and otherwise the copy it ships with, so it works with nothing else installed except Python 3.9 or newer (`python3`, or `py -3` on Windows). Settings: `sor.pythonPath`, `sor.toolPath`, `sor.hideMarkerLines`, `sor.livePreview`.
 It starts only when the workspace holds a `sor/SPECOFRECORD.md` (or the older `sor/CLAUSES.md`). It never edits a spec or code file.
 
-Test: `npm test` (grammar test, then a real VS Code on `examples/solar-system`).
+Test: `npm test` (grammar test, a check of the bundled tool, then a real VS Code on `examples/solar-system`). The bundled copy in `tools/` is made from the repository's `tools/` by `sh plugins/sync-tools.sh`; never edit it by hand.

@@ -67,6 +67,8 @@ function activate(context) {
   // ---------------------------------------------------------------- project / tool
   const cfg = (k) => (vscode.workspace.getConfiguration('sor').get(k) || '').trim();
 
+  // @clause end
+  // @clause project/tool-path
   function findTool(root) {
     const set = cfg('toolPath');
     if (set) return set;
@@ -83,9 +85,14 @@ function activate(context) {
       if (up === dir) break;
       dir = up;
     }
+    // last resort: the copy of the tool that ships inside the extension (tools/ next to src/)
+    const bundled = path.join(__dirname, '..', 'tools', 'sor.py');
+    if (fs.existsSync(bundled)) return bundled;
     throw new Error('the sor tool (tools/sor.py) was not found for ' + root);
   }
+  // @clause end
 
+  // @clause project project/wake
   function pythonCommand() {
     const set = cfg('pythonPath');
     if (set) return [set, []];

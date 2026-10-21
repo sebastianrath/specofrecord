@@ -26,7 +26,8 @@ In this repository:
 - `tools/test_sor_docs.py` checks the documents against the code: a command, flag, number or name that a document gets wrong
   fails there, and the message names the document. The limits of the format are written only in SPEC §13 and the cheat sheet;
   point to them, do not repeat the numbers.
-- The plugin carries its own copy of `tools/` and of the cheat sheet. After you change `tools/` or the cheat sheet in
-  `SPEC.md`, run `sh plugins/sync-tools.sh`; `sh plugins/sync-tools.sh --check` fails when the copy is out of date.
+- The plugin carries its own copy of `tools/` and of the cheat sheet, and the VS Code extension carries a copy of `tools/`
+  (`editors/vscode/tools`, the tool it falls back on). After you change `tools/` or the cheat sheet in `SPEC.md`, run
+  `sh plugins/sync-tools.sh`; `sh plugins/sync-tools.sh --check` fails when a copy is out of date.
 - Do not run `lock` or `claim` against `examples/` or `editors/vscode` to try the tool out: use a temporary
   folder.

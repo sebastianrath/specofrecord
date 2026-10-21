@@ -32,7 +32,8 @@ function keepInFront() {
 
 (async () => {
   const stopFront = keepInFront();
-  const project = path.resolve(process.argv[2] || '../../examples/solar-system');
+  // an argument is relative to where the command runs; the default is relative to this file, so it works from any folder
+  const project = process.argv[2] ? path.resolve(process.argv[2]) : path.resolve(__dirname, '..', '..', '..', 'examples', 'solar-system');
   try {
     await runTests({
       vscodeExecutablePath: process.argv[3] || undefined,

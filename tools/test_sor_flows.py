@@ -1835,6 +1835,8 @@ class TestSyncTools(unittest.TestCase):
         shutil.copytree(os.path.join(REPO, 'plugins'), os.path.join(self.root, 'plugins'), ignore=ignore)
         shutil.copy(os.path.join(REPO, 'SPEC.md'), os.path.join(self.root, 'SPEC.md'))
         self.plugin = os.path.join(self.root, 'plugins', 'specofrecord')
+        self.extension = os.path.join(self.root, 'editors', 'vscode')
+        write(self.root, 'editors/vscode/package.json', '{}\n')   # all the script needs of the extension: that it exists
         self.sync()   # the copy starts in sync, whatever state the real plugin is in
 
     def sh(self, *args):
@@ -1899,6 +1901,44 @@ class TestSyncTools(unittest.TestCase):
         now = tree(self.plugin)
         for k, v in kept.items():
             self.assertEqual(now.get(k), v, k)
+
+    def test_the_extension_carries_the_current_tool_and_nothing_else(self):
+        ext_tools = os.path.join(self.extension, 'tools')
+        self.assertEqual(sorted(os.listdir(ext_tools)), ['sor.py', 'sorlib'])   # not the tests next to the tool in tools/
+        self.assertEqual(read(os.path.join(ext_tools, 'sor.py')), read(os.path.join(self.root, 'tools', 'sor.py')))
+        for name in sorted(os.listdir(os.path.join(self.root, 'tools', 'sorlib'))):
+            if name.endswith('.py'):
+                self.assertEqual(read(os.path.join(ext_tools, 'sorlib', name)),
+                                 read(os.path.join(self.root, 'tools', 'sorlib', name)), name)
+        self.assertEqual(read(os.path.join(self.extension, 'package.json')), '{}\n')   # the rest of the extension is left alone
+
+    def stale_extension(self, change):
+        change()
+        code, out, err = self.sh('--check')
+        self.assertEqual(code, 1, out)
+        self.assertIn('the extension copy of tools/ is out of date: run sh plugins/sync-tools.sh', err)
+        self.assertNotIn('the plugin is out of date', err)   # the plugin copy is fine, and the message says whose copy is not
+        self.sync()
+        self.assertEqual(self.sh('--check')[0], 0)
+
+    def test_an_extension_copy_edited_missing_or_left_over_is_stale_until_it_is_synced(self):
+        def edit():
+            with open(os.path.join(self.extension, 'tools', 'sor.py'), 'a', encoding='utf8') as fh:
+                fh.write('\n# edited in the extension\n')
+        self.stale_extension(edit)
+        self.stale_extension(lambda: os.remove(os.path.join(self.extension, 'tools', 'sorlib', 'views.py')))
+        self.stale_extension(lambda: write(self.extension, 'tools/sorlib/leftover.py', 'x = 1\n'))
+        self.assertFalse(os.path.exists(os.path.join(self.extension, 'tools', 'sorlib', 'leftover.py')))
+
+    def test_a_repository_without_the_extension_gets_no_extension_copy(self):
+        shutil.rmtree(os.path.join(self.root, 'editors'))
+        code, out, err = self.sh()
+        self.assertEqual((code, err), (0, ''))
+        self.assertNotIn('editors/vscode', out)
+        self.assertFalse(os.path.exists(os.path.join(self.root, 'editors')))
+        code, out, err = self.sh('--check')
+        self.assertEqual((code, err), (0, ''))
+        self.assertNotIn('extension', out)
 
 
 if __name__ == '__main__':

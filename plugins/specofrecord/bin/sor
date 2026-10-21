@@ -4,5 +4,16 @@ if ! command -v python3 >/dev/null 2>&1; then
   echo "sor: python3 is needed and was not found on the PATH" >&2
   exit 127
 fi
-here=$(cd "$(dirname "$0")" && pwd)
+if ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 9))' >/dev/null 2>&1; then
+  echo "sor: Python 3.9 or newer is needed, found $(python3 --version 2>&1)" >&2
+  exit 127
+fi
+# Follow symlinks, so a link to this file (in /usr/local/bin, say) still finds the tools that sit next to the real one.
+self=$0
+while [ -h "$self" ]; do
+  dir=$(cd "$(dirname "$self")" && pwd)
+  self=$(readlink "$self")
+  case $self in /*) ;; *) self="$dir/$self" ;; esac
+done
+here=$(cd "$(dirname "$self")" && pwd)
 exec python3 "$here/../tools/sor.py" "$@"

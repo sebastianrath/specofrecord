@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Spec of Record (SoR)</title>
-<meta name="description" content="A development philosophy and toolchain for AI-built software. Plain-language specs are the source code, and an AI agent acts like a compiler. The spec is split into parts with responsibilities, so engineering, QA and UX can each focus on their own area of expertise while the whole team works from one source. You can jump from any part of the spec to its code, and back. The AI changes the spec first, then the code. If you change the code yourself, it updates the spec to match.">
+<meta name="description" content="A development philosophy and toolchain for AI-built software, aimed at mid-sized to large projects. Plain-language specs are the source code, and an AI agent acts like a compiler. The spec is split into parts with responsibilities, so engineering, QA and UX can each focus on their own area of expertise while the whole team works from one source. You can jump from any part of the spec to its generated code, and back. The AI changes the spec first, then the code. If you change the code yourself, it updates the spec to match.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Caveat:wght@600&display=swap" rel="stylesheet">
@@ -304,7 +304,7 @@
 
 <h1>Spec of Record <span style="font-weight:400;opacity:.6">(SoR)</span></h1>
 <ul class="authors"><li><a href="https://sebastianrath.io" target="_blank" rel="noreferrer">Sebastian Rath</a><a class="gh" href="https://github.com/sebastianrath/specofrecord" target="_blank" rel="noreferrer" aria-label="Spec of Record source code" title="Source code"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M5.5 4 1.5 8l4 4M10.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Source</span></a><a class="lic" href="https://creativecommons.org/licenses/by/4.0/deed.en" target="_blank" rel="license noreferrer" data-tip="License for the spec itself" aria-label="CC BY 4.0, the license for the spec itself">CC BY 4.0</a><a class="lic" href="https://opensource.org/license/mit" target="_blank" rel="license noreferrer" data-tip="License for the toolset" aria-label="MIT, the license for the toolset">MIT</a></li></ul>
-<p class="sub">A development philosophy and toolchain for AI-built software. Plain-language specs are the source code, and an AI agent acts like a compiler. The spec is split into parts with responsibilities, so engineering, QA and UX can each focus on their own area of expertise while the whole team works from one source. You can jump from any part of the spec to its code, and back. The AI changes the spec first, then the code. If you change the code yourself, it updates the spec to match.</p>
+<p class="sub">A development philosophy and toolchain for AI-built software, aimed at mid-sized to large projects. Plain-language specs are the source code, and an AI agent acts like a compiler. The spec is split into parts with responsibilities, so engineering, QA and UX can each focus on their own area of expertise while the whole team works from one source. You can jump from any part of the spec to its generated code, and back. The AI changes the spec first, then the code. If you change the code yourself, it updates the spec to match.</p>
 <div class="meta">Version 0.1 · October 2026</div>
 
 <div class="steps" id="steps">
@@ -330,7 +330,7 @@
       <div class="install-head"><span>New project</span></div>
       <p class="install-note">In an empty folder, tell Claude Code what to build. For example:</p>
       <div class="cmd prompt-row">
-        <div class="cmd-lines prompt"><code>I want to build a game engine. Write the first specs following Spec of Record.</code></div>
+        <div class="cmd-lines prompt"><code>I want to build a game engine. Write the first specs following Spec of Record for a game engine that...</code></div>
       </div>
     </div>
   </div>
@@ -380,16 +380,14 @@
 </nav>
 
 <h2 id="goal">The goal</h2>
-<p>AI writes code fast, and keeps rewriting it. The reason a code line exists lives in tickets and commit history, not in the
+<p>AI can write code quickly and loves to rebuild the entire source base because it feels like it. The reason a code line exists lives in tickets and commit history, not in the
   code itself. That makes AI-written code hard to understand and future changes hard to justify with confidence, for people and for the
-  AI that has to work on it. Reviews grow, and developers end up supervising output instead of building new ideas.</p>
+  AI that has to work on it. Reviews grow, and developers end up reading through code that is either thrown back to the AI to review or waved through with an LGTM.</p>
 <p>Spec of Record aims to bring back what that constant rewriting takes away.</p>
 <ul>
-  <li><strong>Structure.</strong> One set of spec files describes the whole project, split into parts and clauses.</li>
-  <li><strong>Maintainability.</strong> A change is one clause and the code behind it, not a search through generated files.</li>
-  <li><strong>Reviewability.</strong> A reviewer reads what changed in the spec and sees exactly which code it touched.</li>
-  <li><strong>Auditability.</strong> Every line of code says which clauses it came from, and every finished build keeps its test results.</li>
-  <li><strong>Developer satisfaction.</strong> You decide what the software does, in a spec you can read, and you stay its author.</li>
+  <li><strong>One source folder.</strong> The specs of the whole project live in one folder, in parts and clauses you can read. You decide what the software does, and you stay its author.</li>
+  <li><strong>Small changes.</strong> Change a clause and only its code blocks change. Reviewers read what changed in the spec, not hundreds of new files where no one knows where half of them come from.</li>
+  <li><strong>No digging.</strong> Every line of code names the clause it came from, and every finished build keeps its test results. Why a line exists, and whether it was tested, is a lookup, not a hunt through tickets and commit history.</li>
 </ul>
 
 <h2 id="sdd">Spec-driven development</h2>
@@ -467,7 +465,7 @@ export <span class="t-k">function</span> <span class="t-f">moveMonsters</span>(g
 <p>Take a game. The spec says the player must collect 3 keys to open the exit, and the game designer wants 5. The AI changes the
   code to 5, but the spec stays at 3, because nobody asked for an update or the AI forgot. Now the spec says 3 and the code says 5. A new teammate reads the spec and
   believes it.</p>
-<p>It usually gets worse. Most spec-driven development is <a href="#sdd">spec-first</a>: the spec is written for one task, then set aside, and each change gets a new spec, like
+<p>It usually gets worse. Most spec-driven development is <a href="#sdd">spec-first</a>. The spec is written for one task, then set aside, and each change gets a new spec, like
   <code>SPEC.md</code>, then <code>SPEC-2026-01-08.md</code>, then another. To know what the software does now, you have
   to read them all in the correct order. Soon people stop reading the specs and sometimes leave it to the AI to change
   the code directly. That is where many projects hit a limit.</p>
@@ -482,16 +480,16 @@ export <span class="t-k">function</span> <span class="t-f">moveMonsters</span>(g
   <li>In code, regions show the clauses they come from and whether they are in sync.</li></ul>
 
 <h2 id="tooling">Tooling</h2>
-<p>You can follow the philosophy by hand. The tools check it for you.</p>
+<p>Spec of Record is a collection of tools, including a command line, <code>sor</code>, that returns what the spec says, which code a clause generated and what changed, in a form that people, scripts and AI can all read.</p>
 <ul>
   <li><strong>Change list.</strong> Shows what changed since the last build, and what to rebuild.</li>
   <li><strong>Edit guard.</strong> Stops the AI from changing code before its clause. A change you make yourself is flagged, and the AI updates the spec to match.</li>
   <li><strong>Test runner.</strong> Runs each clause's tests and shows how many clauses pass.</li>
   <li><strong>Build record.</strong> Saves each finished build. A build only counts if its tests pass.</li>
   <li><strong>Editor extension.</strong> For people: jump from a clause to its code, and from any line of code to its clause.</li>
-  <li><strong>Trace commands.</strong> For AI and scripts: <code>sor markers</code> returns the links as text or JSON, and <code>sor show</code> prints a clause with its code underneath.</li>
+  <li><strong>Command line.</strong> For AI, scripts and CI: the same answers come from the <code>sor</code> command, as text or JSON. <code>sor markers</code> says which clause a line of code came from and which code a clause generated, for one clause or the whole project. <code>sor show</code> prints a clause with its code underneath, <code>sor status</code> and <code>sor changes</code> list what changed and what to rebuild, and <code>sor parts</code> and <code>sor needs</code> map the spec.</li>
 </ul>
-<p>Any language, framework or AI works. Hand-written code is fine too. Its clauses and tests check it from outside.</p>
+<p>The toolset is language, framework and AI agnostic. Code written by hand is covered the same way: its clauses and tests check it from outside.</p>
 
 <h2 id="record">The build record</h2>
 <p><strong>Tracing</strong> shows how spec and code are linked. <strong>Auditing</strong> shows what changed,
@@ -513,7 +511,7 @@ export <span class="t-k">function</span> <span class="t-f">moveMonsters</span>(g
 
 <h2 id="faq">Questions</h2>
 <h3>Is this more documentation to maintain?</h3>
-<p>No. The spec replaces the old spec documents. You edit it, you don't add new ones.</p>
+<p>No. The spec replaces the old spec documents. A change edits a clause, and a new feature adds its clauses, or a new part, to the same set of files.</p>
 <h3>Do I have to convert my existing project?</h3>
 <p>No. Name the one thing you are about to change, and only that goes under a spec. The rest of the code stays as it is.</p>
 <h3>What if I change the code myself?</h3>

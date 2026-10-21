@@ -1,0 +1,115 @@
+# Builds the VS Code extension (editors/vscode) as a .vsix.
+#
+# Pushes and pull requests that touch editors/vscode or tools/: install the dependencies from the lock file, check that
+# the copy of the sor tool inside the extension (editors/vscode/tools) is current, run the grammar test and the
+# bundled-tool test, package, and check what went into the package. The integration test (`node test/run.js`) is not
+# run here: it drives a real VS Code window that has to take focus, which a CI runner cannot promise. Run it on your
+# own machine.
+#
+# Release: push a tag `vscode-v<version>` where <version> is the one in editors/vscode/package.json,
+#   git tag vscode-v0.9.7 && git push origin vscode-v0.9.7
+# The .vsix is then attached to a GitHub release. Nothing is published to the Marketplace.
+name: VS Code extension
+
+on:
+  push:
+    branches: [main]
+    paths: ['editors/vscode/**', 'tools/**', 'plugins/sync-tools.sh', '.github/workflows/vscode.yml']
+    tags: ['vscode-v*']
+  pull_request:
+    paths: ['editors/vscode/**', 'tools/**', 'plugins/sync-tools.sh', '.github/workflows/vscode.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vscode-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  vsix:
+    name: Build the .vsix
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: editors/vscode
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: editors/vscode/package-lock.json
+      # Packaging needs none of the install scripts (keytar and vsce-sign are for publishing and signing), and they
+      # would need a native build when a prebuilt download fails.
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/vscode-v')
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "$version" != "${GITHUB_REF_NAME#vscode-v}" ]; then
+            echo "package.json says version $version but the tag is $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+      - name: Bundled sor tool is current
+        working-directory: ${{ github.workspace }}
+        run: sh plugins/sync-tools.sh --check
+      - name: Grammar test
+        run: node test/grammar.js
+      # The extension ships a copy of the sor tool (tools/) that it falls back on. This runs that copy away from the
+      # repository, with the python3 the runner has.
+      - name: Bundled tool test
+        run: node test/bundle.js
+      # The extension has no runtime dependencies (it needs only `vscode` and Node's own modules), so vsce skips the
+      # dependency scan: it is the step that breaks across npm versions. vsce takes `--out dist/` for a folder only when
+      # the folder exists, and otherwise writes a file named dist.
+      - name: Package
+        run: |
+          mkdir -p dist
+          npm run package -- --no-dependencies --out dist/
+      - name: Check what is in the package
+        run: |
+          set -e
+          vsix=$(ls dist/*.vsix)
+          echo "$vsix"
+          unzip -Z1 "$vsix" | sort > contents.txt
+          cat contents.txt
+          for wanted in extension/package.json extension/src/extension.js extension/syntaxes/sor.tmLanguage.json \
+                        extension/tools/sor.py extension/tools/sorlib/cli.py extension/tools/sorlib/markers.py; do
+            grep -qx "$wanted" contents.txt || { echo "missing from the package: $wanted" >&2; exit 1; }
+          done
+          if grep -E '^extension/(test|sor|node_modules)/|__pycache__|\.pyc$' contents.txt; then
+            echo "files that must not ship are in the package" >&2
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: editors/vscode/dist/*.vsix
+          if-no-files-found: error
+
+  release:
+    name: Attach the .vsix to a release
+    if: startsWith(github.ref, 'refs/tags/vscode-v')
+    needs: vsix
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: vsix
+          path: dist
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#vscode-v}"
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/*.vsix --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/*.vsix --repo "$GITHUB_REPOSITORY" \
+              --title "VS Code extension $version" --generate-notes
+          fi
