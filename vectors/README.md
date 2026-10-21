@@ -13,3 +13,9 @@ a port (for example a TypeScript one, so that an editor needs no Python) loads t
 - A rule that changes means the rows change in the same commit, and `format` in the file counts the changes that are not
   additions. Adding rows does not change it.
 - Not covered: the evidence fingerprint, which needs a parsed project, and the status of a clause.
+
+## Adding a row
+Give it a new unique `name`, the input, and the expected output written by hand from the rule. A `hash` is SHA-256 of the expected
+text, UTF-8, the first 12 hex digits. Run `python3 -m unittest tools.test_sor_vectors`: when a hash is wrong, the failure prints the value
+the text really has, and when the output is wrong, it prints both texts. If your hand-written text and the tool disagree, find out which
+one follows the rule before changing either.

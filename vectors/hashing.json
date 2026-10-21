@@ -755,7 +755,12 @@
     "hash": "4fd41aa01443"
    },
    {
-    "name": "no region is the hash of an empty text, and so is a region of only comments and blanks",
+    "name": "no regions is the hash of an empty text",
+    "regions": [],
+    "hash": "e3b0c44298fc"
+   },
+   {
+    "name": "a region of only comments and blanks is the hash of an empty text",
     "regions": [
      {
       "file": "src/a.ts",
