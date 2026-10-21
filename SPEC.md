@@ -649,7 +649,7 @@ Choices the tool made where this spec is silent:
   once, and `sor lock --rehash` is that rewrite: it gives the new hash to an entry whose code is unchanged under the old rule, and
   leaves `text`, `refs` and results as they were. `sor status` says when hashes are waiting for it. Until then a change that only the old
   rule ignores, such as a Python line moved into a loop, is not seen. Not covered: YAML and Makefiles (indentation is meaning there too),
-  Ruby and Perl block comments (`=begin`, `=pod`) and comments that span several lines in SQL, Lua and Haskell: their lines are code. Tool copies of different ages disagree about Python code: an older tool reads a lock
+  an f-string that reuses its own quote inside a replacement field (Python 3.12 and later), Ruby and Perl block comments (`=begin`, `=pod`) and comments that span several lines in SQL, Lua and Haskell: their lines are code. Tool copies of different ages disagree about Python code: an older tool reads a lock
   that a newer one wrote as drift on every Python region, and refuses to lock, so update every copy of the tool together (the format number above does not help
   here: it protects against formats written from now on).
 

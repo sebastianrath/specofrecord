@@ -653,7 +653,8 @@ one C-family rule: it stripped `//`, `/* */` and `<!-- -->` lines and all indent
   STALE. Update every copy together; a lock format version, which makes an old tool refuse with a message, is the next phase of the proposal.
 - **`sor status --json` does not say that hashes wait for the rewrite**, only the text does, because the JSON keys are pinned by a contract test.
   The skill does not name `--rehash` either; it is a one-time migration.
-- **Not covered:** YAML and Makefiles, where indentation is meaning too; Ruby and Perl block comments; comments over several lines in SQL, Lua
+- **Not covered:** YAML and Makefiles, where indentation is meaning too; an f-string that reuses its own quote inside a replacement field
+  (Python 3.12 and later: the tokenizer test skips files with f-strings there for that reason); Ruby and Perl block comments; comments over several lines in SQL, Lua
   and Haskell. Python is read with a small scanner and not with `tokenize`, because a region is often a fragment (a method, a branch) that
   `tokenize` refuses; the tests use `tokenize` as the judge instead (`tools/test_sor_normalize_oracle.py`).
 - **Found in review, fixed:**
