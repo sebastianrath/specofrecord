@@ -129,20 +129,47 @@ class TestAddingTargetsToAnOldLock(Targeted):
         self.assertNotIn('greet/bye@py', raw)    # a clause without code has no lines
         self.assertEqual(self.findings('behind', 'drift'), [])
 
-    def test_a_scoped_lock_leaves_a_lock_with_both_kinds_of_entry_and_it_works(self):
-        write(self.dir, 'src_py/bye.py', '# @clause greet/bye\nBYE = "Bye"\n# @clause end\n')
+    def test_a_scoped_lock_leaves_a_lock_with_both_kinds_of_entry_and_each_is_still_compared_as_it_was_written(self):
+        bye_py = '# @clause greet/bye\nBYE = "Bye"\n# @clause end\n'
         self.build(targets=None)
+        write(self.dir, 'src_py/bye.py', bye_py)
+        write(self.dir, 'src_ts/bye.ts', '// @clause greet/bye\nexport const BYE = "Bye";\n// @clause end\n')
         self.lock_all()
+        old = flows.lock_bytes(self.dir).decode('utf8')
         self.build(targets='py, ts')
-        write(self.dir, 'sor/sor-lock.json', '{}')
-        self.lock_all()
+        write(self.dir, 'sor/sor-lock.json', old)
+        self.assertEqual(self.sor('lock', 'ROOT', 'greet/hello')[0], 0)
+        raw = self.raw()
+        self.assertIn('greet/hello@py', raw)                      # locked: per target
+        self.assertNotIn('greet/bye@py', raw)                     # not locked yet: still one joined hash
+        self.assertIn('code', raw['greet/bye'])
+        self.assertEqual(self.findings(), [])
+        write(self.dir, 'src_py/bye.py', bye_py.replace('"Bye"', '"Goodbye"'))        # drift in the joined entry is still drift
+        self.assertEqual([(f['status'], f['key']) for f in self.findings()], [('drift', 'greet/bye')])
+        write(self.dir, 'src_py/bye.py', bye_py)
+        write(self.dir, 'src_ts/greet.ts', self.TS.replace('Hello', 'Hi'))             # and drift in a per-target entry names its language
+        self.assertEqual([(f['key'], f['detail']) for f in self.findings('drift')], [('greet/hello', 'ts')])
+        write(self.dir, 'src_ts/greet.ts', self.TS)
         flows.replace_in(self.spec_file, 'The farewell is "Bye".', 'The farewell is "Goodbye".')
-        write(self.dir, 'src_py/bye.py', '# @clause greet/bye\nBYE = "Goodbye"\n# @clause end\n')
+        write(self.dir, 'src_py/bye.py', bye_py.replace('"Bye"', '"Goodbye"'))
+        write(self.dir, 'src_ts/bye.ts', '// @clause greet/bye\nexport const BYE = "Goodbye";\n// @clause end\n')
         self.assertEqual(self.sor('lock', 'greet/bye')[0], 0)
         raw = self.raw()
-        self.assertIn('greet/bye@py', raw)
-        self.assertIn('greet/hello@py', raw)
+        self.assertIn('greet/bye@ts', raw)                        # the second clause moves to lines when it is locked
+        self.assertNotIn('code', raw['greet/bye'])
         self.assertEqual(self.sor('status')[0], 0)
+
+    def test_a_project_that_drops_targets_is_read_the_same_way_back_and_its_next_lock_is_format_1(self):
+        self.lock_all()
+        targeted = flows.lock_bytes(self.dir).decode('utf8')
+        self.build(targets=None)
+        write(self.dir, 'sor/sor-lock.json', targeted)
+        found = self.findings()
+        self.assertEqual([(f['status'], f['key']) for f in found], [('changed', 'ROOT')])     # only the root, which lost the line
+        self.assertEqual(self.sor('lock', '--all')[0], 0)
+        self.assertNotIn(b'*format', flows.lock_bytes(self.dir))
+        self.assertFalse([k for k in self.raw() if '@' in k])
+        self.assertIn('code', self.raw()['greet/hello'])
 
     def test_a_manual_check_a_person_confirmed_survives_the_move_to_targets(self):
         self.build(targets=None)
@@ -170,6 +197,7 @@ class TestTheHandEditCase(Targeted):
         self.assertEqual(self.sor('status')[0], 2)
 
     def test_the_clause_brought_in_line_leaves_the_other_language_behind_and_the_lock_refuses(self):
+        before = flows.lock_bytes(self.dir)
         write(self.dir, 'src_py/greet.py', self.PY.replace('Hello', 'Hi'))
         self.change_clause()
         found = self.findings('changed')
@@ -179,7 +207,7 @@ class TestTheHandEditCase(Targeted):
         self.assertIn('behind  greet/hello  its code in ts', out)
         self.assertNotIn('code in py', out)
         self.assertIn('--allow-behind ts', out)
-        self.assertEqual(self.raw()['greet/hello@py']['code'] != '', True)   # nothing was written
+        self.assertEqual(flows.lock_bytes(self.dir), before)                  # a refusal writes nothing
 
     def test_allowing_it_locks_the_clause_and_the_language_stays_listed_as_behind(self):
         write(self.dir, 'src_py/greet.py', self.PY.replace('Hello', 'Hi'))
@@ -236,6 +264,56 @@ class TestTheHandEditCase(Targeted):
         self.assertIn('rust, which is no target', out)
 
 
+class TestATableCellIsPartOfTheClause(Targeted):
+    ROWS = ['- **hello** - The greeting per language.', '  | lang | text |', '  | en | Hello |', '  | fr | Salut |',
+            '- **bye** - The farewell is "Bye".']
+
+    def setUp(self):
+        super().setUp()
+        self.build(rules=self.ROWS)
+        write(self.dir, 'src_py/greet.py', self.PY)
+        write(self.dir, 'src_ts/greet.ts', self.TS)
+        self.lock_all()
+
+    def test_a_spec_only_change_to_a_cell_leaves_every_language_behind(self):
+        flows.replace_in(self.spec_file, '| fr | Salut |', '| fr | Bonjour |')
+        code, out, _ = self.sor('lock', 'greet/hello')
+        self.assertEqual(code, 2, out)
+        self.assertIn('its code in py, ts', out)
+
+    def test_rebuilding_one_language_is_not_enough(self):
+        flows.replace_in(self.spec_file, '| fr | Salut |', '| fr | Bonjour |')
+        write(self.dir, 'src_py/greet.py', self.PY.replace('Hello', 'Hi'))
+        code, out, _ = self.sor('lock', 'greet/hello')
+        self.assertEqual(code, 2, out)
+        self.assertIn('its code in ts', out)
+        self.assertNotIn('its code in py', out)
+        write(self.dir, 'src_ts/greet.ts', self.TS.replace('Hello', 'Hi'))
+        self.assertEqual(self.sor('lock', 'greet/hello')[0], 0)
+        self.assertEqual(self.findings(), [])
+
+    def test_allowing_it_leaves_the_language_listed_after_the_row_is_locked(self):
+        flows.replace_in(self.spec_file, '| fr | Salut |', '| fr | Bonjour |')
+        write(self.dir, 'src_py/greet.py', self.PY.replace('Hello', 'Hi'))
+        self.assertEqual(self.sor('lock', 'greet/hello', '--allow-behind', 'ts')[0], 0)
+        self.assertEqual([(f['key'], f['detail']) for f in self.findings('behind')], [('greet/hello', 'ts')])
+
+    def test_a_row_with_code_of_its_own_is_behind_on_its_own_and_not_counted_twice(self):
+        py = self.PY + 'FR = "Salut"  # @clause greet/hello/fr\n'
+        ts = self.TS + 'export const FR = "Salut";  // @clause greet/hello/fr\n'
+        write(self.dir, 'src_py/greet.py', py)
+        write(self.dir, 'src_ts/greet.ts', ts)
+        self.build(rules=self.ROWS)       # start the lock again with the row marked from the first lock: marking it later moves it
+        self.lock_all()                   # out of what the item's code is built for, and that counts as a change of the item
+        self.assertIn('greet/hello/fr@ts', self.raw())
+        flows.replace_in(self.spec_file, '| fr | Salut |', '| fr | Bonjour |')
+        write(self.dir, 'src_py/greet.py', py.replace('Salut', 'Bonjour'))
+        code, out, _ = self.sor('lock', 'greet/hello')
+        self.assertEqual(code, 2, out)
+        self.assertIn('behind  greet/hello/fr  its code in ts', out)
+        self.assertNotIn('behind  greet/hello  ', out)
+
+
 class TestWhichTargetsApply(Targeted):
     def test_a_part_can_say_it_is_only_for_one_target(self):
         self.build(part_targets='py')
@@ -270,6 +348,16 @@ class TestWhichTargetsApply(Targeted):
 
 
 class TestStatusAndKeys(Targeted):
+    def test_the_other_commands_that_read_status_cope_with_a_language_that_is_behind(self):
+        self.lock_all()
+        self.change_clause()
+        self.sor('lock', 'greet/hello', '--allow-behind', 'py,ts')
+        for args in (('changes',), ('check',), ('markers', 'greet/hello'), ('show', 'greet/hello')):
+            with self.subTest(args):
+                code, out, err = self.sor(*args)
+                self.assertNotIn('Traceback', out + err)
+                self.assertIn(code, (0, 1), out + err)
+
     def test_behind_is_a_finding_and_status_json_gets_no_new_key(self):
         self.lock_all()
         code, out, _ = self.sor('status', '--json')

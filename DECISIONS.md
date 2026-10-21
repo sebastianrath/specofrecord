@@ -778,8 +778,13 @@ a second lock gives the same bytes, and `sor status` takes 0.5 s.
 - **Not done, and why.** Per-target test results (a test's result per language, `--results id@py`) and per-target claims and locks (one agent
   per language on one clause) are the next slices. Both change what "a test passed" and "a clause is locked" mean, and the second needs a lock
   of one language to accept the clause's text, which is not decided. They are open in the proposal.
-- **Known:** the VS Code extension does not know the status `behind`, so a lens shows nothing for it (the JS is its own project and not changed
-  here). A key `K@t` that is also the name of something else is a problem in `sor check`. Evidence fingerprints change when a project starts
+- **A table's cells are part of the clause.** The text hash of an item holds the names of its rows and not their cells, and a table's code is
+  usually marked with the item, so `built` is compared with the item's text plus the text of each row that has no lines of its own. Without it
+  a spec-only change to a cell left every language current (shown, then fixed, and tested). A row with lines of its own is behind on its own, and
+  marking a row after the item was locked counts as a change of the item. A part's own regions are not widened to the rules of its items.
+- **Known:** the VS Code extension does not know the status `behind`: its `classOf` returns nothing for it and the finding is skipped (as it
+  already is for `built`, `fixing` and `glue`), so a clause that is only behind shows as agreed in its lenses and status bar (the JS is its own
+  project and not changed here). A key `K@t` that is also the name of something else is a problem in `sor check`. Evidence fingerprints change when a project starts
   keeping its code per target, so its jobs write the evidence again.
 - `Region.normalized` works out a region's normalized code once; both hashes of a clause need it, and `sor status` on that project went from
   0.73 s to 0.5 s.

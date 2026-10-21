@@ -112,6 +112,8 @@ child parts; more child parts than that: group them under parts of their own.
   `Source: code at src/physics/`: the code is written by people (or AI, by hand) and is the
   truth for internals; this file holds the clauses, contract and tests that guard it.
   Use it for existing code, for hard algorithms, and while experimenting.
+- `Targets: py, ts` (§9) says which targets the clauses apply to. The root file holds the default, a part may override it, and the
+  lock then keeps a clause's code per target (§11). Without it in the root file nothing about the lock changes.
 - `Design: design/tokens.json, exported from <Figma URL>` (root `SPECOFRECORD.md` only) names the
   design export: colors and pictures that come from a design tool, not from people typing them.
   The tool reads it as a part `design`, written by the export and never by hand. Each W3C
@@ -585,6 +587,7 @@ the clause first.
 | the lock is written only when every test that is not manual or deferred passes (§11) | `sor lock` refuses |
 | a `runs on:` line under a test names valid environments, and the test is not manual (§8) | problem in `sor check` (`runs on`) |
 | a test that says `runs on:` has a current pass in every environment it names (§8) | `sor verify` exits 1 |
+| a clause is locked only when the code of every target that applies to it was accepted for its current text (§9) | `sor lock` refuses and names the targets; `--allow-behind` locks anyway and `sor status` keeps listing them |
 | the lock is in a format this tool reads (§11) | `sor status`, `sor lock`, `sor changes` and `sor test` exit 2 and say to update; the edit hook refuses edits to code |
 | a test calls only probes, generators and metrics the target declares, and its `{values}` resolve (§8) | `sor test` fails the test before it runs |
 | the lock and claims files are not edited by hand; a spec file is not rewritten with Write, except one that is still the skeleton `sor new` wrote (§11, §15, §16) | the edit hook, in Claude Code only; for other agents, a rule in the skill (`SKILL.md`), which `AGENTS.md` points to |

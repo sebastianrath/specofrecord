@@ -163,12 +163,28 @@ def moved_targets(a, b):
     return sorted(t for t in set(ta) | set(tb) if ta.get(t, {}).get('code') != tb.get(t, {}).get('code'))
 
 
-def lagging_targets(project, key, entry, owners):
+def bases(project, entries):
+    """{key: what a target's `built` is compared with} for the clauses that have code per target. It is the clause's text hash, and for
+    an item with a table also the text hash of each row that has no code of its own per target: the cells of a row are not in the
+    item's text, and a table's code is usually marked with the item, so a changed cell is a change to that code. A row with lines of
+    its own is behind on its own."""
+    out = {}
+    for key, e in entries.items():
+        if not e.get('targets'):
+            continue
+        item = project.items.get(key)
+        rows = sorted(r.id for r in item.rows.values() if r.id in entries and not entries[r.id].get('targets')) \
+            if isinstance(item, Item) else []
+        out[key] = h('\n'.join([e.get('text', '')] + [entries[r].get('text', '') for r in rows])) if rows else e.get('text')
+    return out
+
+
+def lagging_targets(project, key, entry, owners, basis):
     """The targets of a locked clause that apply to it and whose code was accepted for an older text of the clause than the locked
-    one (`built`): they are behind, and say that the clause was changed without their code."""
+    one (`built` is not the clause's `basis`): they are behind, and say that the clause was changed without their code."""
     applicable = project.targets_of_part(owners.get(key))
     return sorted(t for t, line in (entry.get('targets') or {}).items()
-                  if t in applicable and line.get('built') != entry.get('text'))
+                  if t in applicable and line.get('built') != basis.get(key, entry.get('text')))
 
 
 def old_rule_keys(lock, scan):
@@ -371,6 +387,7 @@ def status(project, scan, lock):
     """Findings, comparing the files now with the lock."""
     lock = upgrade(lock, scan)
     now = conform(snapshot(project, scan), lock, scan)
+    lock_basis = bases(project, lock)
     hand = {p.key: p for p in project.parts.values() if p.source_code}
     owner_part = {}
     for p in project.parts.values():
@@ -433,7 +450,7 @@ def status(project, scan, lock):
             findings.append(Finding('stale', key, detail + (' · ' + note if note else ''), where(key)))
         elif a.get('code') != b.get('code'):
             moved = moved_targets(a, b) if a.get('targets') and b.get('targets') else []
-            late = lagging_targets(project, key, b, owner_part) if moved else []
+            late = lagging_targets(project, key, b, owner_part, lock_basis) if moved else []
             if 'code' not in b:
                 findings.append(Finding('built', key, 'first code for a locked clause', where(key)))
             elif moved and set(moved) <= set(late):   # the code of the targets that are behind is being rebuilt: not drift
@@ -457,7 +474,7 @@ def status(project, scan, lock):
         a = now.get(key)
         if a is None or key in seen or not b.get('targets') or a.get('text') != b.get('text'):
             continue
-        late = [t for t in lagging_targets(project, key, b, owner_part) if t in (a.get('targets') or {})]
+        late = [t for t in lagging_targets(project, key, b, owner_part, lock_basis) if t in (a.get('targets') or {})]
         if late:
             findings.append(Finding('behind', key, ', '.join(late), where_in(key, late)))
     # A table's code is usually marked with the item, not each row: a changed, added or removed
@@ -514,27 +531,27 @@ def checked_manual(project, scan, old):
     return out
 
 
-def built_for(entries, old):
+def built_for(project, entries, old):
     """Fills in `built` for the keys of `entries` that have code per target: a target whose code is new or changed since `old` was
-    accepted for the text of the clause it is accepted with now, one whose code is the same is still built for what it was."""
+    accepted for the clause as it is now (`bases`), one whose code is the same is still built for what it was."""
+    now_basis, old_basis = bases(project, entries), bases(project, old or {})
     for key, e in entries.items():
         if not e.get('targets'):
             continue
-        before = (old or {}).get(key) or {}
-        prior = before.get('targets') or {}
+        prior = ((old or {}).get(key) or {}).get('targets') or {}
         for t, line in e['targets'].items():
             if t in prior and prior[t].get('code') == line['code']:
-                line['built'] = prior[t].get('built', before.get('text'))
+                line['built'] = prior[t].get('built', old_basis.get(key))
             else:
-                line['built'] = e.get('text')
+                line['built'] = now_basis[key]
 
 
 def behind_after(project, entries, keys, owners, allowed):
     """[(key, [targets])] of the clauses among `keys` that would stay behind in `entries` and are not allowed to."""
-    out = []
+    out, basis = [], bases(project, entries)
     for key in sorted(keys):
         e = entries.get(key) or {}
-        late = [t for t in lagging_targets(project, key, e, owners) if t not in allowed]
+        late = [t for t in lagging_targets(project, key, e, owners, basis) if t not in allowed]
         if late:
             out.append((key, late))
     return out
@@ -547,7 +564,7 @@ def accept(project, scan, results, allow_incomplete, findings=(), old=None, conf
     `allow_behind`: targets that may stay behind the clause (`sor lock --allow-behind`)."""
     old = upgrade(old, scan) if old else old
     entries = snapshot(project, scan)
-    built_for(entries, old)
+    built_for(project, entries, old)
     if scope is not None:
         full = entries
         entries = {k: dict(v) for k, v in (old or {}).items()}
