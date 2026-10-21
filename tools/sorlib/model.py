@@ -26,6 +26,11 @@ SECTION_WORDS = {
 }
 
 
+def within(rel, path):
+    """Whether the project-relative file or folder `rel` is the path or inside it. The path `.` is the whole project."""
+    return path in ('.', '') or rel == path or rel.startswith(path + '/')
+
+
 RESERVED_TARGETS = ('glue', 'test', 'ROOT')   # a target may not have a name that a lock key starts with
 
 LINE_BREAK = re.compile(r'\r\n|\r|\n')
@@ -877,10 +882,11 @@ class Project:
         in no target's path, and for a path two targets both name (`sor check` reports that)."""
         best, names = -1, []
         for name, path, _ in self.target_paths():
-            if rel == path or rel.startswith(path + '/'):
-                if len(path) > best:
-                    best, names = len(path), [name]
-                elif len(path) == best and name not in names:
+            if within(rel, path):
+                size = 0 if path in ('.', '') else len(path)   # `.` is the whole project: the shortest prefix there is
+                if size > best:
+                    best, names = size, [name]
+                elif size == best and name not in names:
                     names.append(name)
         return names[0] if len(names) == 1 else None
 
@@ -900,8 +906,7 @@ class Project:
         names = self.target_names()
         if len(names) >= 2:
             for p in self.parts.values():
-                if p.source_code and not any(p.source_code == path or p.source_code.startswith(path + '/')
-                                             for _, path, _ in self.target_paths()):
+                if p.source_code and not any(within(p.source_code, path) for _, path, _ in self.target_paths()):
                     out.append(Problem('target', p.rel, f'the hand-written code at {p.source_code} is in no target\'s path: '
                                                         'the project has several targets, so say which one it belongs to by '
                                                         'putting it under that target\'s path'))

@@ -77,6 +77,14 @@ class TestWhichTargetAFileBelongsTo(TwoTargets):
                 self.assertEqual(project.target_of(rel), want)
         self.assertEqual(self.problems('target'), [])
 
+    def test_the_path_dot_is_the_whole_project_and_loses_to_any_deeper_path(self):
+        self.build({'targets/all': target('all', '.'), 'targets/ts': target('ts', 'src_ts/')})
+        project = self.project_()
+        for rel, want in (('src_py/greet.py', 'all'), ('README.md', 'all'), ('src_ts/greet.ts', 'ts')):
+            with self.subTest(rel):
+                self.assertEqual(project.target_of(rel), want)
+        self.assertEqual(self.problems('target'), [])
+
     def test_a_part_inside_a_target_adds_its_paths_to_that_target(self):
         self.build(extra={'targets/py/tests': target('tests', 'src_py/tests/')})
         self.assertEqual(self.project_().target_of('src_py/tests/a.py'), 'py')
@@ -190,6 +198,15 @@ class TestTheNoteThatATargetLacksCode(TwoTargets):
 
     def test_a_clause_with_code_in_both_a_clause_with_none_and_glue_and_tests_are_not_reported(self):
         write(self.dir, 'src_py/glue.py', '# @clause glue\nX = 1\n# @clause end\n')
+        self.assertEqual(self.notes(), [])
+
+    def test_test_code_in_one_target_is_not_a_clause_the_other_lacks(self):
+        self.build(extra={'greet': doc('Greet', 'Says hello.', rules=['- **hello** - The greeting is "Hello".'],
+                                       tests=['- **hello** - says hello.', '  manual: look'])})
+        write(self.dir, 'src_py/test_greet.py', '# @clause test greet/hello\ndef test_hello():\n    pass\n# @clause end\n')
+        project = self.project_()
+        scan = Scan(project)
+        self.assertTrue([r for r in scan.regions if r.kind == 'test'])
         self.assertEqual(self.notes(), [])
 
     def test_it_is_a_note_apart_from_the_problems_and_never_changes_the_exit_code(self):

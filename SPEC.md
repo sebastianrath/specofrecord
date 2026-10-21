@@ -325,7 +325,7 @@ A file belongs to the target whose `path` is the longest prefix of its project-r
 for example `src_py/` and `src_ts/`; the lock does not tell them apart yet (§11). `sor check` reports as problems: a path that two
 targets both name (no file belongs to either), a target named `glue`, `test` or `ROOT` (lock keys start with those), and a part whose
 name starts with `*`. With two targets or more it also reports a `Source: code at` area in no target's path, and a `runs on:` environment
-named like a target (it would defer a test that runs here). A project with one target is told none of this. A note, not a problem, says
+named like a target (it would defer a test that runs here). With one target the two checks that need two targets are skipped. A note, not a problem, says
 `N clause(s) have code in py but none in ts` for each target that lacks code another target has; a clause with no code anywhere, glue and
 test code are not counted.
 
