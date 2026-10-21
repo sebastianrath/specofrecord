@@ -32,7 +32,7 @@ TOP = 'specofrecord'
 SKIP_DIRS = {'__pycache__', '.git'}
 SKIP_FILES = {'.DS_Store'}
 REQUIRED = [
-    '.claude-plugin/plugin.json', 'hooks/hooks.json', 'skills/workflow/SKILL.md',
+    '.claude-plugin/plugin.json', 'hooks/hooks.json', 'skills/specofrecord/SKILL.md',
     'tools/sor.py', 'tools/sorlib/cli.py', 'bin/sor',
 ]
 STAMP = (1980, 1, 1, 0, 0, 0)

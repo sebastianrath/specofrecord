@@ -3,7 +3,7 @@
 The clauses in a `sor/` folder are the source of truth; code is built from them. `SPEC.md` is the full format.
 
 The workflow (the commands, how to make a change, claims, open questions, the rules) is written once, in
-`plugins/specofrecord/skills/workflow/SKILL.md`. Read that file first and follow it. It links reference files in
+`plugins/specofrecord/skills/specofrecord/SKILL.md`. Read that file first and follow it. It links reference files in
 the same folder (`reference/new-project.md` for starting a project, `reference/parallel-agents.md` for working beside
 other agents, which you need most): read them when the task calls for them. `CLAUDE.md` imports the same file for
 Claude Code, so there is one text to keep up to date. This file only says what differs when you are not

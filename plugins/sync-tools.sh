@@ -11,7 +11,7 @@ src="$here/../tools"
 spec="$here/../SPEC.md"
 plugin="$here/specofrecord"
 vscode="$here/../editors/vscode"
-sheet_rel="skills/workflow/reference/format-cheatsheet.md"
+sheet_rel="skills/specofrecord/reference/format-cheatsheet.md"
 
 copy_tools() {  # copy_tools <folder>: the tool as it is shipped, in <folder>/tools
   mkdir -p "$1/tools/sorlib"
@@ -21,7 +21,7 @@ copy_tools() {  # copy_tools <folder>: the tool as it is shipped, in <folder>/to
 
 build() {  # build <folder>: everything this script generates, laid out as inside the plugin
   copy_tools "$1"
-  mkdir -p "$1/skills/workflow/reference"
+  mkdir -p "$1/skills/specofrecord/reference"
   {
     printf '# Spec of Record: the format cheat sheet\n\n'
     printf 'Copied from SPEC.md of Spec of Record by Sebastian Rath (sebastianrath.io), licensed CC BY 4.0\n'

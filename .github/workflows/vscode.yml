@@ -8,7 +8,9 @@
 #
 # Release: push a tag `vscode-v<version>` where <version> is the one in editors/vscode/package.json,
 #   git tag vscode-v0.9.7 && git push origin vscode-v0.9.7
-# The .vsix is then attached to a GitHub release. Nothing is published to the Marketplace.
+# The .vsix is then attached to a GitHub release, and it gets a build provenance attestation. Check a downloaded file with
+#   gh attestation verify sor-vscode-0.9.7.vsix --repo sebastianrath/specofrecord
+# A later job publishes that file to the Visual Studio Marketplace once the publisher and the VSCE_PAT secret exist.
 name: VS Code extension
 
 on:
@@ -90,10 +92,30 @@ jobs:
           path: editors/vscode/dist/*.vsix
           if-no-files-found: error
 
+  # Signs a build provenance attestation for the .vsix: GitHub records which repository, workflow, tag and commit built it.
+  # A separate job, so the permission to sign sits only here and not in the job that installs npm packages and runs the tests.
+  attest:
+    name: Attest the .vsix
+    if: startsWith(github.ref, 'refs/tags/vscode-v')
+    needs: vsix
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: vsix
+          path: dist
+      - uses: actions/attest@v4
+        with:
+          subject-path: dist/*.vsix
+
   release:
     name: Attach the .vsix to a release
     if: startsWith(github.ref, 'refs/tags/vscode-v')
-    needs: vsix
+    needs: attest
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -113,3 +135,33 @@ jobs:
             gh release create "$GITHUB_REF_NAME" dist/*.vsix --repo "$GITHUB_REPOSITORY" \
               --title "VS Code extension $version" --generate-notes
           fi
+
+  # Publishes the same attested .vsix to the Visual Studio Marketplace. It waits for the release job, and for you: the job
+  # uses the environment `marketplace`, which you set up in the repository settings with yourself as a required reviewer
+  # and the secret VSCE_PAT. Until that secret exists the job says so and skips, so tags keep working before the publisher does.
+  # Global Azure DevOps tokens are retired on 2026-12-01; this step then needs Microsoft Entra ID (`vsce publish --azure-credential`).
+  publish:
+    name: Publish to the Marketplace
+    if: startsWith(github.ref, 'refs/tags/vscode-v')
+    needs: release
+    runs-on: ubuntu-latest
+    environment: marketplace
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: vsix
+          path: dist
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Publish
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "::notice::VSCE_PAT is not set in the marketplace environment, so nothing was published to the Marketplace."
+            exit 0
+          fi
+          npx --yes @vscode/vsce@3 publish --packagePath dist/*.vsix

@@ -31,7 +31,7 @@ sys.path.insert(0, HERE)
 
 from sorlib import claims, cli, hook, lint   # noqa: E402
 
-SKILL_DIR = 'plugins/specofrecord/skills/workflow'
+SKILL_DIR = 'plugins/specofrecord/skills/specofrecord'
 SKILL = SKILL_DIR + '/SKILL.md'
 CHEAT = SKILL_DIR + '/reference/format-cheatsheet.md'
 DOCS = {
@@ -48,7 +48,7 @@ DOCS = {
 }
 # programs other than `sor`, whose commands and flags appear in the same documents
 OTHER_PROGRAMS = ('claude ', 'sh ', 'git ', 'python3 -m ', 'npm ', 'node ', 'cd ')
-OTHER_FLAGS = {'--check', '--plugin-dir'}   # sync-tools.sh and claude, named on their own in prose
+OTHER_FLAGS = {'--check', '--plugin-dir', '--repo'}   # sync-tools.sh, claude and gh, named on their own in prose
 NOT_COMMANDS = {'init'}                     # "there is no `sor init`"
 
 
@@ -204,7 +204,7 @@ class TestThePluginHasOneName(unittest.TestCase):
 
     def test_the_skill_namespace_and_the_folder_in_paths_use_the_same_name(self):
         for rel in ('tools/sorlib/hook.py', 'plugins/specofrecord/README.md'):
-            found = re.findall(r'\b([a-z-]+):workflow\b', read(rel))
+            found = re.findall(r'\b([a-z-]+):specofrecord\b', read(rel))
             self.assertTrue(found, rel)
             self.assertEqual(set(found), {self.name}, rel)
         for name, rel in DOCS.items():

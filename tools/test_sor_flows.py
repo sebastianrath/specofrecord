@@ -220,7 +220,7 @@ class TestPreEditHook(Flow):
 
     def test_every_refusal_the_hook_makes_contains_a_phrase_the_skill_lists(self):
         listed = ('Clauses come first', 'Someone else is working on this', 'Do not rewrite', 'is written only by')
-        skill = read(os.path.join(REPO, 'plugins', 'specofrecord', 'skills', 'workflow', 'SKILL.md'))
+        skill = read(os.path.join(REPO, 'plugins', 'specofrecord', 'skills', 'specofrecord', 'SKILL.md'))
         for phrase in listed:
             self.assertIn(phrase, skill, 'the skill must tell an agent what a refusal looks like')
         os.environ['SOR_ENFORCE_CLAIMS'] = '1'
@@ -1861,7 +1861,7 @@ class TestSyncTools(unittest.TestCase):
             if name.endswith('.py'):
                 self.assertEqual(read(os.path.join(self.plugin, 'tools', 'sorlib', name)),
                                  read(os.path.join(self.root, 'tools', 'sorlib', name)), name)
-        sheet = read(os.path.join(self.plugin, 'skills', 'workflow', 'reference', 'format-cheatsheet.md'))
+        sheet = read(os.path.join(self.plugin, 'skills', 'specofrecord', 'reference', 'format-cheatsheet.md'))
         self.assertTrue(sheet.startswith('# Spec of Record: the format cheat sheet'))
         self.assertIn('CC BY 4.0', sheet)
         self.assertNotIn('## Cheat sheet', sheet)

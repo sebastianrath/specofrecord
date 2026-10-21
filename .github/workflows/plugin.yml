@@ -7,8 +7,11 @@
 #
 # Release: push a tag `plugin-v<version>` where <version> is the one in plugins/specofrecord/.claude-plugin/plugin.json,
 #   git tag plugin-v0.3.1 && git push origin plugin-v0.3.1
-# The zip and its checksum are then attached to a GitHub release. Marketplace installs read the committed
-# plugins/specofrecord folder, not this zip: the zip is for `claude --plugin-dir` and for people without the marketplace.
+# The zip and its checksum are then attached to a GitHub release, and the zip gets a build provenance attestation.
+# Check a downloaded zip with
+#   gh attestation verify specofrecord-plugin-0.3.1.zip --repo sebastianrath/specofrecord
+# Marketplace installs read the committed plugins/specofrecord folder, not this zip: the zip is for
+# `claude --plugin-dir` and for people without the marketplace.
 name: Plugin
 
 on:
@@ -68,10 +71,30 @@ jobs:
       - name: Build the plugin and smoke test the zip
         run: python3 plugins/build-plugin.py --out dist
 
+  # Signs a build provenance attestation for the zip: GitHub records which repository, workflow, tag and commit built it.
+  # A separate job on a plain runner, so the permission to sign sits only here and not in the jobs that run the tests.
+  attest:
+    name: Attest the zip
+    if: startsWith(github.ref, 'refs/tags/plugin-v')
+    needs: [python39, latest]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: plugin
+          path: dist
+      - uses: actions/attest@v4
+        with:
+          subject-path: dist/*.zip
+
   release:
     name: Attach the zip to a release
     if: startsWith(github.ref, 'refs/tags/plugin-v')
-    needs: [python39, latest]
+    needs: attest
     runs-on: ubuntu-latest
     permissions:
       contents: write

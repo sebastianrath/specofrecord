@@ -8,13 +8,13 @@ How to work in a project with a `sor/` folder (change the clause first, claim, t
 skill below. It is imported here so it is always in context; the reference files it links are read when a task needs them. Change the workflow there and nowhere else; `AGENTS.md`
 only adds what agents other than Claude Code need.
 
-@plugins/specofrecord/skills/workflow/SKILL.md
+@plugins/specofrecord/skills/specofrecord/SKILL.md
 
 In this repository:
 - `sor` means `python3 tools/sor.py -C <project>`, where a project is a folder holding `sor/`, for example
   `examples/solar-system`. Ignore the skill's `${CLAUDE_SKILL_DIR}` fallback. The edit guard is wired in
   `.claude/settings.json`, not through the plugin.
-- The `reference/...` paths in the skill are under `plugins/specofrecord/skills/workflow/`.
+- The `reference/...` paths in the skill are under `plugins/specofrecord/skills/specofrecord/`.
 - `SPEC.md` is the full format. The skill's `reference/format-cheatsheet.md` is its short form, generated from it.
 
 ## Developing the tool itself

@@ -283,7 +283,7 @@ def session_start(payload):
     root = find_root(os.path.join(cwd, 'x'))
     if not root:
         return None
-    how = ('The specofrecord:workflow skill describes the working order: change a clause first, claim it before '
+    how = ('The specofrecord:specofrecord skill describes the working order: change a clause first, claim it before '
            'editing, lock only what you claimed. ' if PLUGIN else 'CLAUDE.md describes the working order. ')
     ctx = (f'This project keeps its specification as clauses in {SPEC_DIR}/ (Spec of Record): the clauses are the '
            f'source of truth and the code is built from them. {how}`{CMD} status` lists what changed and who holds '

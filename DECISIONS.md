@@ -96,6 +96,7 @@ renamed because it confused newcomers and clashed with av/facts (see "Clause" ab
 | lock file `clauses-lock.json` | `sor-lock.json` | 2026-10-19; an older file is read and replaced when the lock is next written |
 | `.claims.json`, `.claims.lock`, `.lock.mutex` | `.sor-claims.json`, `.sor-claims.lock`, `.sor-lock.mutex` | 2026-10-19; short-lived working files, an old `.claims.json` is simply no longer read |
 | plugin `spec-of-record`, marketplace `spec-of-record-plugins`, folder `plugins/spec-of-record/` | `specofrecord` for all three (repository `sebastianrath/specofrecord`) | renamed before anything was published (a local copy under `.claude/skills/spec-of-record/` may still exist, and the VS Code extension still finds it). Notes dated earlier in this file still say `spec-of-record` |
+| skill `workflow` (`specofrecord:workflow`, folder `plugins/specofrecord/skills/workflow/`) | skill `specofrecord` (`specofrecord:specofrecord`, folder `plugins/specofrecord/skills/specofrecord/`) | 2026-10-21; the skill is named like the plugin; the paths in `CLAUDE.md`, `AGENTS.md`, `sync-tools.sh`, `build-plugin.py` and the tests follow, and a copy in a project's `.claude/skills/` has to be replaced |
 
 Sections dated before 2026-10-19 (Many agents at once, Environment agnostic, Hooks never block by accident, the lessons) were written with
 the old names and kept as written: read `clauses/` as `sor/`, `.claims.json` as `.sor-claims.json`, `clauses-lock.json` as `sor-lock.json`.
@@ -137,7 +138,7 @@ editor extension the `fact.*` settings and commands, the language `fact-markdown
 folder is now an ordinary folder. The history above stays as it was written.
 
 The plugin is one word like the domain specofrecord.org, and the install line has no hyphens: `/plugin marketplace add
-sebastianrath/specofrecord`, `/plugin install specofrecord@specofrecord` (the skill is `specofrecord:workflow`). The command,
+sebastianrath/specofrecord`, `/plugin install specofrecord@specofrecord` (the skill is `specofrecord:specofrecord`). The command,
 the library and the variables stay `sor`, `sorlib` and `SOR_*`: the plugin name is what a person types once, the command
 is what an agent types all day. Cost: `specofrecord` is harder to read than `spec-of-record`, and a marketplace search for
 the words "spec of record" does not split it. A plugin and a marketplace with one name is untried (see "Packaging").
@@ -284,7 +285,7 @@ parts) came out flat: 26 parts under the root, 25 under `rendering`, 21 under `e
 Decided with the user (2026-10-18): the way to hand the tools to a project is a Claude Code plugin, not
 files to copy by hand and not a skill alone. A skill cannot keep the edit guard always on (a skill's hooks
 start only once it is invoked); a plugin's hooks are active in every session where it is enabled.
-- **Where:** `plugins/specofrecord/` (manifest, skill `workflow`, `hooks/hooks.json`, `bin/sor`, a copy of
+- **Where:** `plugins/specofrecord/` (manifest, skill `specofrecord`, `hooks/hooks.json`, `bin/sor`, a copy of
   the tools). A folder of its own, because the repository root also holds the VS Code test archive and
   `node_modules`, which would be copied into every plugin cache. `.claude-plugin/marketplace.json` at the
   root lists it for `/plugin marketplace add`.
@@ -403,7 +404,7 @@ a format showed a gap here:
 - **`AGENTS.md`:** what differs for agents that are not Claude Code. The edit guard is a Claude Code hook
   and exists nowhere else; drift in `sor status` and the refusal in `sor lock` hold for every agent. Such an agent has no
   session id, so it names itself with `--as`.
-- **The workflow is written once:** in the plugin's skill (`skills/workflow/SKILL.md`). `CLAUDE.md` imports it and adds
+- **The workflow is written once:** in the plugin's skill (`skills/specofrecord/SKILL.md`). `CLAUDE.md` imports it and adds
   only what is true of this repository (how `sor` is called here, how to run the tests, `sync-tools.sh`); `AGENTS.md`
   points to it and adds what other agents need. Three copies had drifted within a day (`CLAUDE.md` lacked the newest
   commands), and a test now fails when the files stop pointing at the one text or the text stops naming a command.

@@ -5,11 +5,11 @@ them. The plugin gives Claude Code three things:
 
 | Part | What it does |
 |---|---|
-| **Skill** `specofrecord:workflow` | The working order: change the clause first, claim it, rebuild only its code, run the tests, lock your own clauses. Claude loads it when a project has a `sor/` folder. |
+| **Skill** `specofrecord:specofrecord` | The working order: change the clause first, claim it, rebuild only its code, run the tests, lock your own clauses. Claude loads it when a project has a `sor/` folder. |
 | **Hooks** | Refuse code edits whose clause did not change (and full-file rewrites of spec files), add the clauses behind the lines Claude reads, and say once at session start that the project has a spec, with a short index of its parts. They do nothing in projects without `sor/`. |
 | **`sor` command** | `sor status`, `show`, `markers`, `parts`, `needs`, `changes`, `new`, `check`, `test`, `claim`, `release`, `lock`. On the PATH while the plugin is enabled. |
 
-The format itself is in `skills/workflow/reference/format-cheatsheet.md` (full version: SPEC.md in the
+The format itself is in `skills/specofrecord/reference/format-cheatsheet.md` (full version: SPEC.md in the
 project this came from).
 
 ## Requirements
@@ -57,12 +57,12 @@ placeholders that `sor check` reports until they are filled in. Or create the fi
   An agent that never claims is not stopped. This relies on the session id a hook receives being the one
   `sor claim` finds in `CLAUDE_CODE_SESSION_ID`: checked equal live. Subagents share their parent's session id,
   so a parent running subagents in parallel gives each its own name (`--as`); two subagents then conflict at
-  `sor claim`. Who may release what is in "Claims" of `skills/workflow/SKILL.md`. The edit hook does not enforce
+  `sor claim`. Who may release what is in "Claims" of `skills/specofrecord/SKILL.md`. The edit hook does not enforce
   between sibling subagents.
 - **Open questions and notes.** An `open: <question>` line under any item but a test flags a question nobody has
   answered: `sor check` lists it as a note, it is not part of the item's lock text, and the agent builds only what is
   not in question instead of choosing an answer. `sor check` also notes a part that outgrows the limits of the format
-  (listed in `skills/workflow/reference/format-cheatsheet.md`). Notes never change the
+  (listed in `skills/specofrecord/reference/format-cheatsheet.md`). Notes never change the
   exit code; `sor check --strict` makes them exit 2.
 - The VS Code extension (clause lenses, gutter marks) is separate, in `editors/vscode/`.
 
