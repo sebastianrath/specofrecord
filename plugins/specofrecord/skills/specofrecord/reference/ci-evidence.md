@@ -34,9 +34,10 @@ provide together, so `linux+db` is one machine with both. A name is lowercase le
    or a `runs on:` line is wrong.
 
 ## Good to know
-- A result counts only for the fingerprint it was made for: the test, what it refers to, and the text, rows, values and code of
-  every clause it proves. Change any of them and the result is stale. There are no timestamps. It does not cover code a test
-  only uses as input, or code outside the marked regions.
+- A result counts only for the fingerprint it was made for: the test (its rows and values too), what it refers to, and the text, rows,
+  values and code of every clause it proves, the code marked with a row included. Change any of them and the result is stale. There
+  are no timestamps. It does not cover code a test only uses as input, or code outside the marked regions. After a tool upgrade that
+  changes how code is hashed, the old evidence reads as stale until the jobs run again.
 - The lock never holds a result of a job, so it has the same bytes whatever ran where. Committing the evidence or keeping it as CI
   artifacts is the team's choice.
 - A deferred test does not count for clause coverage until a run includes it. A project with a coverage budget gives that

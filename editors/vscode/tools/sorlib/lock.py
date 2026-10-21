@@ -93,9 +93,12 @@ def old_rule_keys(lock, scan):
     whose code is C-family, HTML or of a type that is not listed."""
     if not lock or not getattr(scan, 'has_own_rules', lambda: False)():
         return {}
-    new, legacy = scan.code_hashes(), scan.code_hashes(legacy=True)
-    return {k: new[k] for k, e in lock.items()
-            if e.get('code') and legacy.get(k) == e['code'] and new.get(k) not in (None, e['code'])}
+    new = scan.code_hashes()
+    differ = [k for k, e in lock.items() if e.get('code') and new.get(k) not in (None, e['code'])]
+    if not differ:   # every hash agrees: the old rule need not be worked out
+        return {}
+    legacy = scan.code_hashes(legacy=True)
+    return {k: new[k] for k in differ if legacy.get(k) == lock[k]['code']}
 
 
 def upgrade(lock, scan):

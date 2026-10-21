@@ -27,7 +27,7 @@ from . import cdp
 from . import lock as lockfile
 from .invoke import getenv
 from .markers import Scan
-from .model import Item, ROOT_ALIASES, Row, join, test_keyword
+from .model import Item, ROOT_ALIASES, Row, join
 
 NUM = re.compile(r'^-?\d+(?:\.\d+)?')
 OPS = ['contains', 'is', '≈', '≤', '≥', '<=', '>=', '=', '<', '>']
@@ -263,14 +263,7 @@ class Test:
         self.vars = set()
         self.used = []         # the {refs} the JavaScript refers to, in order
         self.override = None   # (ref, literal): test strength swaps one value
-        self.steps = []  # (keyword, text)
-        for _, t in item.lines[1:]:
-            m = test_keyword(t)
-            if m:
-                self.steps.append(m)
-            elif self.steps and t.strip():
-                k, v = self.steps[-1]
-                self.steps[-1] = (k, v + ' ' + t.strip())
+        self.steps = item.steps()   # (keyword, text)
 
     @property
     def manual(self):
@@ -534,6 +527,20 @@ window.addEventListener('load', () => setTimeout(() => {{
 '''
 
 
+RUNNABLE = ('do', 'expect', 'measure')   # the steps `sor test` itself runs
+
+
+def runnable(item):
+    """Whether the test has steps (`do:`, `expect:`, `measure:`) for `sor test` to run."""
+    return any(k in RUNNABLE for k, _ in item.steps())
+
+
+def external(item, scan):
+    """Whether the test is written in the project's own framework: it has no steps of its own and its code is marked
+    `@clause test`. `sor test` neither runs nor fails it; its result comes from `sor lock --results`."""
+    return not runnable(item) and bool(scan.regions_for(item.id))
+
+
 def selects(project, item, only):
     """Whether the ids given to `sor test` choose this test: its own id, an item it proves (SPEC §8), a part, or a folder of parts."""
     if not item.is_test:
@@ -585,10 +592,10 @@ def run(project, only=None, timeout=90, confirmed=(), provides=None, everything=
             results[t.id] = {'status': 'manual', 'checked': ok,
                              'message': why + (' · confirmed by a person' if ok else '')}
             continue
-        if not any(k in ('do', 'expect', 'measure') for k, _ in t.steps):
+        if not runnable(item):
             # no steps for `sor test` to run: a test written in the project's own framework, when its code is marked
             made = scan.regions_for(t.id)   # only `@clause test` code is ever keyed to a test
-            if made:
+            if external(item, scan):
                 results[t.id] = {'status': 'external', 'message': f'test code at {made[0].where}; its result comes from '
                                                                    'your own test run (sor lock --results)'}
             else:
@@ -655,14 +662,14 @@ def changed(literal):
     return [json.dumps(json.loads(literal) + '~')]
 
 
-def strength(project, only=None, timeout=90):
+def strength(project, only=None, timeout=90, provides=None, everything=False):
     """Test strength (SPEC §8). Each passing test is rerun once for every changed version of every
     {value} its `do:` and `expect:` lines refer to; only the literal in the test's JavaScript
     changes, not the clauses or the page. Returns (results, weak, reruns, idle): weak is {test id:
     [(ref, value, changed values)]} for the values whose every change still passes (the test cannot
     fail on it); idle is {test id: why} for the passing tests with nothing to change, which strength
     says nothing about."""
-    results, _ = run(project, only, timeout)
+    results, _ = run(project, only, timeout, provides=provides, everything=everything)
     target = web_targets(project)[0]
     mutants, keys, idle = [], [], {}
     for item in project.all_items():

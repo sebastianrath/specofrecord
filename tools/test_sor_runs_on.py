@@ -279,6 +279,55 @@ class TestTheFingerprint(Gate):
         self.assertNotEqual(self.fingerprint(), before)
 
 
+class TestTheFingerprintOfRowsAndTheTestsOwnTable(Gate):
+    ROWS = ['- **hello** - The page says its text in every language.', '  | lang | text |', '  | en | Hello |', '  | fr | Salut |']
+    CODE = '// @clause greet/hello\nconsole.log("Hello");\n// @clause end\nconsole.log("Salut");  // @clause greet/hello/fr\n'
+
+    def test_it_covers_code_marked_with_a_row_of_the_clause_it_proves(self):
+        self.greet(hello=self.HELLO + ['  runs on: linux'], rules=self.ROWS)
+        write(self.dir, 'out/app.js', self.CODE)
+        before = self.fingerprint()
+        write(self.dir, 'out/app.js', self.CODE.replace('Salut', 'Salut!'))
+        self.assertNotEqual(self.fingerprint(), before)
+
+    def test_it_covers_the_rows_of_the_test_itself(self):
+        self.greet(hello=self.HELLO + ['  runs on: linux', '  | size | zoom |', '  | phone | 3x |'])
+        before = self.fingerprint()
+        flows.replace_in(os.path.join(self.spec, 'greet.md'), '| phone | 3x |', '| phone | 4x |')
+        self.assertNotEqual(self.fingerprint(), before)
+
+
+class TestEvidenceFromAResultsFileThatIsNotResults(Gate):
+    def test_json_null_is_refused_like_any_other_wrong_shape(self):
+        results = write(self.dir, 'null.json', 'null')
+        code, text, err = self.sor('evidence', '--job', 'linux', '--provides', 'linux', '--results', results)
+        self.assertEqual((code, err), (2, ''))
+        self.assertIn('evidence refused', text)
+        self.assertIn('as `sor test --out` writes it', text)
+        self.assertFalse(os.path.exists(os.path.join(self.dir, 'evidence')))
+
+    def test_a_missing_file_is_refused_and_not_a_crash(self):
+        code, text, err = self.sor('evidence', '--job', 'linux', '--provides', 'linux', '--results', os.path.join(self.dir, 'nope.json'))
+        self.assertEqual((code, err), (2, ''))
+        self.assertIn('cannot read', text)
+
+
+class TestStrengthRunsTheTestsAsTestDoes(Deferred):
+    def test_the_environments_a_run_provides_and_all_reach_the_run_strength_makes(self):
+        self.greet(hello=self.HELLO + ['  runs on: linux'])
+        seen = []
+
+        def fake_run(project, only=None, timeout=90, confirmed=(), provides=None, everything=False):
+            seen.append((provides, everything))
+            return {}, {}
+
+        with mock.patch.object(testrun, 'run', fake_run), mock.patch.object(testrun, 'web_targets', return_value=[object()]):
+            self.sor('test', '--strength', '--provides', 'linux')
+            self.sor('test', '--strength', '--all')
+            self.sor('test', '--strength')
+        self.assertEqual(seen, [(frozenset({'linux'}), False), (frozenset(), True), (frozenset(), False)])
+
+
 class TestTheGate(Gate):
     def test_every_environment_with_a_current_pass_is_proven(self):
         self.job('linux-ci', 'linux')

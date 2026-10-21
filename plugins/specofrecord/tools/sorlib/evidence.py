@@ -33,14 +33,15 @@ def owner_of(key, ids):
 
 def fingerprints(project, scan, keys=None):
     """{test key: fingerprint} for the tests asked for (all of them by default). The hash covers the test's own text, what
-    it refers to, the code marked with it (a test in your own framework), and for every clause it proves the clause's text,
-    its rows and values and its code, so a result is stale as soon as any of them changes."""
+    it refers to, its own rows and values, the code marked with it (a test in your own framework), and for every clause it
+    proves the clause's text, its code, and the text and code of its rows and values, so a result is stale as soon as any of
+    them changes."""
     now = lockfile.snapshot(project, scan)
     ids = {i.id for i in project.all_items()}
-    parts = {}   # item id -> [(key, text hash)] of its rows and values
+    parts = {}   # item id -> [(key, text hash, code hash)] of its rows and values
     for k, e in now.items():
         if e.get('kind') in ('row', 'value'):
-            parts.setdefault(owner_of(k, ids), []).append((k, e.get('text', '')))
+            parts.setdefault(owner_of(k, ids), []).append((k, e.get('text', ''), e.get('code', '')))
     out = {}
     for item in project.all_items():
         if not item.is_test or (keys is not None and item.id not in keys):
@@ -50,7 +51,8 @@ def fingerprints(project, scan, keys=None):
         for pid in sorted(project.proves(item)):
             e = now.get(pid, {})
             proved.append([pid, e.get('text', ''), e.get('code', ''), sorted(parts.get(pid, []))])
-        payload = [own.get('text', ''), sorted(own.get('refs', {}).items()), own.get('code', ''), proved]
+        payload = [own.get('text', ''), sorted(own.get('refs', {}).items()), own.get('code', ''), sorted(parts.get(item.id, [])),
+                   proved]
         out[item.id] = lockfile.h(json.dumps(payload, sort_keys=True, ensure_ascii=False))
     return out
 

@@ -9,7 +9,7 @@ import glob
 import os
 
 from .markers import Scan
-from .model import ANCHOR, CODE, SECTIONS, VDEF, Problem, listed, test_keyword
+from .model import ANCHOR, CODE, SECTIONS, VDEF, Problem, listed, split_lines, test_keyword
 
 LIMIT_ITEMS = 7        # items in Rules, Approach or Contract (a table counts as one)
 LIMIT_SCREEN = 40      # lines above `## Tests`
@@ -182,7 +182,7 @@ def placeholders(project):
     for path in sorted(glob.glob(os.path.join(project.spec_dir, '**', '*.md'), recursive=True)):
         rel = os.path.relpath(path, project.spec_dir).replace(os.sep, '/')
         with open(path, encoding='utf8') as fh:
-            lines = fh.read().splitlines()
+            lines = split_lines(fh.read())
         fenced = False
         for n, raw in enumerate(lines, 1):
             if raw.lstrip().startswith('```'):

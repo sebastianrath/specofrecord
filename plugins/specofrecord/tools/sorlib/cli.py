@@ -39,7 +39,7 @@ from . import lock as lockfile
 from . import testrun
 from . import views
 from .markers import Scan
-from .model import Project, part_id
+from .model import Project, part_id, split_lines
 
 
 def load(args):
@@ -297,7 +297,8 @@ def cmd_rehash(args, project, scan):
         print(f'lock: {e}', file=sys.stderr)
         return 2
     if not stale:
-        print('nothing to rewrite: every code hash in the lock follows the rule of its file type')
+        print('nothing to rewrite: ' + ('every code hash in the lock follows the rule of its file type' if current
+                                        else f'there is no {project.lock_file} yet'))
         return 0
     print(f'rewrote {len(stale)} code hash(es) in {os.path.relpath(project.lock_path, project.root)}; text, refs and results are as they were')
     return 0
@@ -313,6 +314,7 @@ def cmd_lock(args):
         return 2
     if args.rehash:
         return cmd_rehash(args, project, scan)
+    old = lockfile.upgrade(old, scan)   # a hash only the old rule could tell apart is no change, here or in the scope below
     findings, _ = lockfile.status(project, scan, old)
     me = claims.agent_name(args.agent)
     scope = None
@@ -545,10 +547,8 @@ def cmd_test_list(args, project, scan, provides):
             continue
         manual = lockfile.is_manual(item)
         why = None if manual else testrun.deferral(item, args.ids, provides, args.all)
-        steps = item.steps()
         rows.append({'id': item.id, 'runs_on': [list(e) for e in item.runs_on()], 'manual': manual,
-                     'external': not manual and not any(k in ('do', 'expect', 'measure') for k, _ in steps)
-                                 and bool(scan.regions_for(item.id)),   # as `sor test` decides: only code marked `@clause test`
+                     'external': not manual and testrun.external(item, scan),   # as `sor test` decides
                      'selected': not manual and why is None, 'fingerprint': fps[item.id]})
     if args.json:
         print(json.dumps({'tests': rows}, indent=2))
@@ -577,7 +577,7 @@ def cmd_test(args):
     if args.list:
         return cmd_test_list(args, project, scan, prov)
     if args.strength:
-        return cmd_strength(project, args.ids or None)
+        return cmd_strength(project, args.ids or None, prov, args.all)
     results, summary = testrun.run(project, args.ids or None, provides=prov, everything=args.all)
     n = print_results(results)
     print_coverage(summary, args.coverage)
@@ -588,8 +588,8 @@ def cmd_test(args):
     return 1 if n['fail'] else 0
 
 
-def cmd_strength(project, ids):
-    results, weak, reruns, idle = testrun.strength(project, ids)
+def cmd_strength(project, ids, provides=None, everything=False):
+    results, weak, reruns, idle = testrun.strength(project, ids, provides=provides, everything=everything)
     passing = [t for t, r in results.items() if r['status'] == 'pass']
     print(f'{reruns} reruns of {len(passing) - len(idle)} of {len(passing)} passing tests, each with one value changed')
     if weak:
@@ -706,7 +706,7 @@ def cmd_show(args):
 
     if kind == 'part':
         with open(o.path, encoding='utf8') as fh:
-            lines = fh.read().splitlines()
+            lines = split_lines(fh.read())
         ends = {}
         for it in o.items.values():
             if it.lines:
@@ -749,10 +749,13 @@ def cmd_evidence(args):
         try:
             with open(args.results, encoding='utf8') as fh:
                 results = json.load(fh)
+        except OSError as e:
+            err = f'cannot read {args.results} ({e.strerror or e})'
         except ValueError as e:
             err = f'{args.results} is not JSON ({e})'
-        if results is not None and not isinstance(results, dict):
-            err = f'{args.results} holds {{"part/test:name": "pass"}}, as `sor test --out` writes it'
+        else:
+            if not isinstance(results, dict):
+                err = f'{args.results} holds {{"part/test:name": "pass"}}, as `sor test --out` writes it'
     if err:
         print(f'evidence refused:\n  {err}')
         return 2

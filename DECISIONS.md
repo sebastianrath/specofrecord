@@ -624,7 +624,8 @@ the three questions it left open were settled by defaults, to overturn if wrong:
   to CI; `sor verify` searches folders all the way down, as an artifact download makes one folder per artifact; a job's results file may
   hold tests that are not kept, whatever their status; a job name that is not a string, or is a Windows device name, is refused.
   Open: evidence files have no format version and no reference to the commit or CI run they came from, and the fingerprint does not cover
-  code a test only uses as input.
+  code a test only uses as input. A tool that hashes code differently gives other fingerprints (the Python rule did), so the evidence of a
+  project that upgrades reads as stale until its jobs run again; that is by design, and the jobs write it fresh.
 - **Not done, to decide later:** a scoped `sor lock --run-tests` still runs every test and drops the results outside the scope (running only the
   tests a lock needs would make clause-coverage budgets fail on a partial run); a failure only CI sees does not free the code of a bug fix, because
   the edit guard reads the lock; benchmark metrics and `each: N ×` generators are still not built, which is where a quick-and-extended split would
@@ -652,8 +653,25 @@ one C-family rule: it stripped `//`, `/* */` and `<!-- -->` lines and all indent
   STALE. Update every copy together; a lock format version, which makes an old tool refuse with a message, is the next phase of the proposal.
 - **`sor status --json` does not say that hashes wait for the rewrite**, only the text does, because the JSON keys are pinned by a contract test.
   The skill does not name `--rehash` either; it is a one-time migration.
-- **Not covered:** YAML and Makefiles, where indentation is meaning too; here-documents; Ruby and Perl block comments. Python is read with a
-  small scanner and not with `tokenize`, because a region is often a fragment (a method, a branch) that `tokenize` refuses.
+- **Not covered:** YAML and Makefiles, where indentation is meaning too; Ruby and Perl block comments; comments over several lines in SQL, Lua
+  and Haskell. Python is read with a small scanner and not with `tokenize`, because a region is often a fragment (a method, a branch) that
+  `tokenize` refuses; the tests use `tokenize` as the judge instead (`tools/test_sor_normalize_oracle.py`).
+- **Found in review, fixed:**
+  - *Python:* a string that a backslash at the end of the line continues left the scanner blind to the lines after it (a bracket in it opened a
+    statement that never ended, a `#` line in it was dropped); a closer of one quote is now found by its own length; a region that dips below its
+    first line is counted in levels below it (`-1:`) and no longer takes that line as its new first, which hid a change to the first line;
+    a coding cookie is code.
+  - *Other types:* `#` lines inside here-documents and strings that go over several lines (shell, Ruby, Perl, TOML) are text. The scanner assumes
+    a quote is open whenever it cannot tell, which can only keep a comment as code. `--` lines that Haskell reads as an operator (`-->`) are code,
+    and the one-line `/* */` comment the old rule dropped is still dropped in SQL. Ruby magic comments are code.
+  - *Lines:* a line ends only at a line feed or carriage return, as in an editor; `splitlines` also split at a form feed, so every region after one
+    had line numbers no editor shows (a form feed on its own line is common in GNU C). The lock hash differs only for a form feed or separator
+    inside a line of a region, which is rare.
+  - *Migration:* `sor lock IDS` reads the old lock upgraded, so a clause that shares code and has no change of its own is not pulled in, and the old rule
+    is worked out only when a hash differs (`sor status` took 0.17 s against 0.11 s on 480 Python regions, and each scan now works its hashes out once); `--rehash` without a lock says there is none.
+  - *Evidence:* the fingerprint covers the code marked with a row and the test's own rows and values; `sor test --strength` takes `--provides` and
+    `--all` like `sor test`; a results file that is `null` or missing is refused.
+  - *Docs:* the README no longer links the page that was removed.
 
 ## Still open
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for

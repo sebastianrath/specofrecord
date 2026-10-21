@@ -38,6 +38,14 @@ class TestScanText(unittest.TestCase):
         self.assertEqual(problems, [('marker', 'region is never closed with @clause end')])
         self.assertEqual((regions[0].start, regions[0].end, regions[0].where), (1, 3, 'a.js:1-3'))
 
+    def test_a_line_ends_at_a_line_feed_or_a_carriage_return_and_nowhere_else(self):
+        # editors number lines that way; a form feed or a Unicode separator inside a line must not shift every number after it
+        regions, _, unmarked = self.scan('// @clause a/b\none();\x0c\ntwo();\u2028three();\x0bfour();\n// @clause end\nfive();\n')
+        self.assertEqual((regions[0].start, regions[0].end, len(regions[0].lines)), (1, 4, 2))
+        self.assertEqual(unmarked, [5])
+        regions, _, _ = self.scan('// @clause a/b\r\none();\r// @clause end\r')
+        self.assertEqual((regions[0].start, regions[0].end), (1, 3))
+
     def test_end_without_an_open_region_is_a_problem(self):
         self.assertEqual(self.scan('one();\n// @clause end\n')[1], [('marker', '@clause end without an open region')])
 
@@ -199,6 +207,11 @@ class TestAnchors(unittest.TestCase):
           '    return 1;\n'                             # 12
           '  }\n'                                       # 13
           '}\n')                                        # 14
+
+    def test_a_form_feed_in_the_file_does_not_move_the_lines_after_it(self):
+        text = 'a();\x0c\nfunction f() {\n  x;\n}\ny();\n'
+        self.assertEqual(anchors.find(text, 'm.js', 'f'), (2, 4))
+        self.assertEqual(anchors.find(text, 'm.js', ''), (1, 5))
 
     def test_braces_in_strings_and_comments_do_not_end_a_block(self):
         self.assertEqual(anchors.find(self.JS, 'm.js', 'solve'), (2, 6))

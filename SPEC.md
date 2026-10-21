@@ -282,8 +282,9 @@ for that item) or `bug:` (a regression test).
   environments (`--provides`), says `--all`, or names the test by its own id; `sor test --list` says which, and runs nothing. A CI job
   that ran it writes evidence with `sor evidence` (`--job`, `--provides`, `--results`): one file per job, `{job, provides, results}`,
   with a fingerprint and `pass` or `fail` for each test, so two jobs never write the same file and a team decides whether to commit
-  them. The fingerprint hashes the test, what it refers to, and the text, rows, values and code of every clause it proves: a result
-  goes stale when any of them changes, and there is no timestamp. It does not cover code a test only uses as input (`do:` and
+  them. The fingerprint hashes the test (its rows and values too), what it refers to, and the text, rows, values and code of every clause it
+  proves, the code marked with a row included: a result goes stale when any of them changes, and there is no timestamp. A tool that hashes
+  code differently (§11) gives other fingerprints, so the next run of the jobs writes the evidence again. It does not cover code a test only uses as input (`do:` and
   `each:` lines) or code outside the marked regions: a result can stay current while such code changes. `sor verify` is the gate: exit 0 when every environment of every
   deferred test has a current pass, 1 when one is missing, stale or failed (a current failure is not outvoted by another job's pass),
   2 for an evidence file that cannot be read or a bad `runs on:` line. Evidence is as trustworthy as the job that wrote it: the gate
@@ -334,6 +335,8 @@ A target is a part under `sor/targets/` that says how code is delivered and test
   matching (C, C++, C#, Java, JS, TS, Go, Rust, Zig, scripts in HTML). The named lines count as
   that item's code in the lock; when they change in a `Source: code` part, `sor status` asks to
   check the clause still holds. An anchor that finds nothing is a problem in `sor check`.
+- Lines are numbered as an editor numbers them: a line ends at a line feed, a carriage return or both, and nowhere else (a form feed
+  or a Unicode line separator inside a line does not end it).
 - Markers plus the lock let any tool go from a line of code to its clause and back.
 
 ## 11. sor-lock.json
@@ -579,17 +582,23 @@ Choices the tool made where this spec is silent:
   comment-only lines (`//`, `/* */`, `<!-- -->`), no indentation, one space for each run of spaces outside quotes.
   - **Python** (`.py`, `.pyi`, `.pyw`): comment-only lines are the `#` lines, and the nesting counts. Every statement carries its depth,
     in levels and not in columns, so changing 2 spaces to 4 is not a change and moving a line into a loop is. Lines that go on inside
-    brackets, after a backslash or inside a multi-line string carry no depth, and a `#` line inside a multi-line string is text.
-  - **Shell, Ruby, Perl, R, TOML** (`.sh`, `.bash`, `.zsh`, `.rb`, `.pl`, `.r`, `.toml`): `#` lines are comments (a `#!` line is code);
-    indentation does not count.
-  - **SQL, Lua, Haskell** (`.sql`, `.lua`, `.hs`): `--` lines are comments.
+    brackets, after a backslash or inside a multi-line string carry no depth (a string that a backslash at the end of a line continues
+    is one of them), and a `#` line inside a multi-line string is text. A region is often a piece of a block: a line of the block
+    around it that comes after the first line is counted one level below it (`-1:`). A coding cookie (`# -*- coding: latin-1 -*-`) is
+    code, because it changes how the file is read.
+  - **Shell, Ruby, Perl, R, TOML** (`.sh`, `.bash`, `.zsh`, `.rb`, `.pl`, `.r`, `.toml`): `#` lines are comments (a `#!` line and a
+    magic comment such as `# frozen_string_literal: true` are code); indentation does not count. A `#` line inside a here-document or
+    a string that goes over several lines is text. A quote the tool takes to be open when it is not only keeps comments as code, so
+    it can make a comment edit count as a change but never hide a change to code.
+  - **SQL, Lua, Haskell** (`.sql`, `.lua`, `.hs`): `--` lines, one-line `/* */` comments and one-line `{- -}` comments are comments.
+    A line that starts with `-->` or `--|` is a Haskell operator, and `{-# … #-}` is a pragma: both are code.
   - A comment after code is part of its line in every type.
 
   Re-indenting or reformatting is not drift; a changed word, number or string is. Changing this rule changes every locked code hash
   once, and `sor lock --rehash` is that rewrite: it gives the new hash to an entry whose code is unchanged under the old rule, and
   leaves `text`, `refs` and results as they were. `sor status` says when hashes are waiting for it. Until then a change that only the old
   rule ignores, such as a Python line moved into a loop, is not seen. Not covered: YAML and Makefiles (indentation is meaning there too),
-  here-documents and Ruby or Perl block comments. Tool copies of different ages disagree about Python code: an older tool reads a lock
+  Ruby and Perl block comments (`=begin`, `=pod`) and comments that span several lines in SQL, Lua and Haskell: their lines are code. Tool copies of different ages disagree about Python code: an older tool reads a lock
   that a newer one wrote as drift on every Python region, and refuses to lock, so update every copy of the tool together (the lock has no
   format version yet).
 

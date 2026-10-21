@@ -21,7 +21,7 @@ the tools and the questions people ask. This README only says what is in this re
 | [`comparisons/`](comparisons) | The same solar-system project written for other spec-driven tools (BMad Method, CodeSpeak, Kiro, nima, OpenSpec, Spec Kit, SpecLock, Tessl), each with notes on the differences. |
 | [`DECISIONS.md`](DECISIONS.md) | The design decisions behind the format, and the alternatives that were dropped. |
 | [`AGENTS.md`](AGENTS.md), [`CLAUDE.md`](CLAUDE.md) | How a coding agent works in a project with a `sor/` folder. `CLAUDE.md` imports the plugin's skill, so the workflow is written once. |
-| [`index.html`](index.html), [`index-human.html`](index-human.html), [`social/`](social) | The project page, a rewritten version of its text for developers and managers, and its banner. |
+| [`index.html`](index.html), [`social/`](social) | The project page and its banner. |
 
 ## Working on this repository
 

@@ -12,6 +12,8 @@ import ast
 import os
 import re
 
+from .model import split_lines
+
 ANCHOR = re.compile(r'^\s+code:\s*(\S+)\s*$')
 
 
@@ -23,7 +25,7 @@ def split(target):
 def find(text, path, name):
     """(first line, last line), 1-based, of `name` in a file's text; the whole file without a
     name; None when it is not there."""
-    lines = text.splitlines()
+    lines = split_lines(text)
     if not name:
         return (1, max(1, len(lines)))
     if path.endswith('.py'):

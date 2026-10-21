@@ -26,6 +26,19 @@ SECTION_WORDS = {
 }
 
 
+LINE_BREAK = re.compile(r'\r\n|\r|\n')
+
+
+def split_lines(text):
+    """The lines of a text, numbered the way an editor numbers them: a line ends at \\n, \\r\\n or \\r and nowhere else.
+    `str.splitlines` also splits at a form feed, a vertical tab and the Unicode separators, which would give every
+    line after one a number no editor shows."""
+    lines = LINE_BREAK.split(text)
+    if lines and not lines[-1]:
+        lines.pop()
+    return lines
+
+
 def section_of(heading):
     h = heading.strip().lower()
     for canonical, words in SECTION_WORDS.items():
@@ -304,7 +317,7 @@ def parse_part(root, path):
     part = Part(part_id(root, path), path, rel, ROOT)
     section, cur = None, None
     with open(path, encoding='utf8') as fh:
-        lines = fh.read().splitlines()
+        lines = split_lines(fh.read())
     part.nlines = len(lines)
     fenced = commented = False   # inside a ``` block or an HTML comment: text there is not loose
     written = {}                 # heading words -> line of the first `## ` heading that used them
