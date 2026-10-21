@@ -111,7 +111,7 @@ Both checks pass: `node test/grammar.js` (34 scope checks) and `node test/run.js
     - *Refresh check:* it waits until no refresh has fired for 2.5 s before counting, because a refresh already running turns one
       burst into two.
     - **By-eye steps** (from the repository root; I ran each one and saw the result written here):
-      - `targets/vscode/test:code`: `ls editors/vscode/src` shows only `extension.js`; `unzip -l editors/vscode/sor-vscode-0.9.6.vsix
+      - `targets/vscode/test:code`: `ls editors/vscode/src` shows only `extension.js`; `unzip -l editors/vscode/sor-vscode-0.9.7.vsix
         | grep extension/src/` shows exactly one line.
       - `targets/vscode/test:runtime`: `grep -n '"engines"' -A1 editors/vscode/package.json` shows `"vscode": "^1.80.0"` and
         `"main"` is `./src/extension.js`; the `scripts` in `package.json` are only `test` and `package` (no build);
@@ -135,3 +135,21 @@ Both checks pass: `node test/grammar.js` (34 scope checks) and `node test/run.js
       `show-only` and `out-of-scope`.
     - 18 of the 48 rules that had no code region now have one; 30 remain, in `project`, `state`, `references`, `colors` and
       `targets`, and three promises that cannot have code.
+25. **The `sor` tool ships inside the extension.** `project/tool-path` now ends in a fallback: when the folder walk finds no
+    `tools/sor.py` (and `sor.toolPath` is empty), `findTool` returns `tools/sor.py` next to `src/`, found through `__dirname`. An
+    install of the `.vsix` alone then works with nothing but Python 3.9 or newer.
+    - *Order:* the setting and any tool found in or above the project still win, because a project's own tool matches the version of
+      its own spec. The bundled copy is the last resort.
+    - *The copy:* `tools/` holds `sor.py` and `sorlib/*.py` only, copied from the repository's `tools/` by `sh plugins/sync-tools.sh`
+      (the script that also feeds the plugin; `--check` covers both). It is committed, so packaging stays `vsce package` with no
+      build step and `package.json` keeps only the scripts `test` and `package`. Never edit it by hand.
+    - *Tests:* `test/bundle.js` (added to `npm test`) checks that the copy equals `tools/` and, run on a copy of the example with no
+      tool above it, answers `status --json` and `markers --json`. `project/test:tool-fallback` is by eye.
+    - *Spec wording that had to move:* `targets/vscode/code` said `src/extension.js` is "the only code file in the package"; it now
+      says the extension's own code is one file and the only other code in the package is the bundled tool. The `project` part's Why
+      names the bundled copy, because its code region serves the part.
+    - *Region:* `findTool` has its own region, `project/tool-path`; the rest of the part keeps `project project/wake`.
+    - *Packaging:* the CI workflow runs `vsce package --no-dependencies` (the extension has no runtime dependencies; vsce's dependency
+      scan broke on npm 11 and gave an empty file list) and checks the package for `tools/sor.py` and for no `test/`, `sor/` or
+      `node_modules/`.
+    - *Python:* not bundled. `python3` (`py -3` on Windows) or `sor.pythonPath`, 3.9 or newer, as before.
