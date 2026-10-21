@@ -653,8 +653,7 @@ one C-family rule: it stripped `//`, `/* */` and `<!-- -->` lines and all indent
   STALE. Update every copy together; a lock format version, which makes an old tool refuse with a message, is the next phase of the proposal.
 - **`sor status --json` does not say that hashes wait for the rewrite**, only the text does, because the JSON keys are pinned by a contract test.
   The skill does not name `--rehash` either; it is a one-time migration.
-- **Not covered:** YAML and Makefiles, where indentation is meaning too; an f-string that reuses its own quote inside a replacement field
-  (Python 3.12 and later: the tokenizer test skips files with f-strings there for that reason); Ruby and Perl block comments; comments over several lines in SQL, Lua
+- **Not covered:** YAML and Makefiles, where indentation is meaning too; Ruby and Perl block comments; comments over several lines in SQL, Lua
   and Haskell. Python is read with a small scanner and not with `tokenize`, because a region is often a fragment (a method, a branch) that
   `tokenize` refuses; the tests use `tokenize` as the judge instead (`tools/test_sor_normalize_oracle.py`).
 - **Found in review, fixed:**
@@ -792,6 +791,20 @@ a second lock gives the same bytes, and `sor status` takes 0.5 s.
   keeping its code per target, so its jobs write the evidence again.
 - `Region.normalized` works out a region's normalized code once; both hashes of a clause need it, and `sor status` on that project went from
   0.73 s to 0.5 s.
+
+## The Python scanner reads f-strings (2026-10-21)
+Shown on Python 3.13: `f"{s.replace("(", "")}"` is valid since 3.12, and the scanner took it for the string `f"{s.replace("`, a loose `(`, and a
+string again. The `(` stayed open, so every later line of the region counted as the continuation of a statement, got no level, and moving
+`return None` into the `if` above it gave the same hash. Only indentation was blind, and only for the rest of that region; changed words were
+still seen, and the standard library hardly ever does this (500 files, none of the 165 with f-strings broke either scanner).
+- **The end of an f-string is found by reading its fields.** A frame stack replaces the one open quote: a string, the text of an f-string, the
+  code of a replacement field with the brackets open in it, and a format spec. Inside a field a quote starts a string of its own (an f-string
+  too, from its prefix), a colon outside brackets starts the spec, `{` in a spec opens a field, and `#` starts a comment to the end of the line.
+  `{{`, `}}` and `\N{NAME}` are text. The end of a name such as `if` in `if"x"` is not a prefix. For what Python 3.9 reads, it gives the answers
+  it gave.
+- **Proved against the tokenizer on both Pythons.** The oracle test no longer skips files with f-strings on 3.12 and later, compares the
+  tokenizer's pieces of f-string text like string tokens, and has four programs only 3.12 and later read. They fail with the old scanner.
+  Unit tests and five vector rows (language neutral) pin the cases.
 
 ## Still open
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for

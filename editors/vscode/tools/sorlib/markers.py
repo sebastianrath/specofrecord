@@ -194,10 +194,10 @@ def _python_normalized(lines):
     to 4 everywhere is not a change and moving a line into a loop is. Lines that continue a statement (inside brackets, after a
     backslash, inside a multi-line string) carry no depth. A `#` line inside a multi-line string is text, not a comment."""
     out, levels = [], _Levels()
-    triple, depth, continued = None, 0, False
+    stack, depth, continued = (), 0, False
     for line in lines:
         t = line.strip()
-        if triple is not None:
+        if stack:
             if t:
                 out.append(_collapse(t))
         elif t and not _is_comment(t):
@@ -206,7 +206,7 @@ def _python_normalized(lines):
                 width = len(line[:len(line) - len(line.lstrip())].expandtabs(8))
                 text = f'{levels.of(width)}:{text}'
             out.append(text)
-        triple, depth, continued = _python_state(line, triple, depth)
+        stack, depth, continued = _python_state(line, stack, depth)
     return '\n'.join(out)
 
 
@@ -237,37 +237,122 @@ class _Levels:
 
 _PY_OPEN = re.compile(r'[\'"#()\[\]{}]')
 _PY_CLOSE = {q: re.compile(r'\\|' + re.escape(q)) for q in ('"', "'", '"""', "'''")}
+_PY_FIELD = re.compile(r'[\'"#()\[\]{}:]')   # what matters inside the code of an f-string's replacement field
+_PY_SPEC = re.compile(r'[{}]')                 # and inside its format spec
+_PY_LITERAL = {}                                # (quote) -> what matters in the text of an f-string
 
 
-def _python_state(line, triple, depth):
-    """(open string or None, bracket depth, whether the statement goes on) after one line of Python. An open string is the quote that
-    opened it: three quotes for a multi-line string, one for a string that a backslash at the end of the line continues."""
+def _literal(quote):
+    if quote not in _PY_LITERAL:
+        _PY_LITERAL[quote] = re.compile(r'\\|\{\{|\}\}|\{|\}|' + re.escape(quote))
+    return _PY_LITERAL[quote]
+
+
+def _open_string(line, j):
+    """(frame, length of the opening quotes) of the string whose quote is at line[j]. A frame is ('s', quote) for a string and
+    ('f', quote, raw) for an f-string, which has code in it. The prefix is read back from the quote, and the end of a name such as
+    `if` in `if"x"` is not a prefix."""
+    q = line[j]
+    quote = q * 3 if line.startswith(q * 3, j) else q
+    k = j
+    while k > 0 and j - k < 2 and line[k - 1] in 'rRbBuUfF':
+        k -= 1
+    prefix = line[k:j].lower()
+    if k > 0 and (line[k - 1].isalnum() or line[k - 1] == '_'):
+        prefix = ''
+    if 'f' in prefix:
+        return ('f', quote, 'r' in prefix), len(quote)
+    return ('s', quote), len(quote)
+
+
+def _python_state(line, stack, depth):
+    """(what is open, bracket depth, whether the statement goes on) after one line of Python. What is open is a tuple of frames, the
+    innermost last: ('s', quote) a string, ('f', quote, raw) the text of an f-string, ('e', n) the code of one of its replacement
+    fields with n brackets open in it, ('m',) its format spec. Since Python 3.12 the code of a field may use the quote of the f-string
+    around it and span lines, so the end of an f-string is found by reading the fields, not by the next quote. A one-quote string or
+    f-string text ends with its line unless a backslash goes on."""
     i, n, code_end = 0, len(line), len(line)
+    stack = list(stack)
     while i < n:
-        if triple:
-            m = _PY_CLOSE[triple].search(line, i)
+        top = stack[-1] if stack else None
+        if top is None:                     # code
+            m = _PY_OPEN.search(line, i)
+            if m is None:
+                break
+            c, i = m.group(), m.end()
+            if c == '#':
+                code_end = m.start()
+                break
+            if c in '\'"':
+                frame, size = _open_string(line, m.start())
+                stack.append(frame)
+                i = m.start() + size
+            else:
+                depth = max(depth + (c in '([{') - (c in ')]}'), 0)
+        elif top[0] == 's':                 # a string
+            m = _PY_CLOSE[top[1]].search(line, i)
             if m is None:
                 i = n
             elif m.group() == '\\':
-                i = m.end() + 1     # the escaped character; past the end when the backslash ends the line
+                i = m.end() + 1             # the escaped character; past the end when the backslash ends the line
             else:
-                i, triple = m.end(), None
-            continue
-        m = _PY_OPEN.search(line, i)
-        if m is None:
-            break
-        c, i = m.group(), m.end()
-        if c == '#':
-            code_end = m.start()
-            break
-        if c in '\'"':
-            triple = c * 3 if line.startswith(c * 3, m.start()) else c
-            i = m.start() + len(triple)
-        else:
-            depth = max(depth + (c in '([{') - (c in ')]}'), 0)
-    if triple and len(triple) == 1 and i <= n:   # a string of one quote ends with its line, unless a backslash goes on
-        triple = None
-    return triple, depth, triple is None and line[:code_end].rstrip().endswith('\\')
+                i = m.end()
+                stack.pop()
+        elif top[0] == 'f':                 # the text of an f-string
+            m = _literal(top[1]).search(line, i)
+            if m is None:
+                i = n
+                continue
+            g, i = m.group(), m.end()
+            if g == '\\':
+                nxt = line[i:i + 1]
+                if not nxt:
+                    i += 1                  # a backslash at the end of the line goes on
+                elif top[2]:                # raw: a backslash only keeps a quote or a backslash from meaning anything
+                    i += 1 if nxt in ('\\', top[1][0]) else 0
+                elif nxt == 'N' and line.startswith('{', i + 1):    # \N{NAME}
+                    close = line.find('}', i + 2)
+                    i = n if close < 0 else close + 1
+                elif nxt not in '{}':
+                    i += 1
+            elif g == '{':
+                stack.append(('e', 0))
+            elif g == top[1]:
+                stack.pop()
+        elif top[0] == 'e':                 # the code of a replacement field
+            m = _PY_FIELD.search(line, i)
+            if m is None:
+                break
+            c, j, i = m.group(), m.start(), m.end()
+            if c == '#':
+                break                       # a comment, to the end of the line
+            if c in '\'"':
+                frame, size = _open_string(line, j)
+                stack.append(frame)
+                i = j + size
+            elif c in '([{':
+                stack[-1] = ('e', top[1] + 1)
+            elif c in ')]':
+                stack[-1] = ('e', max(top[1] - 1, 0))
+            elif c == '}':
+                if top[1] > 0:
+                    stack[-1] = ('e', top[1] - 1)
+                else:
+                    stack.pop()
+            elif top[1] == 0:               # a colon outside brackets: the format spec begins
+                stack[-1] = ('m',)
+        else:                               # the format spec of a field
+            m = _PY_SPEC.search(line, i)
+            if m is None:
+                break
+            i = m.end()
+            if m.group() == '{':
+                stack.append(('e', 0))
+            else:
+                stack.pop()
+    if stack and stack[-1][0] in 'sf' and len(stack[-1][1]) == 1 and i <= n:   # the text of a one-quote string ends with its line
+        stack.pop()
+    return tuple(stack), depth, not stack and line[:code_end].rstrip().endswith('\\')
 
 
 HEREDOC = re.compile(r'<<[-~]?[ \t]*(?:"([^"]+)"|\'([^\']+)\'|\\?([A-Za-z_][A-Za-z0-9_]*))')

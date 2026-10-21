@@ -185,6 +185,58 @@ class TestPythonStrings(unittest.TestCase):
         self.assertEqual(py('# about x\nx = 1\n'), py('# about y\nx = 1\n'))
 
 
+class TestPythonFStrings(unittest.TestCase):
+    """An f-string has parts of code in it. Since Python 3.12 those may reuse the quote of the f-string and span lines, so the end of
+    the string is not the next quote. The text is only scanned, so these run on every Python."""
+
+    def levels(self, lines):
+        return normalized(lines, 'python')
+
+    def test_a_reused_quote_with_a_bracket_in_it_does_not_hide_the_nesting_after_it(self):
+        lines = ['def clean(s):', '    t = f"{s.replace("(", "")}"', '    if t:', '        return t', '    return None']
+        self.assertEqual(self.levels(lines),
+                         '0:def clean(s):\n1:t = f"{s.replace("(", "")}"\n1:if t:\n2:return t\n1:return None')
+        moved = lines[:-1] + ['        return None']
+        self.assertNotEqual(self.levels(lines), self.levels(moved))
+
+    def test_a_hash_in_a_reused_quote_is_not_a_comment(self):
+        lines = ['t = f"{d["#"]}"', 'if t:', '    pass']
+        self.assertEqual(self.levels(lines), '0:t = f"{d["#"]}"\n0:if t:\n1:pass')
+
+    def test_a_field_may_span_lines_even_in_a_one_quote_f_string(self):
+        lines = ['x = f"{', '    a +', '    b', '}"', 'if x:', '    pass']
+        self.assertEqual(self.levels(lines), '0:x = f"{\na +\nb\n}"\n0:if x:\n1:pass')
+
+    def test_a_comment_in_a_field_is_text_and_ends_with_its_line(self):
+        lines = ['x = f"{', '    a  # a ) and a "', '}"', 'y = 1']
+        self.assertEqual(self.levels(lines), '0:x = f"{\na # a ) and a "\n}"\n0:y = 1')
+
+    def test_a_triple_quoted_f_string_keeps_its_lines_whatever_they_start_with(self):
+        lines = ['s = f"""', '# heading {x}', '{y:>{w}}', '"""', 'z = 2']
+        self.assertEqual(self.levels(lines), '0:s = f"""\n# heading {x}\n{y:>{w}}\n"""\n0:z = 2')
+
+    def test_nested_fields_in_a_format_spec_and_nested_f_strings_close_where_they_should(self):
+        lines = ['x = f"{a:{w}.{p}}" + f"{b!r:>{w}}" + f"{f"{c}"}"', 'if x:', '    pass']
+        self.assertEqual(self.levels(lines), '0:x = f"{a:{w}.{p}}" + f"{b!r:>{w}}" + f"{f"{c}"}"\n0:if x:\n1:pass')
+
+    def test_doubled_braces_and_named_escapes_are_text(self):
+        for first in ('x = f"{{(}}"', 'x = f"\\N{BULLET} ("', 'x = rf"\\{a}("'):
+            with self.subTest(first):
+                self.assertEqual(self.levels([first, 'if x:', '    pass']), f'0:{first}\n0:if x:\n1:pass')
+
+    def test_a_dict_or_a_lambda_in_a_field_does_not_end_it_early(self):
+        lines = ['x = f"{ {"a": 1}["a"] } {(lambda y: y)(2)}"', 'if x:', '    pass']
+        self.assertEqual(self.levels(lines), '0:x = f"{ {"a": 1}["a"] } {(lambda y: y)(2)}"\n0:if x:\n1:pass')
+
+    def test_a_name_that_ends_in_f_is_not_a_prefix(self):
+        lines = ['y = [1 if"(" else 2]', 'z = 1']
+        self.assertEqual(self.levels(lines), '0:y = [1 if"(" else 2]\n0:z = 1')
+
+    def test_f_strings_that_python_3_9_reads_are_read_as_before(self):
+        lines = ["x = f'{d[\"a\"]} it\\'s' + f\"{n:>{w}}\"", 'if x:', '    pass']
+        self.assertEqual(self.levels(lines), "0:x = f'{d[\"a\"]} it\\'s' + f\"{n:>{w}}\"\n0:if x:\n1:pass")
+
+
 class TestAPieceThatDipsBelowItsFirstLine(unittest.TestCase):
     """A region is often part of a block: it starts inside a method and goes on with a line of the class around it."""
     PIECE = ['        a = 1', '    b = 2', '        c = 3']

@@ -634,7 +634,7 @@ Choices the tool made where this spec is silent:
   - **Python** (`.py`, `.pyi`, `.pyw`): comment-only lines are the `#` lines, and the nesting counts. Every statement carries its depth,
     in levels and not in columns, so changing 2 spaces to 4 is not a change and moving a line into a loop is. Lines that go on inside
     brackets, after a backslash or inside a multi-line string carry no depth (a string that a backslash at the end of a line continues
-    is one of them), and a `#` line inside a multi-line string is text. A region is often a piece of a block: a line of the block
+    is one of them, and so is a replacement field of an f-string, which since Python 3.12 may reuse the quote of the f-string and span lines), and a `#` line inside a multi-line string is text. A region is often a piece of a block: a line of the block
     around it that comes after the first line is counted one level below it (`-1:`). A coding cookie (`# -*- coding: latin-1 -*-`) is
     code, because it changes how the file is read.
   - **Shell, Ruby, Perl, R, TOML** (`.sh`, `.bash`, `.zsh`, `.rb`, `.pl`, `.r`, `.toml`): `#` lines are comments (a `#!` line and a
@@ -649,7 +649,7 @@ Choices the tool made where this spec is silent:
   once, and `sor lock --rehash` is that rewrite: it gives the new hash to an entry whose code is unchanged under the old rule, and
   leaves `text`, `refs` and results as they were. `sor status` says when hashes are waiting for it. Until then a change that only the old
   rule ignores, such as a Python line moved into a loop, is not seen. Not covered: YAML and Makefiles (indentation is meaning there too),
-  an f-string that reuses its own quote inside a replacement field (Python 3.12 and later), Ruby and Perl block comments (`=begin`, `=pod`) and comments that span several lines in SQL, Lua and Haskell: their lines are code. Tool copies of different ages disagree about Python code: an older tool reads a lock
+  Ruby and Perl block comments (`=begin`, `=pod`) and comments that span several lines in SQL, Lua and Haskell: their lines are code. Tool copies of different ages disagree about Python code: an older tool reads a lock
   that a newer one wrote as drift on every Python region, and refuses to lock, so update every copy of the tool together (the format number above does not help
   here: it protects against formats written from now on).
 

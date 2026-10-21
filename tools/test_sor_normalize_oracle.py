@@ -27,7 +27,7 @@ from sorlib.markers import normalized   # noqa: E402
 from sorlib.model import split_lines     # noqa: E402
 
 LAYOUT = {tokenize.COMMENT, tokenize.NL, tokenize.ENCODING, tokenize.ENDMARKER}
-FSTRING = getattr(tokenize, 'FSTRING_START', None)   # Python 3.12 tokenizes f-strings in pieces, and allows their quotes inside
+FSTRING_MIDDLE = getattr(tokenize, 'FSTRING_MIDDLE', None)   # Python 3.12 tokenizes the text of an f-string as pieces of its own
 SAMPLE = 25
 
 # Small programs with what the scanner has to get right: a string a backslash continues, strings with the other quote inside, `#` in
@@ -43,6 +43,15 @@ TRICKY = [
     "def f(a):\n    if a:\n        b = 1; c = 2\n    elif a is None:\n        b = 3\n    else:\n        b = 4\n    for i in range(b):\n        c += i\n    else:\n        c = 0\n    return c\n",
 ]
 
+# Python 3.12 and later: an f-string may reuse its own quote in a field, span lines in a field, and have a comment there. The scanner
+# reads them on every Python, but only these Pythons can say what the tokenizer thinks of them.
+TRICKY_312 = [
+    "def clean(s):\n    t = f\"{s.replace(\"(\", \"\")}\"\n    if t:\n        return t\n    return None\n",
+    "def f(d, w):\n    x = f\"{d[\"#\"]:>{w}}\" + f\"{f\"{w}\"}\"\n    if x:\n        return x\n    return None\n",
+    "def f(a, b):\n    x = f\"{\n        a +  # a comment with ) and \"\n        b\n    }\"\n    if x:\n        return x\n    return None\n",
+    "def f(a):\n    s = f\"\"\"\n# not a comment {a}\n{a!r:>{len(a)}}\n\"\"\"\n    for i in s:\n        print(i)\n    return s\n",
+]
+
 
 def tokens(text):
     return list(tokenize.generate_tokens(io.StringIO(text).readline))
@@ -55,7 +64,8 @@ def signature(toks):
     for tok in toks:
         if tok.type in LAYOUT:
             continue
-        s = '' if tok.type == tokenize.INDENT else re.sub(r'\n[ \t]+', '\n', tok.string) if tok.type == tokenize.STRING else tok.string
+        text = tok.type == tokenize.STRING or (FSTRING_MIDDLE is not None and tok.type == FSTRING_MIDDLE)
+        s = '' if tok.type == tokenize.INDENT else re.sub(r'\n[ \t]+', '\n', tok.string) if text else tok.string
         out.append((tok.type, s))
     return out
 
@@ -94,7 +104,7 @@ class TestTheNormalizationAgreesWithTheTokenizer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.checked = []
-        for n, text in enumerate(TRICKY):
+        for n, text in enumerate(TRICKY + (TRICKY_312 if sys.version_info >= (3, 12) else [])):
             toks = tokens(text)
             cls.checked.append((f'TRICKY[{n}]', text, signature(toks), statement_starts(toks)))
         for path in sample_files():
@@ -104,8 +114,6 @@ class TestTheNormalizationAgreesWithTheTokenizer(unittest.TestCase):
                 compile(text, path, 'exec')
                 toks = tokens(text)
             except (OSError, SyntaxError, ValueError, tokenize.TokenError, UnicodeDecodeError):
-                continue
-            if FSTRING is not None and any(t.type == FSTRING for t in toks):
                 continue
             cls.checked.append((path, text, signature(toks), statement_starts(toks)))
 
@@ -119,7 +127,7 @@ class TestTheNormalizationAgreesWithTheTokenizer(unittest.TestCase):
 
     def test_there_is_something_to_compare(self):
         self.assertGreater(len(self.checked), 10)
-        self.assertTrue(all(compile(t, n, 'exec') for n, t, _, _ in self.checked[:len(TRICKY)]))   # the small programs are Python
+        self.assertTrue(all(compile(t, n, 'exec') for n, t, _, _ in self.checked if n.startswith('TRICKY')))   # the small programs are Python
 
     def test_narrower_indents_everywhere_are_no_change(self):
         compared = 0

@@ -479,6 +479,67 @@
     "hash": "83132c55dcb3"
    },
    {
+    "name": "python: an f-string that reuses its quote in a field, with a bracket in it, does not hide the nesting after it",
+    "style": "python",
+    "lines": [
+     "def clean(s):",
+     "    t = f\"{s.replace(\"(\", \"\")}\"",
+     "    if t:",
+     "        return t",
+     "    return None"
+    ],
+    "normalized": "0:def clean(s):\n1:t = f\"{s.replace(\"(\", \"\")}\"\n1:if t:\n2:return t\n1:return None",
+    "hash": "62e65e47590e"
+   },
+   {
+    "name": "python: a field of an f-string may span lines, and its lines carry no depth",
+    "style": "python",
+    "lines": [
+     "x = f\"{",
+     "    a +",
+     "    b",
+     "}\"",
+     "if x:",
+     "    pass"
+    ],
+    "normalized": "0:x = f\"{\na +\nb\n}\"\n0:if x:\n1:pass",
+    "hash": "485d818d1fce"
+   },
+   {
+    "name": "python: fields nested in a format spec close where they should",
+    "style": "python",
+    "lines": [
+     "x = f\"{a:{w}.{p}}\"",
+     "if x:",
+     "    pass"
+    ],
+    "normalized": "0:x = f\"{a:{w}.{p}}\"\n0:if x:\n1:pass",
+    "hash": "f10d4fc64221"
+   },
+   {
+    "name": "python: a triple-quoted f-string keeps its lines, whatever they start with",
+    "style": "python",
+    "lines": [
+     "s = f\"\"\"",
+     "# heading {x}",
+     "{y:>{w}}",
+     "\"\"\"",
+     "z = 2"
+    ],
+    "normalized": "0:s = f\"\"\"\n# heading {x}\n{y:>{w}}\n\"\"\"\n0:z = 2",
+    "hash": "6d557c1822af"
+   },
+   {
+    "name": "python: a name that ends in f is not a string prefix",
+    "style": "python",
+    "lines": [
+     "y = [1 if\"(\" else 2]",
+     "z = 1"
+    ],
+    "normalized": "0:y = [1 if\"(\" else 2]\n0:z = 1",
+    "hash": "d313c1412dec"
+   },
+   {
     "name": "hash: a shebang is code, a comment line is not",
     "style": "hash",
     "lines": [
