@@ -228,9 +228,17 @@ class TestPythonFStrings(unittest.TestCase):
         lines = ['x = f"{ {"a": 1}["a"] } {(lambda y: y)(2)}"', 'if x:', '    pass']
         self.assertEqual(self.levels(lines), '0:x = f"{ {"a": 1}["a"] } {(lambda y: y)(2)}"\n0:if x:\n1:pass')
 
-    def test_a_name_that_ends_in_f_is_not_a_prefix(self):
-        lines = ['y = [1 if"(" else 2]', 'z = 1']
-        self.assertEqual(self.levels(lines), '0:y = [1 if"(" else 2]\n0:z = 1')
+    def test_a_name_that_ends_in_f_or_t_is_not_a_prefix(self):
+        for first in ('y = [1 if"(" else 2]', 'y = [not"(" and 2]'):
+            with self.subTest(first):
+                self.assertEqual(self.levels([first, 'z = 1']), f'0:{first}\n0:z = 1')
+
+    def test_a_template_string_is_read_like_an_f_string(self):
+        # Python 3.14, PEP 750: t, T, rt and tr prefixes, with the grammar of PEP 701
+        for prefix in ('t', 'T', 'rt', 'tR', 'Tr'):
+            with self.subTest(prefix):
+                lines = ['def clean(s):', f'    x = {prefix}"{{s.replace("(", "")}}"', '    if x:', '        return x', '    return None']
+                self.assertEqual(self.levels(lines), f'0:def clean(s):\n1:x = {prefix}"{{s.replace("(", "")}}"\n1:if x:\n2:return x\n1:return None')
 
     def test_f_strings_that_python_3_9_reads_are_read_as_before(self):
         lines = ["x = f'{d[\"a\"]} it\\'s' + f\"{n:>{w}}\"", 'if x:', '    pass']

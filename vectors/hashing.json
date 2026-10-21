@@ -540,6 +540,19 @@
     "hash": "d313c1412dec"
    },
    {
+    "name": "python: a template string (Python 3.14) is read like an f-string",
+    "style": "python",
+    "lines": [
+     "def clean(s):",
+     "    x = t\"{s.replace(\"(\", \"\")}\"",
+     "    if x:",
+     "        return x",
+     "    return None"
+    ],
+    "normalized": "0:def clean(s):\n1:x = t\"{s.replace(\"(\", \"\")}\"\n1:if x:\n2:return x\n1:return None",
+    "hash": "105291262e10"
+   },
+   {
     "name": "hash: a shebang is code, a comment line is not",
     "style": "hash",
     "lines": [

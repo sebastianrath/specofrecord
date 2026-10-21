@@ -802,6 +802,13 @@ still seen, and the standard library hardly ever does this (500 files, none of t
   too, from its prefix), a colon outside brackets starts the spec, `{` in a spec opens a field, and `#` starts a comment to the end of the line.
   `{{`, `}}` and `\N{NAME}` are text. The end of a name such as `if` in `if"x"` is not a prefix. For what Python 3.9 reads, it gives the answers
   it gave.
+- **Template strings too.** Python 3.14 adds `t"..."` (PEP 750, prefixes `t`, `T`, `rt` and `tr`), which "support the full syntax of PEP 701", so
+  they are read like f-strings. Python 3.14 has not been run here, and the scanner reads only text, so the tests do not need it.
+- **A lock made before may show drift once.** A Python region that holds a field spanning lines, or a reused quote with an unbalanced bracket,
+  hashes differently now. `--rehash` knows only the old C-family rule, so relocking is the way out. No lock known here has such a region, and
+  for everything else Python 3.9 reads the answers are the ones they were.
+- A comment line inside a field that spans lines is kept as text, while one inside ordinary brackets is dropped: editing such a comment shows
+  as a change, and it can never hide one.
 - **Proved against the tokenizer on both Pythons.** The oracle test no longer skips files with f-strings on 3.12 and later, compares the
   tokenizer's pieces of f-string text like string tokens, and has four programs only 3.12 and later read. They fail with the old scanner.
   Unit tests and five vector rows (language neutral) pin the cases.

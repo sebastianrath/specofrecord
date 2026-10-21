@@ -250,17 +250,17 @@ def _literal(quote):
 
 def _open_string(line, j):
     """(frame, length of the opening quotes) of the string whose quote is at line[j]. A frame is ('s', quote) for a string and
-    ('f', quote, raw) for an f-string, which has code in it. The prefix is read back from the quote, and the end of a name such as
-    `if` in `if"x"` is not a prefix."""
+    ('f', quote, raw) for an f-string or a template string (`t"..."`, Python 3.14), which have code in them the same way. The prefix
+    is read back from the quote, and the end of a name such as `if` in `if"x"` or `not` in `not"x"` is not a prefix."""
     q = line[j]
     quote = q * 3 if line.startswith(q * 3, j) else q
     k = j
-    while k > 0 and j - k < 2 and line[k - 1] in 'rRbBuUfF':
+    while k > 0 and j - k < 2 and line[k - 1] in 'rRbBuUfFtT':
         k -= 1
     prefix = line[k:j].lower()
     if k > 0 and (line[k - 1].isalnum() or line[k - 1] == '_'):
         prefix = ''
-    if 'f' in prefix:
+    if 'f' in prefix or 't' in prefix:
         return ('f', quote, 'r' in prefix), len(quote)
     return ('s', quote), len(quote)
 
