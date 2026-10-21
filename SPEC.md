@@ -280,11 +280,15 @@ for that item) or `bug:` (a regression test).
   lowercase letters, digits, dots, dashes and underscores. Such a test is **deferred**: its lock entry says `deferred`, from the spec
   alone, so the lock holds no result for it and never waits for one (§11); `sor lock` names the tests that just became deferred. `sor test` leaves it out unless the run provides one of its
   environments (`--provides`), says `--all`, or names the test by its own id; `sor test --list` says which, and runs nothing. A CI job
-  that ran it writes evidence with `sor evidence` (`--job`, `--provides`, `--results`): one file per job, `{job, provides, results}`,
+  that ran it writes evidence with `sor evidence` (`--job`, `--provides`, `--results`, and `--commit` and `--run` for the commit and CI run it saw): one file per job, `{job, provides, results}`,
   with a fingerprint and `pass` or `fail` for each test, so two jobs never write the same file and a team decides whether to commit
   them. The fingerprint hashes the test (its rows and values too), what it refers to, and the text, rows, values and code of every clause it
   proves, the code marked with a row included: a result goes stale when any of them changes, and there is no timestamp. A tool that hashes
-  code differently (§11) gives other fingerprints, so the next run of the jobs writes the evidence again. It does not cover code a test only uses as input (`do:` and
+  code differently (§11) gives other fingerprints, so the next run of the jobs writes the evidence again. The file has a format number, as
+  the lock has: format 1 is the keys above and has no marker; format 2 adds `"format": 2` and `"from": {commit, run}`, and a job writes it only
+  when it is given `--commit` or `--run`. `sor verify` names the commit and run of a job next to it. A number a tool does not know is refused
+  with exit 2 and a message to update, and so is a key it does not know, which is how a tool from before the number refuses a format 2 file.
+  The fingerprint does not cover code a test only uses as input (`do:` and
   `each:` lines) or code outside the marked regions: a result can stay current while such code changes. `sor verify` is the gate: exit 0 when every environment of every
   deferred test has a current pass, 1 when one is missing, stale or failed (a current failure is not outvoted by another job's pass),
   2 for an evidence file that cannot be read or a bad `runs on:` line. Evidence is as trustworthy as the job that wrote it: the gate
@@ -428,7 +432,7 @@ with `-C <folder>`:
 | `sor status [--json]` | compares files and code with `sor-lock.json`: **recompile** (new, changed, removed clauses), **review** (a referenced item or value, or shared code, changed), **drift** (code changed, its clause did not), **built**, **info**; and a block `tests (N)` of the tests a lock would refuse for want of a passing result, with the way out (as in the refusal of `sor lock`). `--json` has them as `tests_pending`, a superset of `tests_not_passed` (the tests that had not passed at the last lock); `tests deferred (N)` lists the tests a CI job proves (§8), and `--json` has them as `tests_deferred` |
 | `sor test [id …] [--coverage] [--out F] [--provides NAMES] [--all]` | runs the tests in headless Chrome against the web target's probes; reports clause and line coverage. An id is a test, the item it proves, or a part; an id that matches no test is exit 2, not a pass. A test without steps whose code is marked `@clause test` is shown as EXTERNAL: not run, not failed (§8) |
 | `sor test --list [id …] [--provides NAMES] [--all] [--json]` | lists the tests a run would run and the ones it would leave to CI (§8): each with its environments, whether your own framework runs it and its fingerprint; runs nothing, so it needs no web target |
-| `sor evidence --job NAME --provides NAMES --results F [--out FILE]` | writes what a CI job proved (§8): F is `{test id: pass\|fail}`, as `sor test --out` writes it; only tests that say `runs on:` and name an environment the job provides are kept, the rest are named; default `evidence/NAME.json` |
+| `sor evidence --job NAME --provides NAMES --results F [--out FILE] [--commit SHA] [--run ID]` | writes what a CI job proved (§8): F is `{test id: pass\|fail}`, as `sor test --out` writes it; only tests that say `runs on:` and name an environment the job provides are kept, the rest are named; default `evidence/NAME.json` |
 | `sor verify [FILE or FOLDER …] [--json]` | the gate over the evidence (§8): exit 0 when every environment of every deferred test has a current pass, 1 when one is missing, stale or failed, 2 for a bad evidence file or `runs on:` line |
 | `sor lock --rehash` | the one-time rewrite after the rule for hashing code changed (§11): an entry whose code is unchanged under the old rule gets the new hash, and `text`, `refs` and results stay as they are. It takes nothing else and accepts no change |
 | `sor test --strength [id …]` | test strength (§8): reruns each passing test with every value it refers to changed; lists weak tests and the value that did not matter, and the passing tests it could not vary (`IDLE`) |

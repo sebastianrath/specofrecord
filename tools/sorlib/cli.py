@@ -743,7 +743,8 @@ def cmd_evidence(args):
     project, scan = load(args)
     prov, err = evidence.names(args.provides, '--provides')
     bad_job = evidence.job_problem(args.job)
-    err = (f'--job {bad_job}' if bad_job else None) or err or (None if prov else '--provides names at least one environment')
+    src, bad_src = evidence.source(args.commit, args.run)
+    err = (f'--job {bad_job}' if bad_job else None) or err or (None if prov else '--provides names at least one environment') or bad_src
     results = None
     if not err:
         try:
@@ -759,7 +760,7 @@ def cmd_evidence(args):
     if err:
         print(f'evidence refused:\n  {err}')
         return 2
-    data, notes, errors = evidence.build(project, scan, args.job, prov, results)
+    data, notes, errors = evidence.build(project, scan, args.job, prov, results, src)
     if errors:
         print('evidence refused:')
         for e in errors:
@@ -801,8 +802,14 @@ def cmd_verify(args):
     if rows and not files and not args.json:
         print('note: no evidence files (*.json) found in ' + (', '.join(paths) if paths else 'the evidence folder, which does not exist'))
     bad = [r for r in rows if any(e['status'] != 'pass' for e in r['environments'])]
+    sources = {d['job']: d['from'] for _, d in files if 'from' in d}   # jobs that said which commit and run they saw (evidence format 2)
+
+    def job_label(job):
+        src = sources.get(job)
+        return job + (' (' + ', '.join(f'{k} {v[:12]}' for k, v in sorted(src.items())) + ')' if src else '')
     if args.json:
-        print(json.dumps({'ok': not bad, 'tests': rows, 'unknown': [{'job': j, 'test': k} for j, k in stray]}, indent=2))
+        print(json.dumps({'ok': not bad, 'tests': rows, 'unknown': [{'job': j, 'test': k} for j, k in stray],
+                          'sources': sources}, indent=2))
     else:
         if not rows:
             print('no test says `runs on:`: nothing to verify')
@@ -810,7 +817,7 @@ def cmd_verify(args):
             print(r['id'])
             width = max(len('+'.join(e['needs'])) for e in r['environments'])
             for e in r['environments']:
-                print(f'  {"+".join(e["needs"]):<{width}}  {VERIFY_MARKS[e["status"]]:<7} {", ".join(e["jobs"])}'.rstrip())
+                print(f'  {"+".join(e["needs"]):<{width}}  {VERIFY_MARKS[e["status"]]:<7} {", ".join(job_label(j) for j in e["jobs"])}'.rstrip())
         if rows:
             left = sum(1 for r in bad)
             print(f'{len(rows)} deferred test(s): {len(rows) - left} proven, {left} not' + (' proven' if left else ''))
@@ -892,6 +899,8 @@ def build_parser():
     s.add_argument('--provides', required=True, help='the environments this job provides, comma-separated: linux,db')
     s.add_argument('--results', required=True, help='JSON file {test id: pass|fail}, as `sor test --out` writes it')
     s.add_argument('--out', help='where to write it (default: evidence/<job>.json)')
+    s.add_argument('--commit', help='the commit the job ran on (hexadecimal); with --run, writes evidence format 2')
+    s.add_argument('--run', help='the CI run id; with --commit, writes evidence format 2')
     s.set_defaults(fn=cmd_evidence)
     s = sub.add_parser('verify', help='check that every test that says `runs on:` has a current pass in every environment it names')
     s.add_argument('files', nargs='*', help='evidence files or folders (default: the evidence folder)')

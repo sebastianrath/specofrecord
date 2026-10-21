@@ -623,8 +623,8 @@ the three questions it left open were settled by defaults, to overturn if wrong:
   `  runs on: macOS 14` stays valid; `sor lock` names the tests that just became deferred, because one line is all it takes to leave a test
   to CI; `sor verify` searches folders all the way down, as an artifact download makes one folder per artifact; a job's results file may
   hold tests that are not kept, whatever their status; a job name that is not a string, or is a Windows device name, is refused.
-  Open: evidence files have no format version and no reference to the commit or CI run they came from, and the fingerprint does not cover
-  code a test only uses as input. A tool that hashes code differently gives other fingerprints (the Python rule did), so the evidence of a
+  Evidence files now have a format number and may say which commit and CI run wrote them (see "Evidence has a format number"). Open: the
+  fingerprint does not cover code a test only uses as input. A tool that hashes code differently gives other fingerprints (the Python rule did), so the evidence of a
   project that upgrades reads as stale until its jobs run again; that is by design, and the jobs write it fresh.
 - **Not done, to decide later:** a scoped `sor lock --run-tests` still runs every test and drops the results outside the scope (running only the
   tests a lock needs would make clause-coverage budgets fail on a partial run); a failure only CI sees does not free the code of a bug fix, because
@@ -698,6 +698,19 @@ behavior come from trying the tool as it was and from the advisor's review. Noth
   reason appears only in the "Spec of Record" output channel.
 - **Not versioned:** the claims file, evidence files (their missing format number and provenance are still open) and `markers --json`,
   which has its own `version`.
+
+## Evidence has a format number (2026-10-21)
+The lock got a format number in Phase 1; evidence files, the other file a later phase changes, get one before anyone has committed any.
+- **The same pattern as the lock.** Format 1 is `{job, provides, results}` with no marker, so a job that changes nothing writes the same
+  bytes. A later format opens with `"format": N`, and a tool that reads a number it does not know refuses with exit 2 and a message to update.
+- **Provenance is format 2.** `--commit SHA` and `--run ID` (explicit flags: no timestamps, and no environment variable is read) write
+  `"format": 2` and `"from": {commit, run}`. Both are tokens, not free text: a commit is 7 to 64 hexadecimal digits, a run id letters,
+  digits, dots, dashes and underscores. `sor verify` names them next to the job and has them under `sources` in `--json`. The gate does not
+  use them: a result counts by its fingerprint, not by the commit it ran on.
+- **Old readers refuse loudly.** The reader of a tool from before the number accepts exactly three keys, so it refuses a format 2 file
+  (exit 2, "exactly the keys job, provides and results") instead of misreading it. That is the wanted property, and the reason provenance
+  is a format and not an optional extra key.
+- **Not done:** the claims file is still unversioned. Claims last 30 minutes, so a file from another version rarely meets a reader.
 
 ## Still open
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for

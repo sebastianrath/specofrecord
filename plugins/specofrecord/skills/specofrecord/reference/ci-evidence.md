@@ -27,7 +27,8 @@ provide together, so `linux+db` is one machine with both. A name is lowercase le
    tests written there (`sor test --list --json` names them, with their environments).
 2. `sor evidence --job linux-db --provides linux,db --results results.json` writes one file for the job. Only tests that say
    `runs on:` and name an environment the job provides are kept; the rest are named in the output. One file per job, so two jobs
-   never write the same file.
+   never write the same file. `--commit SHA` and `--run ID` add the commit and the CI run the job saw; `sor verify` names them next to
+   the job. A file written without them is the same as before, and one written with them is evidence format 2: an older `sor` refuses it.
 3. A last job runs `sor verify` over all the evidence files, downloaded CI artifacts or the committed evidence folder. A folder
    is searched all the way down, so each artifact can stay in its own subfolder. Exit 0:
    every environment of every deferred test has a current pass. Exit 1: one is missing, stale or failed. Exit 2: an evidence file

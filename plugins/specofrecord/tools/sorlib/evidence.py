@@ -11,14 +11,23 @@ A result counts only for the fingerprint it was made for: a hash of the test, of
 of every clause it proves. Change any of them and the result no longer matches, so there is no timestamp and nothing to
 expire. The file is as trustworthy as the job that wrote it: `sor verify` checks that a result is current and which
 environments the job said it provides, not that the job really ran the test.
+
+The file has a format number, as the lock has. Format 1 is the three keys above and has no marker. Format 2 adds `"format": 2` and
+`"from": {"commit": ..., "run": ...}`, which says which commit and which CI run the job saw; the job gives both with flags, and a job
+that gives neither writes format 1 with the same bytes as before. The reader is strict: a number it does not know is refused with a
+message to update, and so is a key it does not know, which is how a tool from before the number refuses a format 2 file.
 """
 import json
 import os
+import re
 
 from . import lock as lockfile
 from .model import ENV_NAME, listed
 
 STATUSES = ('pass', 'fail')
+FORMAT = 2                # the newest evidence format this tool reads and writes
+FORMAT_KEY = 'format'
+SOURCE_KEYS = {'commit': re.compile(r'^[0-9a-f]{7,64}$'), 'run': re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$')}
 FINGERPRINT_LENGTH = 12   # the length of every hash in the lock (lock.h)
 
 
@@ -79,6 +88,31 @@ def job_problem(job):
             'and not a Windows device name such as con or nul')
 
 
+def source(commit, run):
+    """(source dict or None, error) for the `--commit` and `--run` a job gives. Both are optional; a value is a token, not free text."""
+    given = {k: v for k, v in (('commit', commit), ('run', run)) if v is not None}
+    for k, v in given.items():
+        if not SOURCE_KEYS[k].match(v.lower() if k == 'commit' else v):
+            return None, (f'--{k} {v!r} is not ' + ('a commit (7 to 64 hexadecimal digits)' if k == 'commit' else
+                          'a run id (letters, digits, dots, dashes and underscores, up to 64)'))
+    if 'commit' in given:
+        given['commit'] = given['commit'].lower()
+    return given or None, None
+
+
+def format_problem(path, data):
+    """None, or why a parsed evidence file is in a format this tool does not read."""
+    if FORMAT_KEY not in data:
+        return None
+    number = data[FORMAT_KEY]
+    if isinstance(number, bool) or not isinstance(number, int) or number < 1:
+        return f'{path}: "{FORMAT_KEY}" is not an evidence format number (a whole number from 1 up)'
+    if number > FORMAT:
+        return (f'{path}: evidence in format {number}, and this sor reads format {FORMAT} at most. Update sor, every copy of it '
+                '(the project\'s tools, the plugin and the editor extension), and try again')
+    return None
+
+
 def read(path):
     """(data, error): an evidence file, read strictly. Unknown keys, unknown statuses and malformed hashes are errors, so a
     typo is never taken for a missing result."""
@@ -88,8 +122,22 @@ def read(path):
     except (OSError, ValueError) as e:
         return None, f'{path}: cannot read it as evidence ({e})'
     where = f'{path}:'
-    if not isinstance(data, dict) or set(data) != {'job', 'provides', 'results'}:
+    if not isinstance(data, dict):
         return None, f'{where} an evidence file has exactly the keys job, provides and results'
+    problem = format_problem(path, data)
+    if problem:
+        return None, problem
+    number = data.get(FORMAT_KEY, 1)
+    if number == 1:
+        if set(data) - {FORMAT_KEY} != {'job', 'provides', 'results'}:
+            return None, f'{where} an evidence file has exactly the keys job, provides and results'
+    else:
+        if set(data) != {FORMAT_KEY, 'from', 'job', 'provides', 'results'}:
+            return None, f'{where} an evidence file of format {number} has exactly the keys format, from, job, provides and results'
+        src = data['from']
+        if not isinstance(src, dict) or not src or set(src) - set(SOURCE_KEYS) or not all(
+                isinstance(v, str) and SOURCE_KEYS[k].match(v) for k, v in src.items()):
+            return None, f'{where} from holds a commit (hexadecimal), a run id or both'
     if job_problem(data['job']):
         return None, f'{where} job {job_problem(data["job"])}'
     prov = data['provides']
@@ -124,7 +172,7 @@ def write(path, data):
         raise
 
 
-def build(project, scan, job, provides, results):
+def build(project, scan, job, provides, results, src=None):
     """(data, notes, errors): the evidence a job writes from the results it has ({test key: 'pass' | 'fail'}, the format of
     `sor test --out` and `sor lock --results`). Only a test that says `runs on:` and names an environment the job provides is
     evidence; every other result is left out and said, never refused, because a job's own results hold all its tests."""
@@ -149,7 +197,10 @@ def build(project, scan, job, provides, results):
         notes.append(f'left out, they do not say `runs on:` (the lock proves them): {listed(quiet)}')
     if nowhere:
         notes.append(f'left out, this job provides none of their environments: {listed(nowhere)}')
-    return {'job': job, 'provides': sorted(prov), 'results': out}, notes, errors
+    data = {'job': job, 'provides': sorted(prov), 'results': out}
+    if src:
+        data.update({FORMAT_KEY: 2, 'from': dict(src)})
+    return data, notes, errors
 
 
 def collect(paths):

@@ -328,6 +328,99 @@ class TestStrengthRunsTheTestsAsTestDoes(Deferred):
         self.assertEqual(seen, [(frozenset({'linux'}), False), (frozenset(), True), (frozenset(), False)])
 
 
+class TestTheEvidenceFormat(Gate):
+    """Format 1 has no marker and keeps its bytes. Format 2 adds the commit and the run the job saw."""
+
+    def written(self, name='linux-ci', provides='linux', *flags):
+        results = write(self.dir, 'r.json', json.dumps({self.KEY: 'pass'}))
+        out = os.path.join(self.dir, 'evidence', name + '.json')
+        code, text, err = self.sor('evidence', '--job', name, '--provides', provides, '--results', results, '--out', out, *flags)
+        return code, text + err, out
+
+    def by_hand(self, name, **extra):
+        data = {'job': name, 'provides': ['linux'], 'results': {self.KEY: {'fingerprint': self.fingerprint(), 'status': 'pass'}}}
+        data.update(extra)
+        return write(self.dir, f'evidence/{name}.json', json.dumps(data))
+
+    def test_a_job_that_gives_no_commit_and_no_run_writes_format_1_without_a_marker(self):
+        code, text, out = self.written()
+        self.assertEqual(code, 0, text)
+        self.assertEqual(set(json.loads(read(out))), {'job', 'provides', 'results'})
+        self.assertNotIn('"format"', read(out))
+
+    def test_a_commit_and_a_run_make_it_format_2_with_the_same_bytes_every_time(self):
+        code, text, out = self.written('linux-ci', 'linux', '--commit', 'ABC1234', '--run', 'ci-7')
+        self.assertEqual(code, 0, text)
+        data = json.loads(read(out))
+        self.assertEqual((data['format'], data['from']), (2, {'commit': 'abc1234', 'run': 'ci-7'}))
+        first = read(out)
+        self.written('linux-ci', 'linux', '--commit', 'abc1234', '--run', 'ci-7')
+        self.assertEqual(read(out), first)
+
+    def test_either_one_alone_is_enough(self):
+        for flags, want in ((('--commit', 'abc1234'), {'commit': 'abc1234'}), (('--run', 'build.42'), {'run': 'build.42'})):
+            with self.subTest(flags):
+                self.assertEqual(json.loads(read(self.written('j', 'linux', *flags)[2]))['from'], want)
+
+    def test_a_commit_or_run_that_is_not_a_token_is_refused_and_nothing_is_written(self):
+        for flags in (('--commit', 'xyz'), ('--commit', 'abc'), ('--commit', 'abc123g'), ('--run', '../x'), ('--run', 'a b'), ('--run', '')):
+            with self.subTest(flags):
+                code, text, out = self.written('linux-ci', 'linux', *flags)
+                self.assertEqual(code, 2, text)
+                self.assertIn('evidence refused', text)
+                self.assertFalse(os.path.exists(out))
+
+    def test_the_gate_reads_both_formats_together_and_names_the_commit_in_text_and_json(self):
+        self.written('linux-ci', 'linux')
+        self.written('win-ci', 'windows', '--commit', 'abc1234def5678', '--run', 'ci-7')
+        code, out = self.verify()
+        self.assertEqual(code, 0, out)
+        self.assertIn('win-ci (commit abc1234def56, run ci-7)', out)
+        self.assertNotIn('linux-ci (', out)
+        data = json.loads(self.verify('--json')[1])
+        self.assertEqual(data['sources'], {'win-ci': {'commit': 'abc1234def5678', 'run': 'ci-7'}})
+
+    def test_a_format_this_tool_does_not_read_is_refused_with_a_message_to_update(self):
+        self.by_hand('linux-ci', format=evidence.FORMAT + 1, **{'from': {'run': 'ci-7'}})
+        code, out = self.verify()
+        self.assertEqual(code, 2, out)
+        self.assertIn(f'evidence in format {evidence.FORMAT + 1}', out)
+        self.assertIn('Update sor', out)
+
+    def test_a_marker_that_is_no_whole_number_from_1_up_is_refused(self):
+        for value in ('2', 0, -1, 1.5, True, None, [2]):
+            with self.subTest(value):
+                shutil_target = self.by_hand('linux-ci', format=value, **{'from': {'run': 'ci-7'}})
+                code, out = self.verify()
+                self.assertEqual(code, 2, out)
+                self.assertIn('not an evidence format number', out)
+                os.remove(shutil_target)
+
+    def test_the_keys_have_to_fit_the_format(self):
+        cases = {
+            'format 2 without from': dict(format=2),
+            'format 2 with an empty from': dict(format=2, **{'from': {}}),
+            'format 1 written out, with a from': dict(format=1, **{'from': {'run': 'ci-7'}}),
+            'a from with a key it does not know': dict(format=2, **{'from': {'branch': 'main'}}),
+            'a from with a commit that is not hexadecimal': dict(format=2, **{'from': {'commit': 'main'}}),
+            'a from with a run that is not text': dict(format=2, **{'from': {'run': 7}}),
+        }
+        for name, extra in cases.items():
+            with self.subTest(name):
+                path = self.by_hand('linux-ci', **extra)
+                self.assertEqual(self.verify()[0], 2, name)
+                os.remove(path)
+
+    def test_format_1_may_say_so_and_is_read_the_same(self):
+        self.by_hand('linux-ci', format=1)
+        self.assertEqual(self.verify()[0], 1)    # linux proven, windows still missing: the file itself is fine
+
+    def test_a_format_2_file_has_a_key_a_tool_from_before_the_number_does_not_know(self):
+        # that tool reads exactly {job, provides, results}, so it refuses a format 2 file loudly instead of reading it wrongly
+        data = json.loads(read(self.written('linux-ci', 'linux', '--run', 'ci-7')[2]))
+        self.assertNotEqual(set(data), {'job', 'provides', 'results'})
+
+
 class TestTheGate(Gate):
     def test_every_environment_with_a_current_pass_is_proven(self):
         self.job('linux-ci', 'linux')
