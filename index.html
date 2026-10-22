@@ -332,7 +332,7 @@
   .cl-spec[data-refused] .cl-id::after { content: none; }
   .cl-no { margin-left: auto; display: none; color: var(--cl-no); font-weight: 600; }
   .cl-spec[data-refused] .cl-no { display: inline; }
-  .cl [data-edit] { background-image: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--c) 32%, transparent) 50%, transparent 70%), repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 24%, transparent) 0 1.5px, transparent 1.5px 8px) !important; background-size: 260% 100%, auto !important; animation: cl-sweep 1.3s linear infinite; }
+  .cl [data-edit] { background-image: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--c) 32%, transparent) 50%, transparent 70%), repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 24%, transparent) 0 1.5px, transparent 1.5px 8px); background-size: 260% 100%, auto; animation: cl-sweep 1.3s linear infinite; }
   @keyframes cl-sweep { from { background-position: 130% 0, 0 0; } to { background-position: -30% 0, 0 0; } }
   /* a changed value stays yellow for about two seconds, then fades out as the next step begins */
   .cl .chg { border-radius: 3px; animation: cl-chg 2.6s ease-out forwards; }
@@ -375,6 +375,12 @@
         ui_host: 'https://us.posthog.com', // necessary because you're using a proxy, this way links will point back to PostHog properly
         defaults: '2026-05-30',
         person_profiles: 'identified_only', // or 'always' to create profiles for anonymous users as well
+        persistence: 'memory',   // no cookie and no local storage
+        respect_dnt: true,
+        sanitize_properties: function (props) {   // a link to a selection (#sel=...) carries page text: send the address without it
+          Object.keys(props).forEach(function (k) { if (typeof props[k] === 'string' && props[k].indexOf('#sel=') > -1) props[k] = props[k].split('#sel=')[0]; });
+          return props;
+        },
     })
 </script>
 </head>
@@ -492,11 +498,10 @@
 <p>Take a game. Its spec says the player needs 3 keys to open the exit, and the designer asks for 5. The AI changes the code, and nobody updates the spec, because nobody asked or the AI forgot. Now the spec says 3, the game asks for 5, and no one knows what should be true.</p>
 <p>Spec-first has a second trap, and it catches the teams that avoid the first one. To keep the spec up to date, they write a follow-up spec for every change, so you end up with <code>SPEC.md</code>, then <code>SPEC-2026-01-08.md</code>, then another one. To learn what the software does today, you read them all in the right order. They become incredibly verbose and eventually no one reads them anymore.</p>
 <p>In spec-as-source, people edit only the spec and the code is generated from it. You can't fix the code by hand, so every fix goes through the spec, and because an AI does not generate the same code twice,<sup><a href="#note-1" aria-label="Note 1">1</a></sup> the result can come back different each time.</p>
-<p>Spec of Record extends spec-as-source and allows hand edits on purpose. You can change either side, the spec or the code, and the other one is updated to match. Finished code is kept, so a change to a clause rewrites only that clause's code, and the clause's tests check the result. The bundled command line interface (CLI) of SoR enforces this. It checks that spec and code agree, blocks AI edits that skip the clause, and flags any mismatch until it is fixed.</p>
+<p>Spec of Record extends spec-as-source and allows hand edits on purpose. You can change either side, the spec or the code, and the other one is updated to match. Finished code is kept, so a change to a clause rewrites only that clause's code, and the clause's tests check the result. The bundled tools enforce this: they check that spec and code agree, block AI edits that skip the clause, and flag any mismatch until it is fixed.</p>
 
 <h2 id="what">How it works</h2>
-<p>The specs are written in plain language. You edit the spec and the AI edits the code to match. If you edit the code, the AI edits the spec to match.</p>
-<p>The spec is split into parts, one Markdown file for each area of the software, such as a game's logic or its multiplayer networking. Each part says why it exists and lists its rules, its approach, what it needs from and gives to other parts, and its tests.</p>
+<p>The spec is split into parts, one Markdown file for each area of the software, such as a game's logic or its multiplayer networking. Each part says why it exists and lists its rules, its approach, what it needs from other parts, what it gives to them, and its tests.</p>
 <p>The unit is a <strong>clause</strong>, which is one rule, one number or one table row. Every clause comes with a marker, a short comment above its code that names the clause. Below is a clause and the code built from it, so you can see each side point at the other.</p>
 <div class="pair">
   <svg class="pair-arrow" aria-hidden="true" focusable="false"><path class="ring"/><path class="line"/><path class="head"/><path class="line"/><path class="head"/><text class="label">marker</text></svg>
@@ -524,50 +529,8 @@ export <span class="t-k">function</span> <span class="t-f">moveMonsters</span>(g
 <!-- full-example-button:start -->
 <p class="more" id="example-more" hidden><button type="button" class="open-example" id="open-example">Expand example</button></p>
 <!-- full-example-button:end -->
-<p>With that association in place, a change is guaranteed to stay local. Say you want the player to move only on every second key press. You change that one sentence, and the AI updates just the code blocks marked with that clause.</p>
+<p>With that association in place, a change stays local. Say you want the player to move only on every second key press. You change that one sentence, and the AI updates just the code blocks marked with that clause.</p>
 <p>If you know how a compiler works, you can apply that concept to Spec of Record, with the AI playing the compiler.</p>
-<p>Several agents can work on one project at once. Each sub-agent can claim a spec clause together with its code blocks, change the clause first and then the code, lock the result and release the claim. A claim on a clause that someone else holds is refused.</p>
-<div class="cl" id="claims" role="group" aria-label="Animation of two agents working in parallel: each claims a clause, changes it and its code, locks it and releases it, and a claim on a clause the other holds is refused.">
-    <div class="cl-stage">
-    <div class="cl-box">
-      <div class="cl-head"><div class="fe-file"><span class="tab"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg><span class="tab-name">sor/</span></span></div><div class="fe-file"><span class="tab"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg><span class="tab-name">src/</span></span></div></div>
-      <div class="cl-grid">
-        <div class="cl-spec" data-cl="movement" style="grid-row:1"><div class="cl-id"><svg class="cl-bd" viewBox="0 0 16 16" aria-hidden="true"><path class="sh-o" d="M5 7V5a3 3 0 0 1 5.8-1" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><path class="sh-c" d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><rect x="3" y="7" width="10" height="7" rx="1.5" fill="#fff"/></svg>player/movement<span class="cl-no">refused</span></div><p>One key press moves the player <span class="val" data-v="step">20 px</span>, and the player cannot leave the <span class="val" data-v="room">500 px</span> room.</p></div>
-        <div class="cl-code" data-cl="movement" data-i="0" style="grid-row:1"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"><path class="sh-o" d="M5 7V5a3 3 0 0 1 5.8-1" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><path class="sh-c" d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><rect x="3" y="7" width="10" height="7" rx="1.5" fill="#fff"/></svg><pre><span class="t-m">// @clause player/movement</span>
-<span class="t-k">const</span> STEP = <span class="t-n" data-k="step">20</span>;
-export <span class="t-k">function</span> <span class="t-f">move</span>(player, dx, dy) {
-  ...
-}
-<span class="t-m">// @clause end</span></pre></div>
-        <div class="cl-spec" data-cl="lives" style="grid-row:2"><div class="cl-id"><svg class="cl-bd" viewBox="0 0 16 16" aria-hidden="true"><path class="sh-o" d="M5 7V5a3 3 0 0 1 5.8-1" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><path class="sh-c" d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><rect x="3" y="7" width="10" height="7" rx="1.5" fill="#fff"/></svg>player/lives<span class="cl-no">refused</span></div><p>A new player has <span class="val" data-v="lives">3 lives</span>.</p></div>
-        <div class="cl-code" data-cl="lives" data-i="1" style="grid-row:2"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"><path class="sh-o" d="M5 7V5a3 3 0 0 1 5.8-1" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><path class="sh-c" d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><rect x="3" y="7" width="10" height="7" rx="1.5" fill="#fff"/></svg><pre><span class="t-m">// @clause player/lives</span>
-<span class="t-k">const</span> START_LIVES = <span class="t-n" data-k="lives">3</span>;
-export <span class="t-k">function</span> <span class="t-f">withLives</span>(player) {
-  ...
-}
-<span class="t-m">// @clause end</span></pre></div>
-        <div class="cl-spec cl-gap" aria-hidden="true" style="grid-row:3"></div>
-        <div class="cl-code" data-cl="movement" data-i="2" style="grid-row:3"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"><path class="sh-o" d="M5 7V5a3 3 0 0 1 5.8-1" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><path class="sh-c" d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><rect x="3" y="7" width="10" height="7" rx="1.5" fill="#fff"/></svg><pre><span class="t-m">// @clause player/movement</span>
-<span class="t-k">const</span> ROOM = <span class="t-n" data-k="room">500</span>;
-export <span class="t-k">function</span> <span class="t-f">keepInRoom</span>(player) {
-  ...
-}
-<span class="t-m">// @clause end</span></pre></div>
-        <div class="cl-spec" data-cl="chase" style="grid-row:4"><div class="cl-id"><svg class="cl-bd" viewBox="0 0 16 16" aria-hidden="true"><path class="sh-o" d="M5 7V5a3 3 0 0 1 5.8-1" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><path class="sh-c" d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><rect x="3" y="7" width="10" height="7" rx="1.5" fill="#fff"/></svg>monsters/chase<span class="cl-no">refused</span></div><p>Every turn a monster steps <span class="val">20 px</span> toward the player.</p></div>
-        <div class="cl-code" data-cl="chase movement" data-i="3" style="grid-row:4"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"><path class="sh-o" d="M5 7V5a3 3 0 0 1 5.8-1" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><path class="sh-c" d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><rect x="3" y="7" width="10" height="7" rx="1.5" fill="#fff"/></svg><pre><span class="t-m">// @clause monsters/chase player/movement</span>
-<span class="t-k">const</span> MONSTER_STEP = <span class="t-n">20</span>;
-export <span class="t-k">function</span> <span class="t-f">chase</span>(monster, player) {
-  ...
-}
-<span class="t-m">// @clause end</span></pre></div>
-      </div>
-    </div>
-    <div class="cl-agents" aria-hidden="true"><div class="clawd a" data-mode="idle"><img class="m-idle" src="static/clawd_idle.png" alt="" width="128" height="128"><img class="m-waiting" src="static/clawd_sleeping.png" alt="" width="128" height="128"><img class="m-working" src="static/clawd_detective.gif" alt="" width="128" height="128"></div><div class="clawd b" data-mode="idle"><img class="m-idle" src="static/clawd_idle.png" alt="" width="128" height="128"><img class="m-waiting" src="static/clawd_sleeping.png" alt="" width="128" height="128"><img class="m-working" src="static/clawd_detective.gif" alt="" width="128" height="128"></div></div>
-  </div>
-  <div class="cl-tl"></div>
-  <p class="cl-cap"><span class="cl-text">An agent claims a clause with <code>sor claim</code> before it touches anything.</span><button type="button" class="cl-pause" hidden>Pause</button></p>
-</div>
-
 <div class="tw">
 <table>
   <thead><tr><th>Legacy development</th><th>Spec of Record</th></tr></thead>
@@ -580,7 +543,48 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
 </table>
 </div>
 <p>A real compiler gives the same output every time, so it can throw that output away and start over. An AI cannot, so Spec of Record keeps finished code.</p>
-<p>Tools can follow the marker links too. An editor extension jumps from a spec to its code and back, and the <code>sor</code> CLI gives an AI or a script the same answer as text or JSON. A clause can also reach further back, to a source outside the code such as a Figma design.</p>
+<p>Several agents can work on one project at once. A sub-agent first claims a spec clause and its code blocks. It changes the clause, then the code, locks the result and releases the claim. A clause that someone else holds is refused.</p>
+<div class="cl" id="claims" role="group" aria-label="Animation of two agents working in parallel: each claims a clause, changes it and its code, locks it and releases it, and a claim on a clause the other holds is refused.">
+    <div class="cl-stage">
+    <div class="cl-box">
+      <div class="cl-head"><div class="fe-file"><span class="tab"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg><span class="tab-name">sor/</span></span></div><div class="fe-file"><span class="tab"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg><span class="tab-name">src/</span></span></div></div>
+      <div class="cl-grid">
+        <div class="cl-spec" data-cl="movement" style="grid-row:1"><div class="cl-id"><svg class="cl-bd" viewBox="0 0 16 16" aria-hidden="true"></svg>player/movement<span class="cl-no">refused</span></div><p>One key press moves the player <span class="val" data-v="step">20 px</span>, and the player cannot leave the <span class="val" data-v="room">500 px</span> room.</p></div>
+        <div class="cl-code" data-cl="movement" data-i="0" style="grid-row:1"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"></svg><pre><span class="t-m">// @clause player/movement</span>
+<span class="t-k">const</span> STEP = <span class="t-n" data-k="step">20</span>;
+export <span class="t-k">function</span> <span class="t-f">move</span>(player, dx, dy) {
+  ...
+}
+<span class="t-m">// @clause end</span></pre></div>
+        <div class="cl-spec" data-cl="lives" style="grid-row:2"><div class="cl-id"><svg class="cl-bd" viewBox="0 0 16 16" aria-hidden="true"></svg>player/lives<span class="cl-no">refused</span></div><p>A new player has <span class="val" data-v="lives">3 lives</span>.</p></div>
+        <div class="cl-code" data-cl="lives" data-i="1" style="grid-row:2"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"></svg><pre><span class="t-m">// @clause player/lives</span>
+<span class="t-k">const</span> START_LIVES = <span class="t-n" data-k="lives">3</span>;
+export <span class="t-k">function</span> <span class="t-f">withLives</span>(player) {
+  ...
+}
+<span class="t-m">// @clause end</span></pre></div>
+        <div class="cl-spec cl-gap" aria-hidden="true" style="grid-row:3"></div>
+        <div class="cl-code" data-cl="movement" data-i="2" style="grid-row:3"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"></svg><pre><span class="t-m">// @clause player/movement</span>
+<span class="t-k">const</span> ROOM = <span class="t-n" data-k="room">500</span>;
+export <span class="t-k">function</span> <span class="t-f">keepInRoom</span>(player) {
+  ...
+}
+<span class="t-m">// @clause end</span></pre></div>
+        <div class="cl-spec" data-cl="chase" style="grid-row:4"><div class="cl-id"><svg class="cl-bd" viewBox="0 0 16 16" aria-hidden="true"></svg>monsters/chase<span class="cl-no">refused</span></div><p>Every turn a monster steps <span class="val">20 px</span> toward the player.</p></div>
+        <div class="cl-code" data-cl="chase movement" data-i="3" style="grid-row:4"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"></svg><pre><span class="t-m">// @clause monsters/chase player/movement</span>
+<span class="t-k">const</span> MONSTER_STEP = <span class="t-n">20</span>;
+export <span class="t-k">function</span> <span class="t-f">chase</span>(monster, player) {
+  ...
+}
+<span class="t-m">// @clause end</span></pre></div>
+      </div>
+    </div>
+    <div class="cl-agents" aria-hidden="true"><div class="clawd a" data-mode="idle"><img class="m-idle" src="static/clawd_idle.png" alt="" width="128" height="128"><img class="m-waiting" src="static/clawd_sleeping.png" alt="" width="128" height="128"><img class="m-working" src="static/clawd_detective.gif" alt="" width="128" height="128"></div><div class="clawd b" data-mode="idle"><img class="m-idle" src="static/clawd_idle.png" alt="" width="128" height="128"><img class="m-waiting" src="static/clawd_sleeping.png" alt="" width="128" height="128"><img class="m-working" src="static/clawd_detective.gif" alt="" width="128" height="128"></div></div>
+  </div>
+  <div class="cl-tl"></div>
+  <p class="cl-cap"><span class="cl-text">An agent claims a clause with <code>sor claim</code> before it touches anything.</span><button type="button" class="cl-pause" hidden>Pause</button></p>
+</div>
+<p>Tools can follow the marker links too. An editor extension jumps from a spec to its code and back, and the <code>sor</code> command line interface (CLI) gives an AI or a script the same answer as text or JSON. A clause can also reach further back, to a source outside the code such as a Figma design.</p>
 
 <h2 id="editor">In your editor</h2>
 <p>The VS Code extension shows these links on a sample project. You do not need it to use Spec of Record, but it is a handy way to see them.</p>
@@ -633,7 +637,7 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
 <h3>What if the AI builds something wrong?</h3>
 <p>The clause's tests fail, and the code is fixed until they pass. Clauses with no passing test are listed, so a gap is visible instead of hidden.</p>
 <h3>Can several people or agents work at once?</h3>
-<p>Yes. Agents in the same project claim the clauses they are working on, and a second claim on the same clause is refused. People on different machines coordinate through version control, the way they do now.</p>
+<p>Yes. Agents claim clauses, as shown above, and people on different machines coordinate through version control, the way they do now.</p>
 
 <h2 id="see-also">Related projects</h2>
 <p>Spec-driven tooling is a crowded field. The projects below cover different parts of the workflow. Some have gone quiet or are paused, and some are tied to one editor, agent or service. Spec of Record borrows ideas from several of them and adds its own.</p>
@@ -1249,7 +1253,7 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
 
     function visible(node) {                       /* text a reader can select: not in buttons, scripts or the "#" heading links */
       for (var e = node.parentElement; e && e !== main; e = e.parentElement) {
-        if (e.hidden || e.tagName === 'BUTTON' || e.tagName === 'SCRIPT' || e.tagName === 'STYLE' || e.classList.contains('anchor')) return false;
+        if (e.hidden || e.tagName === 'BUTTON' || e.tagName === 'SCRIPT' || e.tagName === 'STYLE' || e.classList.contains('anchor') || (e.classList.contains('cl-no') && e.offsetParent === null)) return false;
       }
       return true;
     }
@@ -1543,6 +1547,8 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
     var text = root.querySelector('.cl-text'), pause = root.querySelector('.cl-pause');
     var cells = Array.prototype.slice.call(stage.querySelectorAll('.cl-spec[data-cl], .cl-code[data-cl]'));
     var who = { a: stage.querySelector('.clawd.a'), b: stage.querySelector('.clawd.b') };
+    var LOCK = '<path class="sh-o" d="M5 7V5a3 3 0 0 1 5.8-1" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><path class="sh-c" d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><rect x="3" y="7" width="10" height="7" rx="1.5" fill="#fff"/>';   /* the padlock in every badge: open shackle while claimed, closed once locked */
+    Array.prototype.forEach.call(stage.querySelectorAll('.cl-bd'), function (b) { b.innerHTML = LOCK; });
     var W = 36, H = 24, GAP = 22, EVERY = 2600, DWELL = 1500;   /* GAP: room left of the cell edge for the Clawd's hat, magnifier and Z */
     var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     var P = 'p';
@@ -1558,7 +1564,7 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
       { a: 'c:1',        b: 'c:2',       cl: { movement: 'b.locked', lives: 'a.locked' },   m: { a: 'idle', b: 'idle' },       ed: [],                                                  cap: 'Each locks only what it claimed. <code>monsters/chase</code> is free, but its code block belongs to <code>player/movement</code> too.' },
       { a: P,            b: P,           cl: {},                                           m: { a: 'idle', b: 'idle' },       ed: [],                                                  cap: 'Released. Nothing is held any more.' }
     ];
-    var rest = { a: P, b: P, cl: {}, m: { a: 'idle', b: 'idle' }, ed: [], cap: steps[0].cap };   /* before the first step: both Clawds sit in the tab bar, nothing is claimed */
+    var rest = { a: P, b: P, cl: {}, m: { a: 'idle', b: 'idle' }, ed: [], cap: 'Two agents work on one spec. Nothing is claimed yet.' };   /* before the first step: both Clawds sit in the tab bar, nothing is claimed */
     var origin = [];   /* the spec values and code constants as they start, to go back to when the loop starts again */
     Array.prototype.forEach.call(stage.querySelectorAll('[data-v], [data-k]'), function (e) { origin.push([e, e.textContent]); });
     function setValues(i, flash) {
@@ -1572,10 +1578,10 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
     var tl = root.querySelector('.cl-tl'), segs = [], again, thumb, geo = [], N = steps.length;   /* the timeline: one bar for each step, a thumb, and the loop arrow */
     steps.forEach(function () { var b = document.createElement('b'); b.appendChild(document.createElement('i')); b.setAttribute('aria-hidden', 'true'); tl.appendChild(b); segs.push(b); });
     again = document.createElement('u'); again.textContent = '\u21BB'; again.setAttribute('aria-hidden', 'true'); tl.appendChild(again);
-    thumb = document.createElement('button'); thumb.type = 'button'; thumb.className = 'cl-thumb'; thumb.setAttribute('role', 'slider');
+    thumb = document.createElement('div'); thumb.tabIndex = 0; thumb.className = 'cl-thumb'; thumb.setAttribute('role', 'slider');
     thumb.setAttribute('aria-label', 'Step of the demonstration'); thumb.setAttribute('aria-valuemin', 1); thumb.setAttribute('aria-valuemax', N);
     tl.appendChild(thumb);
-    var refusing = null, dragging = false, stepAnim = null, fillAnim = null, remaining = EVERY, thumbX = 0, at = { a: null, b: null }, now = 0, timer = null, paused = false, seen = false;
+    var refusing = null, snapAnim = null, dragging = false, stepAnim = null, fillAnim = null, remaining = EVERY, stepDur = EVERY, thumbX = 0, at = { a: null, b: null }, now = 0, timer = null, paused = false, seen = false;
 
     function cellOf(p) {
       var k = p.split(':');
@@ -1654,7 +1660,7 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
         stepAnim = thumb.animate([{ transform: 'translateX(' + from + 'px)' }, { transform: 'translateX(' + to + 'px)' }], opts);
         fillAnim = segs[i].firstChild.animate([{ width: '0%' }, { width: '100%' }], opts);
       }
-      remaining = EVERY;
+      stepDur = EVERY; remaining = EVERY;
       clearTimeout(timer); timer = setTimeout(tick, EVERY);
     }
     function tick() {
@@ -1671,7 +1677,7 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
     }
     function stop() {
       clearTimeout(timer); timer = null;
-      if (stepAnim && stepAnim.playState === 'running') { remaining = Math.max(0, EVERY - stepAnim.currentTime); stepAnim.pause(); fillAnim.pause(); }
+      if (stepAnim && stepAnim.playState === 'running') { remaining = Math.max(0, stepDur - stepAnim.currentTime); stepAnim.pause(); fillAnim.pause(); }
     }
     function playing() { return !reduce && !paused && seen && !document.hidden; }
     function jump(s) {                              /* straight to step s, as from the keyboard */
@@ -1682,11 +1688,23 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
     root.classList.add('on');
     show(reduce ? 4 : -1, false);                    /* at first both Clawds rest in the tab bar; with reduced motion: one still picture, a locked clause and an agent waiting */
     measure(); place(Math.max(now, 0)); fill(Math.max(now, 0));
-    window.addEventListener('resize', function () {
-      var was = stepAnim && stepAnim.playState === 'running';
-      measure(); show(now, false); place(Math.max(now, 0)); fill(Math.max(now, 0));
-      if (was) { stop(); cancelAnims(); launch(now); }
-    });
+    function relayout() {                           /* the timeline changed size: measure again and carry on from where the thumb is, without restarting the step */
+      measure();
+      ['a', 'b'].forEach(function (n) { put(n, (now < 0 ? rest : steps[now])[n], false); });
+      if (dragging) return;
+      var i = Math.max(now, 0), live = stepAnim && stepAnim.playState !== 'finished' && stepAnim.playState !== 'idle';
+      if (!live) { place(i); fill(i); return; }
+      var left = Math.max(1, stepDur - stepAnim.currentTime), p = 1 - left / EVERY, was = stepAnim.playState, to = pos(i + 1);
+      cancelAnims(); place(i + p); fill(i + p);
+      var opts = { duration: left, easing: 'linear', fill: 'forwards' };
+      thumb.style.transform = 'translateX(' + to + 'px)'; thumbX = to; stepDur = left;
+      if (thumb.animate) {
+        stepAnim = thumb.animate([{ transform: 'translateX(' + pos(i + p) + 'px)' }, { transform: 'translateX(' + to + 'px)' }], opts);
+        fillAnim = segs[i].firstChild.animate([{ width: (p * 100) + '%' }, { width: '100%' }], opts);
+        if (was === 'paused') { stepAnim.pause(); fillAnim.pause(); }
+      }
+    }
+    if (window.ResizeObserver) new ResizeObserver(relayout).observe(tl); else window.addEventListener('resize', relayout);
 
     /* dragging: the thumb follows the pointer smoothly; the step shown is the bar it is over; letting go slides it back to the start of that bar */
     function over(e) {
@@ -1699,6 +1717,7 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
     }
     tl.addEventListener('pointerdown', function (e) {
       if (e.button) return;
+      if (snapAnim) { snapAnim.onfinish = snapAnim.oncancel = null; snapAnim.cancel(); snapAnim = null; }
       dragging = true; stop(); cancelAnims(); tl.classList.add('drag');
       try { tl.setPointerCapture(e.pointerId); } catch (err) { /* some previews block it */ }
       over(e); e.preventDefault();
@@ -1709,10 +1728,10 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
       dragging = false; tl.classList.remove('drag');
       var s = Math.max(now, 0), to = pos(s), from = thumbX;
       fill(s); thumb.style.transform = 'translateX(' + to + 'px)'; thumbX = to;
-      var done = function () { place(s); if (playing()) launch(s); };
+      var done = function () { snapAnim = null; if (dragging) return; place(s); if (playing()) launch(s); };
       if (thumb.animate && !reduce && from !== to) {
         var a = thumb.animate([{ transform: 'translateX(' + from + 'px)' }, { transform: 'translateX(' + to + 'px)' }], { duration: 300, easing: 'ease-out' });
-        a.onfinish = done; a.oncancel = done;
+        snapAnim = a; a.onfinish = done; a.oncancel = done;
       } else done();
     }
     tl.addEventListener('pointerup', release);
@@ -1730,7 +1749,6 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
       if (paused) stop(); else start();
     });
     document.addEventListener('visibilitychange', function () { if (document.hidden) stop(); else start(); });
-    setInterval(start, 1000);                        /* picks the loop up again if it stopped while the page was hidden (start does nothing while a step is running) */
     if ('IntersectionObserver' in window) {
       new IntersectionObserver(function (es) { seen = es[0].isIntersecting; if (seen) start(); else stop(); }, { threshold: 0.3 }).observe(stage);
     } else { seen = true; start(); }
