@@ -1071,6 +1071,11 @@ one clause. The answer is that each language is its own claim and its own lock l
 - **The test of a language has to pass again when its code is locked.** A plain lock asks for results only of tests that are pending, which for a changed clause
   is all of them, at the moment the whole clause is locked. A language is rebuilt after that, so the lock of it asks for a result of the clause's test in that
   language (`greet/test:hello@ts`), or `--allow-incomplete`. This is stronger than the plain lock on purpose: the earlier result was for the old code.
+- **A language that is left behind does not need a result yet.** Found by the advisor's review of the order above: a whole-clause lock with `--allow-behind ts`
+  asked for a result of the clause's test in TypeScript, which would run against TypeScript code nobody had rebuilt, so the order only worked with a made-up result or
+  `--allow-incomplete`. A test line of a language that `--allow-behind` names, and in which the test or its clause is behind, now stays `none` in that lock, and
+  `sor status` keeps listing it. A language that is not behind does not wait, whatever `--allow-behind` names. It is the owner's to veto: the lock of the language
+  asks for the result before it writes anything, so the proof waits and is not dropped.
 - **`--already-fits ts` works for one language** and is recorded as before. `--allow-behind` is refused with a lock of one language, for it already leaves out the
   others, and `--already-fits` is refused in a command that also names whole clauses (two commands, each says what it does).
 - **Found while building it, and fixed in status.** (1) The first code of a language that a clause was locked without (`--allow-behind ts` for want of code) was

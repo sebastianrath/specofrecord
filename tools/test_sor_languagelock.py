@@ -248,10 +248,9 @@ class Tested(Locked):
         return self.lines('greet/test:hello')[f'{TEST}@{language}']
 
     def clause_changed_and_both_languages_rebuilt(self):
-        """hello says "Hi" and is locked with both languages behind (the tests of a changed clause have to pass), then both are rebuilt."""
+        """hello says "Hi" and is locked with both languages behind, then both are rebuilt."""
         self.change_clause()
-        both = self.results(**{f'{TEST}@py': 'pass', f'{TEST}@ts': 'pass'})
-        self.assertEqual(self.sor('lock', 'greet/hello', '--allow-behind', 'py,ts', '--results', both)[0], 0)
+        self.assertEqual(self.sor('lock', 'greet/hello', '--allow-behind', 'py,ts')[0], 0)    # nothing is rebuilt: no result to give yet
         self.rebuild('py')
         self.rebuild('ts')
 
@@ -285,7 +284,7 @@ class TestTestsPerLanguage(Tested):
         code, out, _ = self.sor('lock', 'greet/hello@ts', '--results', failed, '--allow-incomplete')
         self.assertEqual(code, 0, out)
         self.assertIn(f'recorded as not passed: {TEST}@ts', out)
-        self.assertEqual((self.line_of('py')['result'], self.line_of('ts')['result']), ('pass', 'fail'))
+        self.assertEqual((self.line_of('py')['result'], self.line_of('ts')['result']), ('none', 'fail'))   # py waits for its own lock
         self.assertEqual(lockfile.read(Project(self.dir))[TEST]['result'], 'fail')
 
     def test_a_test_that_did_not_pass_is_asked_for_again_whatever_the_code_does(self):
@@ -297,6 +296,30 @@ class TestTestsPerLanguage(Tested):
         code, out, _ = self.sor('lock', 'greet/hello@ts', '--results', self.results(**{f'{TEST}@ts': 'pass'}))
         self.assertEqual(code, 0, out)
         self.assertEqual(self.line_of('ts')['result'], 'pass')
+
+    def test_the_order_in_the_reference_file_works_without_a_made_up_result(self):
+        self.change_clause()
+        self.rebuild('py')
+        code, out, _ = self.sor('lock', 'greet/hello', '--allow-behind', 'ts', '--results', self.results(**{f'{TEST}@py': 'pass'}))
+        self.assertEqual(code, 0, out)                                      # the TypeScript test waits: its code is not rebuilt yet
+        self.assertIn(f'{TEST}@ts', self.sor('status')[1])                  # and `sor status` keeps listing it
+        self.rebuild('ts')
+        code, out, _ = self.sor('lock', 'greet/hello@ts')
+        self.assertEqual(code, 2, out)                                      # the lock of the language asks for it
+        self.assertIn(f'{TEST}@ts', out)
+        code, out, _ = self.sor('lock', 'greet/hello@ts', '--results', self.results(**{f'{TEST}@ts': 'pass'}))
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.findings(), [])
+        self.assertNotIn('tests (', self.sor('status')[1])
+
+    def test_allow_behind_leaves_no_result_for_a_language_that_is_not_behind(self):
+        write(self.dir, 'src_ts/greet.test.ts', test_code('ts', more=True))
+        self.change_clause()
+        self.rebuild('py')
+        self.rebuild('ts')
+        code, out, _ = self.sor('lock', 'greet/hello', '--allow-behind', 'ts', '--results', self.results(**{f'{TEST}@py': 'pass'}))
+        self.assertEqual(code, 2, out)                                      # ts is rebuilt, so its test has to pass like any other
+        self.assertIn(f'{TEST}@ts', out)
 
     def test_a_plain_result_is_ambiguous_with_test_code_in_two_languages(self):
         self.clause_changed_and_both_languages_rebuilt()

@@ -13,7 +13,7 @@
     sor test --list [ID ...] [--provides NAMES] [--all]  the tests a run would run and the ones it leaves to CI; runs nothing
     sor evidence --job NAME --provides NAMES --results F [--commit SHA] [--run ID]  write what a CI job proved about the tests that say `runs on:`
     sor verify [FILE|FOLDER ...]  the gate: every test that says `runs on:` has a current pass in every environment it names
-    sor lock [IDS|--all] [--run-tests] [--allow-behind T] [--already-fits T]  accept clauses, code and test results: IDS (K@lang: one language of a clause), else what you claimed (--all: the whole project)
+    sor lock [IDS|--all] [--run-tests] [--allow-behind T] [--already-fits T]  accept clauses, code and test results: IDS (greet/hello@py: one language of a clause), else what you claimed (--all: the whole project)
     sor claim IDS --as NAME       say you are working on these clauses; refused (exit 3) when someone else is
     sor release [IDS|--all]       give them up again
     sor markers [ID | FILE:LINE] [--json]  where a clause's code is, or which clauses a line serves

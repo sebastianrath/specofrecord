@@ -727,19 +727,37 @@ def accept(project, scan, results, allow_incomplete, findings=(), old=None, conf
         if f.status == 'shared' and test in entries and entries[test]['result'] not in SETTLED:
             reasons.append(f'shared  {f.key}  its code changed with another clause, so {test} must pass '
                            '(--allow-incomplete does not cover this)')
-    pending = [k for k, e in entries.items() if e.get('result') in ('none', 'fail')
-               and (scope is None or k in scope)]
-    if pending and not allow_incomplete:
-        def lines_not_passed(k):   # a test with a result for each language is named by the language lines that did not pass
-            lines = {t: line for t, line in (entries[k].get('targets') or {}).items() if 'result' in line}
-            return [f'{k}@{t}' for t in sorted(lines) if lines[t]['result'] != 'pass'] if lines else [k]
+    basis = bases(project, entries)
 
-        fails = sorted(k for k in pending if entries[k]['result'] == 'fail')
-        left = sorted(set(pending) - set(fails))
-        failed_names = [n for k in fails for n in lines_not_passed(k)]
-        reasons.append(f'{len(pending)} test(s) did not pass ({len(fails)} failed, {len(left)} not run): '
-                       + listed([f'{n} (failed)' for n in failed_names] + [n for k in left for n in lines_not_passed(k)]))
-        reasons.append(how_to_pass(project, failed_names + [n for k in left for n in lines_not_passed(k)], bool(fails)))
+    def waiting(k):
+        """The languages whose result a test may leave for later: `--allow-behind` leaves the test, or the clause it is named after, behind in
+        them. The code of that language is not rebuilt yet, so a result now would be for the old code; the lock of the language asks for it."""
+        part, _, name = k.rpartition('/')
+        clause = f'{part}/{name[5:]}' if part else name[5:]
+        late = set(lagging_targets(project, k, entries[k], owners, basis))
+        if name.startswith('test:') and clause in entries:
+            late |= set(lagging_targets(project, clause, entries[clause], owners, basis))
+        return late & set(allow_behind)
+
+    def open_lines(k):
+        """[(name, result)] of a test that stops the lock: a test with a result for each language is named by its lines."""
+        e = entries[k]
+        lines = {t: line for t, line in (e.get('targets') or {}).items() if 'result' in line}
+        if not lines:
+            return [(k, e['result'])] if e.get('result') in ('none', 'fail') else []
+        later = waiting(k)
+        return [(f'{k}@{t}', lines[t]['result']) for t in sorted(lines)
+                if lines[t]['result'] == 'fail' or (lines[t]['result'] == 'none' and t not in later)]
+
+    pending = sorted(k for k in entries if (scope is None or k in scope) and open_lines(k))
+    if pending and not allow_incomplete:
+        opened = [x for k in pending for x in open_lines(k)]
+        failed_names = [n for n, r in opened if r == 'fail']
+        left_names = [n for n, r in opened if r != 'fail']
+        fails = [k for k in pending if any(r == 'fail' for _, r in open_lines(k))]
+        reasons.append(f'{len(pending)} test(s) did not pass ({len(fails)} failed, {len(pending) - len(fails)} not run): '
+                       + listed([f'{n} (failed)' for n in failed_names] + left_names))
+        reasons.append(how_to_pass(project, failed_names + left_names, bool(fails)))
     return entries, reasons
 
 

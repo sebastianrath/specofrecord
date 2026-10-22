@@ -45,7 +45,8 @@ language: `greet/hello@py`. Use it when another agent rebuilds the other languag
   that text. To change the clause, claim the whole clause (`sor claim greet/hello`), which holds every language and waits for them.
 - The order for a clause that changes: the agent that changes the text claims the whole clause, rebuilds the language it works on, and locks the
   clause (`sor lock greet/hello`), which is refused while another language would stay behind. Only when the user has said that a language is rebuilt by
-  someone else, it adds `--allow-behind ts` (the hook asks the user first). The clause is locked then, and `ts` is listed as behind.
+  someone else, it adds `--allow-behind ts` (the hook asks the user first) and gives the result of the Python test only (`--results` with
+  `greet/test:hello@py`). The clause is locked then, `ts` is listed as behind, and the TypeScript test waits for its own result.
 - The other agent claims `greet/hello@ts`, changes the TypeScript code, runs the tests, and locks it with `sor lock greet/hello@ts`. That lock writes the
   TypeScript line, the line of the clause's test in TypeScript and the glue of the TypeScript files, and nothing else, so it cannot undo what the first
   agent locked. It is refused while the clause has an unlocked change ("lock the clause first"), for code that did not change (use `--already-fits ts`

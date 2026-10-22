@@ -282,7 +282,9 @@ for that item) or `bug:` (a regression test).
   result of the test is worked out from them when the lock is read (`fail` if one failed, `pass` if all passed, else `none`), so everything that reads a test's
   result goes on reading one. `F` then holds `{"part/test:name@py": "pass", "part/test:name@ts": "pass"}`; a plain id is the result of the only language that
   has test code for it, and is refused, naming the lines, when two have; a language with no test code for the test is refused. A language with no test code
-  needs no result. A test that is `manual:` or left to CI keeps its result on its entry, and its lines (they have `code` and `built`) hold none.
+  needs no result. A language that `--allow-behind` leaves behind (§9) needs no result for the test of the clause in that lock: its code is not rebuilt, so a result
+  would be for the old code. The line stays `none`, `sor status` keeps listing it, and the lock of that language (§16) asks for the result. A language that is
+  not behind does not wait, whatever `--allow-behind` names. A test that is `manual:` or left to CI keeps its result on its entry, and its lines (they have `code` and `built`) hold none.
 - **A test left to CI.** A test that needs a place (an OS, a GPU, a database replica, an hour) says `runs on: linux, windows+gpu`.
   A comma separates the environments it must pass in; a plus joins the names one machine must provide together; a name is
   lowercase letters, digits, dots, dashes and underscores. Such a test is **deferred**: its lock entry says `deferred`, from the spec
