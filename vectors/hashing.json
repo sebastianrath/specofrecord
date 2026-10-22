@@ -1,8 +1,8 @@
 {
  "about": "Rows of input and expected output for how Spec of Record hashes code and writes the lock (SPEC section 11). Any implementation of the tool runs every row. The expected texts are written by hand and the hashes are computed with SHA-256 alone, never with the tool. A line in a row is one string; a text is one string. Run them with tools/test_sor_vectors.py.",
- "format": 1,
+ "format": 2,
  "style_of": {
-  "how": "style_of(path) -> \"c\" | \"python\" | \"hash\" | \"dash\": the lower-cased text after the last dot of the file name, if the name has a dot.",
+  "how": "style_of(path) -> style: the style of the lower-cased file name if it is one of the known names, else of the text after its last dot if the name has a dot, else \"safe\". A style is family[-keep][+kinds]; see SPEC section 11.",
   "rows": [
    {
     "name": "python by extension",
@@ -22,6 +22,21 @@
    {
     "name": "python for windows",
     "path": "x.pyw",
+    "style": "python"
+   },
+   {
+    "name": "cython",
+    "path": "x.pyx",
+    "style": "python"
+   },
+   {
+    "name": "starlark",
+    "path": "rules.bzl",
+    "style": "python"
+   },
+   {
+    "name": "bazel build files are known by their name",
+    "path": "pkg/BUILD",
     "style": "python"
    },
    {
@@ -60,6 +75,21 @@
     "style": "hash"
    },
    {
+    "name": "elixir",
+    "path": "a.ex",
+    "style": "hash"
+   },
+   {
+    "name": "a Dockerfile is known by its name",
+    "path": "Dockerfile",
+    "style": "hash"
+   },
+   {
+    "name": "in any case, in a folder",
+    "path": "ci/dockerfile",
+    "style": "hash"
+   },
+   {
     "name": "sql",
     "path": "q.sql",
     "style": "dash"
@@ -70,54 +100,169 @@
     "style": "dash"
    },
    {
-    "name": "haskell",
+    "name": "haskell keeps its indentation",
     "path": "a.hs",
-    "style": "dash"
+    "style": "dash-keep"
    },
    {
-    "name": "typescript is the default",
+    "name": "elm",
+    "path": "a.elm",
+    "style": "dash-keep"
+   },
+   {
+    "name": "nim",
+    "path": "a.nim",
+    "style": "hash-keep"
+   },
+   {
+    "name": "coffeescript",
+    "path": "a.coffee",
+    "style": "hash-keep"
+   },
+   {
+    "name": "javascript has template literals",
+    "path": "a.js",
+    "style": "c+tick"
+   },
+   {
+    "name": "typescript",
     "path": "a.ts",
-    "style": "c"
+    "style": "c+tick"
    },
    {
-    "name": "c is the default",
+    "name": "typescript with jsx",
+    "path": "a.tsx",
+    "style": "c+tick"
+   },
+   {
+    "name": "go has raw strings with backticks",
+    "path": "a.go",
+    "style": "c+tick"
+   },
+   {
+    "name": "java has text blocks",
+    "path": "a.java",
+    "style": "c+triple"
+   },
+   {
+    "name": "kotlin",
+    "path": "a.kt",
+    "style": "c+triple"
+   },
+   {
+    "name": "swift",
+    "path": "a.swift",
+    "style": "c+triple"
+   },
+   {
+    "name": "c sharp",
+    "path": "a.cs",
+    "style": "c+triple"
+   },
+   {
+    "name": "dart has both kinds of triple quotes",
+    "path": "a.dart",
+    "style": "c+triple+triple1"
+   },
+   {
+    "name": "scala keeps its indentation, since scala 3 may leave out braces",
+    "path": "a.scala",
+    "style": "c-keep+triple"
+   },
+   {
+    "name": "f sharp",
+    "path": "a.fs",
+    "style": "c-keep"
+   },
+   {
+    "name": "c",
     "path": "a.c",
     "style": "c"
    },
    {
-    "name": "html is the default",
+    "name": "c plus plus",
+    "path": "a.cpp",
+    "style": "c"
+   },
+   {
+    "name": "a header",
+    "path": "a.h",
+    "style": "c"
+   },
+   {
+    "name": "objective c plus plus",
+    "path": "a.mm",
+    "style": "c"
+   },
+   {
+    "name": "rust",
+    "path": "a.rs",
+    "style": "c"
+   },
+   {
+    "name": "php",
+    "path": "a.php",
+    "style": "c"
+   },
+   {
+    "name": "html",
     "path": "a.html",
     "style": "c"
    },
    {
-    "name": "no extension",
-    "path": "Makefile",
+    "name": "css",
+    "path": "a.css",
     "style": "c"
+   },
+   {
+    "name": "json",
+    "path": "a.json",
+    "style": "c"
+   },
+   {
+    "name": "yaml is safe: a # line in a block scalar is text",
+    "path": "a.yml",
+    "style": "safe"
+   },
+   {
+    "name": "a makefile is known by its name and is safe",
+    "path": "Makefile",
+    "style": "safe"
+   },
+   {
+    "name": "erlang is not listed for hashing",
+    "path": "a.erl",
+    "style": "safe"
+   },
+   {
+    "name": "no extension",
+    "path": "LICENSE",
+    "style": "safe"
    },
    {
     "name": "a dot only in the folder",
     "path": "dir.py/file",
-    "style": "c"
+    "style": "safe"
    },
    {
     "name": "a dot in a folder of another file",
     "path": "a.b/c",
-    "style": "c"
+    "style": "safe"
    },
    {
     "name": "an unlisted extension",
     "path": "a.unknown",
-    "style": "c"
+    "style": "safe"
+   },
+   {
+    "name": "the last dot counts",
+    "path": "a.py.txt",
+    "style": "safe"
    },
    {
     "name": "a name that is only an extension",
     "path": ".py",
     "style": "python"
-   },
-   {
-    "name": "the last dot counts",
-    "path": "a.py.txt",
-    "style": "c"
    }
   ]
  },
@@ -744,6 +889,222 @@
     ],
     "normalized": "arr\n// [(1, 2)]",
     "hash": "a6834a6210a5"
+   },
+   {
+    "name": "safe: comments are code and spaces inside a line stay",
+    "style": "safe",
+    "lines": [
+     "% about it",
+     "f()  ->  ok."
+    ],
+    "normalized": "0:% about it\n0:f()  ->  ok.",
+    "hash": "8fc8e30d509f"
+   },
+   {
+    "name": "safe: blank lines and trailing spaces go",
+    "style": "safe",
+    "lines": [
+     "a   ",
+     "",
+     "   ",
+     "b\t"
+    ],
+    "normalized": "0:a\n0:b",
+    "hash": "044a38803df9"
+   },
+   {
+    "name": "safe: columns are counted from the smallest indentation of the lines kept",
+    "style": "safe",
+    "lines": [
+     "    a",
+     "  b",
+     "      c"
+    ],
+    "normalized": "2:a\n0:b\n4:c",
+    "hash": "6b23a0c2b22f"
+   },
+   {
+    "name": "safe: a tab is eight columns",
+    "style": "safe",
+    "lines": [
+     "a",
+     "\tb"
+    ],
+    "normalized": "0:a\n8:b",
+    "hash": "788b5200056f"
+   },
+   {
+    "name": "safe: moving the whole piece is not a change",
+    "style": "safe",
+    "lines": [
+     "  f(x) ->",
+     "      g(x)."
+    ],
+    "normalized": "0:f(x) ->\n4:g(x).",
+    "hash": "fa35656bb4f0"
+   },
+   {
+    "name": "dash-keep: a line moved out of a haskell do block is a different text",
+    "style": "dash-keep",
+    "lines": [
+     "main = do",
+     "  putStrLn \"a\"",
+     "putStrLn \"b\""
+    ],
+    "normalized": "0:main = do\n2:putStrLn \"a\"\n0:putStrLn \"b\"",
+    "hash": "21344d8bcef9"
+   },
+   {
+    "name": "dash-keep: a comment line goes and does not shift the columns",
+    "style": "dash-keep",
+    "lines": [
+     "      -- about it",
+     "main = do",
+     "  f"
+    ],
+    "normalized": "0:main = do\n2:f",
+    "hash": "4ad935b6b269"
+   },
+   {
+    "name": "hash-keep: a hash line goes and the nesting counts",
+    "style": "hash-keep",
+    "lines": [
+     "# about",
+     "proc f() =",
+     "  echo 1"
+    ],
+    "normalized": "0:proc f() =\n2:echo 1",
+    "hash": "8d876f9f2bc4"
+   },
+   {
+    "name": "c-keep: a comment line goes and the nesting counts",
+    "style": "c-keep",
+    "lines": [
+     "// c",
+     "def f =",
+     "  g"
+    ],
+    "normalized": "0:def f =\n2:g",
+    "hash": "31552dcc1742"
+   },
+   {
+    "name": "c+tick: a line that looks like a comment inside a template literal is text",
+    "style": "c+tick",
+    "lines": [
+     "const sql = `",
+     "// the query",
+     "SELECT 1",
+     "`;"
+    ],
+    "normalized": "const sql = `\n// the query\nSELECT 1\n`;",
+    "hash": "1ace0ffb45ab"
+   },
+   {
+    "name": "c: without the string kind the same lines lose the comment-looking one",
+    "style": "c",
+    "lines": [
+     "const sql = `",
+     "// the query",
+     "SELECT 1",
+     "`;"
+    ],
+    "normalized": "const sql = `\nSELECT 1\n`;",
+    "hash": "754ed81b75b5"
+   },
+   {
+    "name": "c+tick: after the string a comment is a comment again",
+    "style": "c+tick",
+    "lines": [
+     "const a = `x",
+     "// text",
+     "`;",
+     "// a comment",
+     "const b = 1;"
+    ],
+    "normalized": "const a = `x\n// text\n`;\nconst b = 1;",
+    "hash": "78735753f587"
+   },
+   {
+    "name": "c+tick: a string that closes on its line is not a multi-line string",
+    "style": "c+tick",
+    "lines": [
+     "const a = `x ${b} y`;",
+     "// a comment",
+     "const c = 1;"
+    ],
+    "normalized": "const a = `x ${b} y`;\nconst c = 1;",
+    "hash": "fc5dbc1b1af7"
+   },
+   {
+    "name": "c+triple: a text block keeps a comment-looking line",
+    "style": "c+triple",
+    "lines": [
+     "String s = \"\"\"",
+     "    // not a comment",
+     "    \"\"\";",
+     "// a comment"
+    ],
+    "normalized": "String s = \"\"\"\n// not a comment\n\"\"\";",
+    "hash": "c1d11cd96947"
+   },
+   {
+    "name": "c+triple+triple1: dart has triple single quotes",
+    "style": "c+triple+triple1",
+    "lines": [
+     "var s = '''",
+     "// not a comment",
+     "''';"
+    ],
+    "normalized": "var s = '''\n// not a comment\n''';",
+    "hash": "8cf68d4c54a1"
+   },
+   {
+    "name": "c+tick: backticks in a trailing comment open nothing",
+    "style": "c+tick",
+    "lines": [
+     "let fence = false;   // inside a ``` block: shaded",
+     "// a comment",
+     "const x = 1;"
+    ],
+    "normalized": "let fence = false; // inside a ``` block: shaded\nconst x = 1;",
+    "hash": "8f8098870e50"
+   },
+   {
+    "name": "c+tick: a backtick in a block comment or in another string opens nothing",
+    "style": "c+tick",
+    "lines": [
+     "/* a ` in a block",
+     "   comment */",
+     "const s = \"a `\";",
+     "// a comment",
+     "const t = 1;"
+    ],
+    "normalized": "/* a ` in a block\ncomment */\nconst s = \"a `\";\nconst t = 1;",
+    "hash": "103c2ff1deb0"
+   },
+   {
+    "name": "c+tick: an apostrophe is not a string",
+    "style": "c+tick",
+    "lines": [
+     "fn f<'a>(x: &'a str) {}",
+     "// a comment",
+     "let b = 1;"
+    ],
+    "normalized": "fn f<'a>(x: &'a str) {}\nlet b = 1;",
+    "hash": "165aab67371e"
+   },
+   {
+    "name": "c+tick: blank lines and runs of spaces inside the string are not seen",
+    "style": "c+tick",
+    "lines": [
+     "const a = `x",
+     "",
+     "   y    z",
+     "`;"
+    ],
+    "normalized": "const a = `x\ny z\n`;",
+    "note": "a limit, said in the SPEC",
+    "hash": "19fbabdb438d"
    }
   ]
  },

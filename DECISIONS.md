@@ -813,6 +813,33 @@ still seen, and the standard library hardly ever does this (500 files, none of t
   tokenizer's pieces of f-string text like string tokens, and has four programs only 3.12 and later read. They fail with the old scanner.
   Unit tests and five vector rows (language neutral) pin the cases.
 
+## Code is hashed by a table of types, and a type nobody listed is safe (2026-10-21)
+Tried on 36 languages, the tool had three kinds of hole beyond false alarms: types where indentation is meaning (Haskell, F#, Nim, YAML) hid a
+line moved out of a block; a comment-looking line inside a multi-line string was dropped from the hash (a `// query` line in a JavaScript
+template literal, `/* */` in a Go raw string, `<!-- -->` in a JavaScript template literal); and every type that was not listed got the
+rule that can do both. No project here had hit the second one: a scan of the three real projects found none. The work is per style, not per
+language: there are four families, and a port writes them once.
+- **A style is `family[-keep][+kinds]` and one table has a row per kind of file** (extensions, style, marker starters). Families: `c`, `hash`,
+  `dash`, `python` and `safe` (no comments dropped). `-keep` counts indentation as a column relative to the smallest of the lines kept (a tab
+  is eight columns) and does not collapse spaces. `+tick`, `+triple`, `+triple1` name the multi-line strings the type has.
+- **The default is `safe`: nothing is hidden except blank lines and trailing spaces.** More false alarms for a type nobody listed, never a
+  change that goes unseen. Every C-family type the real projects use was listed first (`.html`, `.js`, `.cpp`, `.h`, `.mm` and the rest), or the
+  default would have turned them noisy. `.html` keeps plain `c`: prose backticks in HTML must not open a string.
+- **Inside a tracked string one thing changes: its lines are never comments.** Blank lines, indentation and runs of spaces inside it are still not
+  seen, as in a Python docstring, so hashes change only where the hole was hit. Verbatim strings would be a separate, wider change (they would
+  rehash every region with a template literal). The tracker skips `//` comments and `/* */` blocks before it looks for a quote, takes a string that
+  closes on its line as one line, and reads an unclosed `"` or `'` as an apostrophe. Wrongly inside keeps comment lines (a false alarm); wrongly
+  outside is what a regular expression with a quote in it can cause, and is a known limit.
+- **YAML is safe, not `hash`:** a `#` line inside a `|` block scalar is text, and `#` at the start of a line cannot be told from a comment
+  without a YAML parser. Makefiles are safe too.
+- **Not tracked, said in the SPEC:** C++ raw strings, PHP heredocs, C# verbatim strings, Rust strings over lines, SQL strings. Each needs its own
+  small rule; a project that hits one can ask for it.
+- **Migration.** The rule `--rehash` knows is still the old one for every file (C family). A file that moved to another style, or gained a string
+  rule, migrates the way Python did: an entry whose code is unchanged under that rule gets the new hash, and a change only the old rule
+  ignored is not seen until then. A Haskell lock made while `.hs` was read without its indentation (the Phase 0 tool) needs one relock.
+- **Measured:** `sor check`, `sor status --json` and `sor markers --json` give the same output as before on all three real projects, back to
+  back; `sor status` on the large copy takes 0.5 s; a style with no string kinds gives text identical to plain `c` for code without any.
+
 ## Still open
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for
   this format (SPEC §15). The old `fdd` prototype (previous syntax) is not in this folder.

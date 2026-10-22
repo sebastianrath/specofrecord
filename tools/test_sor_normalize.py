@@ -43,11 +43,34 @@ class TestTheStyleOfAFile(unittest.TestCase):
             with self.subTest(rel):
                 self.assertEqual(style_of(rel), style)
 
-    def test_everything_else_is_c_family_as_it_was_before(self):
-        for rel in ('a.ts', 'a.js', 'a.c', 'a.h', 'a.cpp', 'a.mm', 'a.go', 'a.rs', 'a.java', 'a.html', 'a.css', 'a.json', 'Makefile',
-                    'Dockerfile', 'a.unknown', 'noext', 'dir.py/file', 'a.b/c'):
+    def test_the_c_family_is_listed_with_the_multi_line_strings_it_has(self):
+        for rel, style in (('a.c', 'c'), ('a.h', 'c'), ('a.cpp', 'c'), ('a.mm', 'c'), ('a.rs', 'c'), ('a.php', 'c'), ('a.html', 'c'),
+                           ('a.css', 'c'), ('a.json', 'c'), ('a.ts', 'c+tick'), ('a.tsx', 'c+tick'), ('a.js', 'c+tick'), ('a.mjs', 'c+tick'),
+                           ('a.go', 'c+tick'), ('a.java', 'c+triple'), ('a.kt', 'c+triple'), ('a.swift', 'c+triple'), ('a.cs', 'c+triple'),
+                           ('a.dart', 'c+triple+triple1'), ('a.scala', 'c-keep+triple')):
             with self.subTest(rel):
-                self.assertEqual(style_of(rel), 'c')
+                self.assertEqual(style_of(rel), style)
+
+    def test_types_where_indentation_is_meaning_keep_it(self):
+        for rel, style in (('a.hs', 'dash-keep'), ('a.elm', 'dash-keep'), ('a.nim', 'hash-keep'), ('a.coffee', 'hash-keep'),
+                           ('a.fs', 'c-keep'), ('a.yml', 'safe'), ('a.yaml', 'safe'), ('Makefile', 'safe'), ('a.pyx', 'python'),
+                           ('rules.bzl', 'python'), ('BUILD', 'python')):
+            with self.subTest(rel):
+                self.assertEqual(style_of(rel), style)
+
+    def test_a_file_known_by_its_name(self):
+        for rel, style in (('Dockerfile', 'hash'), ('dir/dockerfile', 'hash'), ('Rakefile', 'hash'), ('CMakeLists.txt', 'hash')):
+            with self.subTest(rel):
+                self.assertEqual(style_of(rel), style)
+
+    def test_everything_not_listed_is_safe(self):
+        for rel in ('a.erl', 'a.unknown', 'noext', 'dir.py/file', 'a.b/c', 'a.txt', 'a.xyz'):
+            with self.subTest(rel):
+                self.assertEqual(style_of(rel), 'safe')
+
+    def test_an_unknown_style_is_refused_and_not_guessed(self):
+        with self.assertRaises(ValueError):
+            normalized(['x'], 'cc')
 
     def test_c_family_hashes_are_byte_for_byte_what_they_were(self):
         # hashes made by the rule before it followed the file type; a drift here would rewrite every locked project
@@ -245,6 +268,115 @@ class TestPythonFStrings(unittest.TestCase):
         self.assertEqual(self.levels(lines), "0:x = f'{d[\"a\"]} it\\'s' + f\"{n:>{w}}\"\n0:if x:\n1:pass")
 
 
+class TestTheSafeStyle(unittest.TestCase):
+    """A type that is not listed: nothing is hidden except blank lines and trailing spaces. Comments are code, indentation counts."""
+
+    def test_comments_and_spacing_inside_a_line_are_kept(self):
+        self.assertEqual(py('% about it\nf()  ->  ok.\n', 'safe'), '0:% about it\n0:f()  ->  ok.')
+
+    def test_blank_lines_and_trailing_spaces_go(self):
+        self.assertEqual(py('a   \n\n   \nb\t\n', 'safe'), '0:a\n0:b')
+
+    def test_a_piece_moved_to_other_columns_is_the_same_and_a_line_moved_inside_it_is_not(self):
+        a = ['f(x) ->', '    g(x),', '    h(x).']
+        self.assertEqual(normalized(a, 'safe'), normalized(['  ' + l for l in a], 'safe'))
+        self.assertEqual(normalized(a, 'safe'), '0:f(x) ->\n4:g(x),\n4:h(x).')
+        self.assertNotEqual(normalized(a, 'safe'), normalized(['f(x) ->', 'g(x),', '    h(x).'], 'safe'))
+
+    def test_the_smallest_indentation_of_the_kept_lines_is_the_base(self):
+        self.assertEqual(normalized(['    a', '  b', '      c'], 'safe'), '2:a\n0:b\n4:c')
+
+    def test_tabs_count_as_eight_columns(self):
+        self.assertEqual(normalized(['a', '\tb'], 'safe'), '0:a\n8:b')
+
+
+class TestTheStylesThatKeepIndentation(unittest.TestCase):
+    def test_a_haskell_line_moved_out_of_a_do_block_is_a_change(self):
+        a = ['main = do', '  putStrLn "a"', '  putStrLn "b"']
+        b = ['main = do', '  putStrLn "a"', 'putStrLn "b"']
+        self.assertNotEqual(normalized(a, 'dash-keep'), normalized(b, 'dash-keep'))
+        self.assertEqual(normalized(a, 'dash-keep'), '0:main = do\n2:putStrLn "a"\n2:putStrLn "b"')
+
+    def test_their_comment_lines_still_go_and_a_comment_does_not_shift_the_columns(self):
+        self.assertEqual(normalized(['      -- about it', 'main = do', '  f'], 'dash-keep'), '0:main = do\n2:f')
+
+    def test_yaml_comments_are_code_because_a_hash_line_in_a_block_scalar_is_text(self):
+        a = ['key: |', '  # not a comment', '  text']
+        self.assertEqual(normalized(a, 'safe'), '0:key: |\n2:# not a comment\n2:text')
+
+    def test_a_nim_hash_line_is_a_comment_and_its_nesting_counts(self):
+        self.assertEqual(normalized(['# about', 'proc f() =', '  echo 1'], 'hash-keep'), '0:proc f() =\n2:echo 1')
+        self.assertNotEqual(normalized(['proc f() =', '  echo 1'], 'hash-keep'), normalized(['proc f() =', 'echo 1'], 'hash-keep'))
+
+    def test_a_scala_block_and_an_fsharp_block_keep_their_columns(self):
+        self.assertEqual(normalized(['// c', 'def f =', '  g'], 'c-keep'), '0:def f =\n2:g')
+
+
+class TestMultiLineStrings(unittest.TestCase):
+    """A line inside a multi-line string is text, whatever it looks like. Only that changes: blank lines, indentation and runs of
+    spaces inside such a string are not seen, as in a Python docstring."""
+
+    def test_a_comment_looking_line_in_a_template_literal_is_part_of_the_hash(self):
+        a = ['const sql = `', '// the query', 'SELECT 1', '`;']
+        self.assertEqual(normalized(a, 'c+tick'), 'const sql = `\n// the query\nSELECT 1\n`;')
+        self.assertNotEqual(normalized(a, 'c+tick'), normalized(['const sql = `', '// the other query', 'SELECT 1', '`;'], 'c+tick'))
+        self.assertEqual(normalized(a, 'c'), 'const sql = `\nSELECT 1\n`;')          # the old rule, for a style without strings
+
+    def test_html_comments_and_block_comments_inside_a_string_are_text_too(self):
+        for line in ('<!-- hello -->', '/* text */'):
+            with self.subTest(line):
+                a = ['q := `', line, 'x', '`']
+                b = ['q := `', line.replace('hello', 'bye').replace('text', 'other'), 'x', '`']
+                self.assertNotEqual(normalized(a, 'c+tick'), normalized(b, 'c+tick'))
+
+    def test_after_the_string_a_comment_is_a_comment_again(self):
+        lines = ['const a = `x', '// text', '`;', '// a comment', 'const b = 1;']
+        self.assertEqual(normalized(lines, 'c+tick'), 'const a = `x\n// text\n`;\nconst b = 1;')
+
+    def test_a_string_that_closes_on_its_line_is_no_multi_line_string(self):
+        lines = ['const a = `x ${b} y`;', '// a comment', 'const c = 1;']
+        self.assertEqual(normalized(lines, 'c+tick'), 'const a = `x ${b} y`;\nconst c = 1;')
+
+    def test_triple_quotes_for_java_kotlin_swift_scala_and_csharp(self):
+        a = ['String s = """', '    // not a comment', '    """;', '// a comment']
+        self.assertEqual(normalized(a, 'c+triple'), 'String s = """\n// not a comment\n""";')
+
+    def test_dart_has_triple_single_quotes_as_well(self):
+        a = ["var s = \'\'\'", '// not a comment', "\'\'\';"]
+        self.assertEqual(normalized(a, 'c+triple+triple1'), "var s = \'\'\'\n// not a comment\n\'\'\';")
+        self.assertEqual(normalized(a, 'c+triple'), "var s = \'\'\'\n\'\'\';")      # a style without them does not see it
+
+    def test_a_backtick_in_a_comment_does_not_open_a_string(self):
+        # editors/vscode/src/extension.js has a trailing comment `// inside a ``` block: ...`
+        lines = ['let fence = false;   // inside a ``` block: shaded', '// a comment', 'const x = 1;']
+        self.assertEqual(normalized(lines, 'c+tick'), 'let fence = false; // inside a ``` block: shaded\nconst x = 1;')
+
+    def test_a_backtick_in_a_block_comment_or_in_another_string_does_not_open_one(self):
+        lines = ['/* a ` in a block', '   comment */', 'const s = "a `";', '// a comment', 'const t = 1;']
+        self.assertEqual(normalized(lines, 'c+tick'), '/* a ` in a block\ncomment */\nconst s = "a `";\nconst t = 1;')
+
+    def test_a_backtick_on_a_later_line_of_a_block_comment_opens_nothing(self):
+        lines = ['/* a block', '   with a ` in it */', '// a comment', 'const t = 1;']
+        self.assertEqual(normalized(lines, 'c+tick'), '/* a block\nwith a ` in it */\nconst t = 1;')
+
+    def test_an_apostrophe_is_no_string(self):
+        lines = ["let a = x; // it's", "// a comment", "const t = 1;"]
+        self.assertEqual(normalized(lines, 'c+tick'), "let a = x; // it's\nconst t = 1;")
+        lines = ["fn f<'a>(x: &'a str) {}", '// a comment', 'let b = 1;']
+        self.assertEqual(normalized(lines, 'c+tick'), "fn f<'a>(x: &'a str) {}\nlet b = 1;")
+
+    def test_blank_lines_and_runs_of_spaces_inside_the_string_are_not_seen(self):
+        a = ['const a = `x', '', '   y    z', '`;']
+        self.assertEqual(normalized(a, 'c+tick'), 'const a = `x\ny z\n`;')
+
+    def test_a_style_without_strings_gives_the_same_text_as_before_for_code_without_any(self):
+        code = ['  // note', 'export const total = (items: number[]) => {', '    return items.reduce((a, b) => a + b, 0);   ', '};', '/* block */']
+        for style in ('c+tick', 'c+triple', 'c+triple+triple1'):
+            with self.subTest(style):
+                self.assertEqual(normalized(code, style), normalized(code, 'c'))
+        self.assertEqual(hashed(code, 'c+tick'), '5502253e7c35')
+
+
 class TestAPieceThatDipsBelowItsFirstLine(unittest.TestCase):
     """A region is often part of a block: it starts inside a method and goes on with a line of the class around it."""
     PIECE = ['        a = 1', '    b = 2', '        c = 3']
@@ -379,8 +511,7 @@ class TestALockOfPythonCode(Project1):
         write(self.dir, 'src/calc.ts', '// @clause calc/sum\nexport const total = (a: number[]) => a.reduce((x, y) => x + y, 0);\n// @clause end\n')
         project = Project(self.dir)
         scan = Scan(project)
-        self.assertFalse(scan.has_own_rules())
-        self.assertEqual(scan.code_hashes(), scan.code_hashes(legacy=True))
+        self.assertEqual(scan.code_hashes(), scan.code_hashes(legacy=True))     # no multi-line string: the same hash as the old rule
         self.assertEqual(lockfile.old_rule_keys(lockfile.snapshot(project, scan), scan), {})
 
 
@@ -482,6 +613,29 @@ class TestALockMadeUnderTheOldRule(Project1):
         self.assertEqual(self.entries()['calc/sum']['code'], self.hashes()['calc/sum'])
         flows.replace_in(self.code, '    return t', '        return t')
         self.assertEqual(self.sor('status')[0], 2)                      # and the Python side now counts its nesting
+
+    def test_a_file_that_gained_a_string_rule_migrates_like_python_did(self):
+        write(self.dir, 'src/calc.py', '')
+        q = '// @clause calc/sum\nconst q = `\n// the query\nSELECT 1\n`;\n// @clause end\n'
+        write(self.dir, 'src/q.ts', q)
+        self.old_lock()
+        code, out, _ = self.sor('status')
+        self.assertEqual(code, 0, out)                      # the old rule did not see the line, so it is no change
+        self.assertIn('1 locked code hash(es)', out)
+        self.assertEqual(self.sor('lock', '--rehash')[0], 0)
+        self.assertEqual(self.sor('status')[0], 0)
+        write(self.dir, 'src/q.ts', q.replace('the query', 'the other query'))
+        self.assertEqual(self.sor('status')[0], 2)          # and now it is one
+
+    def test_a_file_that_moved_to_the_safe_style_migrates_and_then_sees_its_nesting(self):
+        write(self.dir, 'src/calc.py', '')
+        y = '# @clause calc/sum\nkey:\n  child: 1\n  other: 2\n# @clause end\n'
+        write(self.dir, 'src/c.yml', y)
+        self.old_lock()
+        self.assertEqual(self.sor('status')[0], 0)
+        self.assertEqual(self.sor('lock', '--rehash')[0], 0)
+        write(self.dir, 'src/c.yml', y.replace('  other: 2', 'other: 2'))
+        self.assertEqual(self.sor('status')[0], 2)          # moved out of the block: the old rule could not see it
 
     def test_it_is_not_drift_and_status_says_what_to_do(self):
         self.old_lock()

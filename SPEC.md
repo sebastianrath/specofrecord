@@ -629,27 +629,44 @@ Choices the tool made where this spec is silent:
 - A region marked with several ids may change when any one of them changes; the others are
   listed for review and their tests must pass again.
 - The root part's lock key is `ROOT`; root items have no prefix (`year`). A lock written before the rename calls it `CLAUSES`: the tool reads that as `ROOT`, so nothing counts as changed, and the next lock writes `ROOT` with every hash as it was.
-- The lock hashes code without layout, and the rule follows the type of the file. For every type not named below: no blank lines, no
-  comment-only lines (`//`, `/* */`, `<!-- -->`), no indentation, one space for each run of spaces outside quotes.
+- The lock hashes code without layout, and the rule follows the type of the file, found by its extension or, for a few files, its
+  name (`Dockerfile`, `BUILD`). A rule is a style, written `family[-keep][+kinds]`: which lines are comments, whether indentation counts,
+  and which multi-line strings the type has. `vectors/hashing.json` lists the types and pins every style with rows.
+  - **Safe** (`safe`) is the style of a type that is not listed, and nothing is hidden but blank lines and trailing spaces. Comments are
+    code and spaces inside a line stay. Each line carries its column, counted from the smallest indentation of the lines kept (a tab is
+    eight columns), so moving a whole piece of code is not a change and moving a line inside it is. YAML, Makefiles, Erlang, MATLAB and
+    every type nobody listed are safe: more false alarms, never a change that goes unseen.
+  - **C family** (`c`): no blank lines, no comment-only lines (`//`, `/* */`, `<!-- -->`), no indentation, one space for each run of spaces
+    outside quotes. Listed: C, C++, Objective-C, Rust, PHP, Zig, Solidity, protocol buffers, shaders, Verilog, HTML, CSS and JSON, and
+    with the multi-line strings they have, JavaScript, TypeScript, Go, Java, Kotlin, Swift, C#, Dart and Groovy.
+  - **Multi-line strings** (`+tick` for backticks, `+triple` for `"""`, `+triple1` for Dart's `'''`): a line inside one is text, never a comment,
+    even when it looks like one (`// the query` in a template literal, `<!-- hello -->` in a Go raw string). `//` comments and `/* */`
+    blocks are skipped before a quote is looked for, and a string that closes on its line is not a multi-line string. Inside one, blank
+    lines, indentation and runs of spaces are not seen, as in a Python docstring.
   - **Python** (`.py`, `.pyi`, `.pyw`): comment-only lines are the `#` lines, and the nesting counts. Every statement carries its depth,
     in levels and not in columns, so changing 2 spaces to 4 is not a change and moving a line into a loop is. Lines that go on inside
     brackets, after a backslash or inside a multi-line string carry no depth (a string that a backslash at the end of a line continues
     is one of them, and so is a replacement field of an f-string, which since Python 3.12 may reuse the quote of the f-string and span lines), and a `#` line inside a multi-line string is text. A region is often a piece of a block: a line of the block
     around it that comes after the first line is counted one level below it (`-1:`). A coding cookie (`# -*- coding: latin-1 -*-`) is
     code, because it changes how the file is read.
-  - **Shell, Ruby, Perl, R, TOML** (`.sh`, `.bash`, `.zsh`, `.rb`, `.pl`, `.r`, `.toml`): `#` lines are comments (a `#!` line and a
-    magic comment such as `# frozen_string_literal: true` are code); indentation does not count. A `#` line inside a here-document or
+  - **Shell, Ruby, Perl, R, TOML, Elixir, Julia, PowerShell, Terraform, Dockerfile** and the like (`hash`): `#` lines are comments (a `#!` line and
+    a magic comment such as `# frozen_string_literal: true` are code); indentation does not count. A `#` line inside a here-document or
     a string that goes over several lines is text. A quote the tool takes to be open when it is not only keeps comments as code, so
     it can make a comment edit count as a change but never hide a change to code.
-  - **SQL, Lua, Haskell** (`.sql`, `.lua`, `.hs`): `--` lines, one-line `/* */` comments and one-line `{- -}` comments are comments.
-    A line that starts with `-->` or `--|` is a Haskell operator, and `{-# … #-}` is a pragma: both are code.
+  - **SQL, Lua, VHDL, Ada** (`dash`): `--` lines, one-line `/* */` comments and one-line `{- -}` comments are comments. A line that
+    starts with `-->` or `--|` is a Haskell operator, and `{-# … #-}` is a pragma: both are code.
+  - **Types where indentation is meaning** keep it (`-keep`): Haskell and Elm (`--` comments), Nim and CoffeeScript (`#`), F#, Scala, Sass
+    and Stylus (`//`). Scala 3 may leave out braces. They are compared by column as the safe style is, and their spaces are not collapsed.
   - A comment after code is part of its line in every type.
 
   Re-indenting or reformatting is not drift; a changed word, number or string is. Changing this rule changes every locked code hash
   once, and `sor lock --rehash` is that rewrite: it gives the new hash to an entry whose code is unchanged under the old rule, and
   leaves `text`, `refs` and results as they were. `sor status` says when hashes are waiting for it. Until then a change that only the old
-  rule ignores, such as a Python line moved into a loop, is not seen. Not covered: YAML and Makefiles (indentation is meaning there too),
-  Ruby and Perl block comments (`=begin`, `=pod`) and comments that span several lines in SQL, Lua and Haskell: their lines are code. Tool copies of different ages disagree about Python code: an older tool reads a lock
+  rule ignores, such as a Python line moved into a loop, is not seen. Not covered: Ruby and Perl block comments (`=begin`, `=pod`) and comments that
+  span several lines in SQL, Lua and Haskell (their lines are code); C++ raw strings, PHP heredocs, C# verbatim strings, Rust strings that go
+  over lines and SQL strings (a line in one that looks like a comment is dropped); a JavaScript regular expression with a quote or a
+  backtick in it, which can put the string tracker out of step. A file that moves to another style migrates in the same way, except a Haskell lock made when it was still read without its
+  indentation, which needs one relock. Tool copies of different ages disagree about Python code: an older tool reads a lock
   that a newer one wrote as drift on every Python region, and refuses to lock, so update every copy of the tool together (the format number above does not help
   here: it protects against formats written from now on).
 

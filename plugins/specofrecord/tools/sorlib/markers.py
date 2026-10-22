@@ -143,20 +143,55 @@ DASH_COMMENT = re.compile(r'^(--+(?![!#$%&*+./<=>?@\\^|~:]).*|/\*(?:(?!\*/).)*\*
 # file is read, and so does Ruby's `# frozen_string_literal: true`.
 MAGIC = re.compile(r'^#.*(?:coding[:=]|frozen_string_literal:|shareable_constant_value:)')
 
-# How a file's code is normalized follows its type. Whatever is not listed is read as C-family (`//`, `/* */`, `<!-- -->`;
-# indentation never counts), which is how every file was read before the rule followed the file type, so those hashes
-# are unchanged. In Python indentation is meaning: a line moved into a loop is a change.
-STYLE_BY_EXTENSION = {
-    **dict.fromkeys(('py', 'pyi', 'pyw'), 'python'),                      # `#` comments, indentation counts
-    **dict.fromkeys(('sh', 'bash', 'zsh', 'rb', 'pl', 'r', 'toml'), 'hash'),   # `#` comments, indentation does not
-    **dict.fromkeys(('sql', 'lua', 'hs'), 'dash'),                        # `--` and `/* */` comments
-}
+# How a file's code is normalized follows its type (SPEC §11). A style is written `family[-keep][+kinds]`.
+#   family   which lines are comments: c (`//`, `/* */`, `<!-- -->`), hash (`#`), dash (`--`, `/* */`, `{- -}`), python (`#`, and the
+#            nesting of statements counts), or safe (none: a comment is code).
+#   -keep    indentation counts: each line carries its column, relative to the smallest of the lines kept, and spaces are not collapsed.
+#            safe means -keep.
+#   +kinds   the multi-line strings the type has, whose lines are text and never a comment: tick (`` ` ``), triple (`"""`), triple1 (`'''`).
+# A file of a type that is not listed gets `safe`, which hides nothing but blank lines and trailing spaces. One row per kind of file:
+# its extensions, its style, and the comment starters (besides the ones every file has) that a marker may be written after.
+LANGUAGES = [
+    ('py pyi pyw pyx pxd pxi bzl bazel star sky', 'python', ''),
+    ('sh bash zsh ksh fish rb rake gemspec pl pm r toml ex exs jl ps1 psm1 tf tfvars cmake nix tcl cr awk', 'hash', ''),
+    ('sql lua vhd vhdl ada adb ads', 'dash', ''),
+    ('hs elm purs idr', 'dash-keep', ''),
+    ('nim nims coffee', 'hash-keep', ''),
+    ('js jsx mjs cjs ts tsx mts cts go', 'c+tick', ''),
+    ('java kt kts swift cs', 'c+triple', ''),
+    ('dart groovy gradle', 'c+triple+triple1', ''),
+    ('scala sc', 'c-keep+triple', ''),
+    ('fs fsx fsi', 'c-keep', '(*'),
+    ('sass styl', 'c-keep', ''),
+    ('c h cc cpp cxx hh hpp hxx ino mm rs php zig sol proto thrift glsl vert frag hlsl metal d v sv svh html htm xhtml css scss less '
+     'json jsonc json5 vue svelte', 'c', ''),
+    ('m', 'c', '%'),                       # Objective-C, or MATLAB
+    ('pas pp', 'c', '(*'),
+    ('erl hrl tex sty', 'safe', '%'),
+    ('f f90 f95 f03 f08 for ftn', 'safe', '!'),
+    ('vb vbs bas', 'safe', "'"),
+    ('bat cmd', 'safe', 'rem'),
+    ('ml mli mll mly', 'safe', '(*'),
+]
+# Files known by their name, not their extension.
+LANGUAGES_BY_NAME = {'dockerfile': 'hash', 'containerfile': 'hash', 'rakefile': 'hash', 'gemfile': 'hash', 'vagrantfile': 'hash',
+                     'cmakelists.txt': 'hash', 'build': 'python', 'workspace': 'python'}
+DEFAULT_STYLE = 'safe'
+STYLES = {ext: (style, starters) for exts, style, starters in LANGUAGES for ext in exts.split()}
+FAMILIES = ('c', 'hash', 'dash', 'python', 'safe')
+
+
+def _language(rel):
+    """(style, extra marker starters) of the file at this project-relative path."""
+    name = os.path.basename(rel).lower()
+    if name in LANGUAGES_BY_NAME:
+        return LANGUAGES_BY_NAME[name], ''
+    return STYLES.get(name.rpartition('.')[2], (DEFAULT_STYLE, '')) if '.' in name else (DEFAULT_STYLE, '')
 
 
 def style_of(rel):
-    """The normalization style of the file at this project-relative path: c (the default), python, hash or dash."""
-    name = os.path.basename(rel)
-    return STYLE_BY_EXTENSION.get(name.rpartition('.')[2].lower(), 'c') if '.' in name else 'c'
+    """The normalization style of the file at this project-relative path (see the table above); `safe` for a type not listed."""
+    return _language(rel)[0]
 
 
 def _collapse(t):
@@ -164,23 +199,105 @@ def _collapse(t):
     return ''.join(part if i % 2 else re.sub(r'[ \t]+', ' ', part) for i, part in enumerate(QUOTED.split(t)))
 
 
+def _indented(kept, keep):
+    """The texts of the kept lines [(line, text)], each led by its column when indentation counts (`3:foo`): the line's own
+    indentation, tabs as 8 columns, less the smallest of them, so that moving the whole piece of code is not a change."""
+    if not keep:
+        return [text for _, text in kept]
+    cols = [len(line[:len(line) - len(line.lstrip())].expandtabs(8)) for line, _ in kept]
+    low = min(cols, default=0)
+    return [f'{c - low}:{text}' for c, (_, text) in zip(cols, kept)]
+
+
 def normalized(lines, style='c'):
     """Code as the lock sees it: no blank lines, no comment-only lines, no indentation, and one
     space for every run of spaces outside quotes. Text inside quotes and everything else stays
     exactly as written, so re-indenting and re-spacing is not a change but a new word is.
-    `style` (see `style_of`) says which lines are comments and, for Python, that the nesting of lines is kept."""
-    if style == 'python':
+    `style` (see `LANGUAGES`) says which lines are comments, whether indentation counts, and which multi-line strings there are."""
+    base, _, kinds = style.partition('+')
+    family = base[:-5] if base.endswith('-keep') else base
+    if family not in FAMILIES:
+        raise ValueError(f'unknown normalization style {style!r}')
+    if family == 'python':
         return _python_normalized(lines)
-    if style == 'hash':
-        return _hash_normalized(lines)
-    comment = DASH_COMMENT if style == 'dash' else COMMENT_LINE
-    out = []
-    for line in lines:
+    keep = family == 'safe' or base.endswith('-keep')
+    if family == 'hash':
+        return _hash_normalized(lines, keep)
+    comment = {'c': COMMENT_LINE, 'dash': DASH_COMMENT}.get(family)
+    inside = _inside_strings(lines, kinds.split('+')) if kinds else ()
+    kept = []
+    for i, line in enumerate(lines):
         t = line.strip()
-        if not t or comment.match(t):
+        if not t or (comment is not None and comment.match(t) and not (inside and inside[i])):
             continue
-        out.append(_collapse(t))
-    return '\n'.join(out)
+        kept.append((line, t if keep else _collapse(t)))
+    return '\n'.join(_indented(kept, keep))
+
+
+_LEX = re.compile(r'//|/\*|`|"""|\'\'\'|"|\'')
+_CLOSERS = {}
+
+
+def _after_closer(line, i, quote):
+    """The index just after the next `quote` at or after i, where a backslash makes the next character no closer; -1 when the
+    line has none."""
+    if quote not in _CLOSERS:
+        _CLOSERS[quote] = re.compile(r'\\\\|' + re.escape(quote))
+    while True:
+        m = _CLOSERS[quote].search(line, i)
+        if m is None:
+            return -1
+        if m.group() != '\\\\':
+            return m.end()
+        i = m.end() + 1
+
+
+def _inside_strings(lines, kinds):
+    """For each line, whether it starts inside a multi-line string (so it is text, and a line that looks like a comment is not one).
+    `kinds`: tick, triple, triple1 (see `LANGUAGES`). Comments are skipped, `//` to the end of the line and `/* */` over lines,
+    before a quote is looked for, and a quote that closes on its line is a string of one line. Wrongly inside keeps comment lines,
+    which only gives a false alarm; wrongly outside is what the table cannot see, such as a regular expression with a quote in it."""
+    opens = {'`': 'tick' in kinds, '"""': 'triple' in kinds, "'''": 'triple1' in kinds}
+    out, state = [], None   # state: None, 'block' (inside /* */), or the closer of the multi-line string that is open
+    for line in lines:
+        out.append(state not in (None, 'block'))
+        i, n = 0, len(line)
+        while i < n:
+            if state == 'block':
+                j = line.find('*/', i)
+                if j < 0:
+                    break
+                state, i = None, j + 2
+            elif state is not None:
+                j = _after_closer(line, i, state)
+                if j < 0:
+                    break
+                state, i = None, j
+            else:
+                m = _LEX.search(line, i)
+                if m is None:
+                    break
+                tok, i = m.group(), m.end()
+                if tok == '//':
+                    break
+                if tok == '/*':
+                    j = line.find('*/', i)
+                    if j < 0:
+                        state = 'block'
+                        break
+                    i = j + 2
+                    continue
+                if tok in ('"""', "'''") and not opens[tok]:
+                    tok, i = tok[0], m.start() + 1     # an empty string, then whatever follows
+                j = _after_closer(line, i, tok)
+                if tok in opens and opens[tok]:
+                    if j < 0:
+                        state = tok
+                        break
+                    i = j
+                elif tok in ('"', "'") and j >= 0:
+                    i = j                              # a string of one line (an unclosed quote is an apostrophe)
+    return out
 
 
 def _is_comment(t):
@@ -358,18 +475,19 @@ def _python_state(line, stack, depth):
 HEREDOC = re.compile(r'<<[-~]?[ \t]*(?:"([^"]+)"|\'([^\']+)\'|\\?([A-Za-z_][A-Za-z0-9_]*))')
 
 
-def _hash_normalized(lines):
+def _hash_normalized(lines, keep=False):
     """Code of a `#` language (shell, Ruby, Perl, R, TOML) without layout: comment-only lines and blank lines are gone and spaces are
-    collapsed. A `#` line inside a string or a here-document is text, not a comment, so what is open at the end of a line is tracked."""
-    out, open_ = [], None
+    collapsed. A `#` line inside a string or a here-document is text, not a comment, so what is open at the end of a line is tracked.
+    `keep`: indentation counts (see `normalized`), and spaces are not collapsed."""
+    kept, open_ = [], None
     for line in lines:
         t = line.strip()
         if open_ is None and (not t or _is_comment(t)):
             continue
         if t:
-            out.append(_collapse(t))
+            kept.append((line, t if keep else _collapse(t)))
         open_ = _hash_state(line, open_)
-    return '\n'.join(out)
+    return '\n'.join(_indented(kept, keep))
 
 
 def _hash_state(line, open_):

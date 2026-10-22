@@ -40,7 +40,7 @@ def sha(text):
 
 class TestTheFile(unittest.TestCase):
     def test_it_has_every_category_with_rows_and_a_name_for_each_row(self):
-        self.assertEqual(VECTORS['format'], 1)
+        self.assertEqual(VECTORS['format'], 2)
         for category in CATEGORIES:
             with self.subTest(category):
                 self.assertTrue(VECTORS[category]['how'])

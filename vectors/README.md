@@ -14,7 +14,8 @@ a port (for example a TypeScript one, so that an editor needs no Python) loads t
 - The Python rows include f-strings with fields that reuse their quote or span lines (Python 3.12 and later): a port reads them whatever
   Python it runs on.
 - A rule that changes means the rows change in the same commit, and `format` in the file counts the changes that are not
-  additions. Adding rows does not change it.
+  additions. Adding rows does not change it. Format 2 is the table of types with a safe default, and keeps indentation and tracks multi-line
+  strings where the type needs it.
 - Not covered: the evidence fingerprint, which needs a parsed project, and the status of a clause.
 
 ## Adding a row

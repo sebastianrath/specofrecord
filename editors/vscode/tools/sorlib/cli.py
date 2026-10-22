@@ -180,7 +180,7 @@ def cmd_status(args):
         stale = lockfile.old_rule_keys(old, scan)
         if stale:
             print(f'note: {len(stale)} locked code hash(es) were made with the rule every file followed before it followed the file '
-                  'type (Python indentation and `#` comments, for one). `sor lock --rehash` rewrites them and accepts no change; until '
+                  'type (Python indentation, `#` comments, or the lines of a multi-line string, for example). `sor lock --rehash` rewrites them and accepts no change; until '
                   'then a change only the old rule ignores is not seen.')
             print()
         if not old and not args.all:
