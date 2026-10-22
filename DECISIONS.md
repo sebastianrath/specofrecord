@@ -1016,6 +1016,26 @@ which is recorded on the language's line; the hook that asks before `--allow-beh
 - **Version skew.** A targeted project that confirms a language moves to format 3 at that lock. The installed 0.9.8 extension and the game-engine project's own copy
   of the tool refuse it with the message to update.
 
+## A lock stops when what it read has moved (2026-10-22)
+Found while the owner asked whether two agents could ever race on a clause. One agent working alone cannot race with itself, but claims are advisory, the edit hook
+only runs inside Claude Code, and subagents share one session, so a second chat, a person, a background job or (from stage 6) a language agent can be at work on
+the same files.
+- **What was already safe.** The lock and claims files are written whole through a temp file and a rename, the claims file is changed under a mutex and re-read,
+  and a scoped lock re-reads the lock under its mutex and merges only its own keys.
+- **A lost update.** `sor lock --all` wrote the whole lock it had worked out from the lock it read at the start, and a scoped lock replaced its own keys: another
+  lock that landed in between was overwritten, results and manual confirmations included. Now, under the mutex, the lock is read again and the lock stops, writing
+  nothing, if it differs from what this one began with (for `--all`) or if any of its own keys does (for a scoped lock). A line of a language counts as part of
+  its clause.
+- **A snapshot that was not atomic.** Spec files and code files are read one after the other, so an edit in between could be locked as clause text and code that
+  never existed together, and `sor status` would then call it drift, a person's change. The files are stamped (`mtime_ns`, size) before anything is read, and
+  stamped again under the mutex; the lock stops when a spec file or a code file of what it locks has changed. It does not hold the mutex for a second scan: the
+  mutex counts as stale after 10 seconds and a waiter may break it. A file that is touched without a change also stops it, and the answer is to run it again.
+- **A claim made meanwhile** stops a lock of the whole project too, with the usual message.
+- **Left as it is, and documented:** two waiters may break each other's stale mutex after a crash, and the edit hook cannot tell the subagents of one session apart.
+- **A rule for the per-language lock (stage 6).** `sor lock greet/hello@py` merges at the level of the line under the mutex: it writes only Python's line into the
+  entry it has just read and keeps TypeScript's, and the check above looks at that line only. Replacing the whole entry would let two language agents overwrite
+  each other.
+
 ## Still open
 - The tool is not under Spec of Record. Its hashing, marker and lock rules could be clauses with `Targets: py, js`, so that a change to a clause
   leaves the other language behind and a lock refuses until both follow (`proposals/multi-target.md`). Until then the vectors and the

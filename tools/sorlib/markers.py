@@ -8,6 +8,7 @@
     { name: 'mars', size: 5 },  // @clause bodies/planets/Mars    one line, inside or outside a region
 
 """
+import glob
 import hashlib
 import os
 import re
@@ -591,6 +592,22 @@ def code_hash(regions, legacy=False):
     C-family rule for all), joined by a line that holds a NUL, then SHA-256, the first 12 hex digits. `vectors/hashing.json` pins it."""
     parts = [r.normalized('c' if legacy else style_of(r.file)) for r in sorted(regions, key=lambda r: (r.file, r.start))]
     return hashlib.sha256('\n\x00\n'.join(parts).encode('utf8')).hexdigest()[:12]
+
+
+def file_stamps(project):
+    """{path: (mtime_ns, size)} of the spec files and of the files under the code roots: what a scan reads. Taken before the scan reads them,
+    a stamp that is different afterwards means the file changed in between. A path that cannot be examined is left out."""
+    paths = glob.glob(os.path.join(project.spec_dir, '**', '*.md'), recursive=True)
+    for root in project.code_roots():
+        paths += list(_files(project, root))
+    out = {}
+    for p in paths:
+        try:
+            st = os.stat(p)
+        except OSError:
+            continue
+        out[p] = (st.st_mtime_ns, st.st_size)
+    return out
 
 
 class Scan:

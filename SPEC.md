@@ -768,7 +768,9 @@ What the tool does about it:
   glue of a file that holds nothing but glue (an `__init__.py`) goes with every scoped lock, since no clause could ever
   claim it. Locking a part also retires the entries of items that left it since the last lock (moved to another part,
   where they are new, or deleted): they belong to the nearest part above them that still exists. Several scoped locks at
-  once keep each other's entries: the lock is re-read and merged under a short mutex.
+  once keep each other's entries: the lock is re-read and merged under a short mutex. A lock is worked out from what it read, and under that mutex it
+  stops, writing nothing, and says to run it again when the lock has changed for what it was locking (anything for a lock of the whole project), when a
+  spec file or a code file of what it locks has changed (the files are stamped before they are read), or when another agent claimed meanwhile (whole project).
 - **Edit guard (on where `SOR_ENFORCE_CLAIMS=1` is set for the hook: this repository's settings and the plugin).** The hook refuses an edit to a clause, or to code
   on a region, that another agent holds. It names who, since when and until when at the latest, and
   the agent decides: take another clause, wait and retry (the holder may release sooner), or ask.

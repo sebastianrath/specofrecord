@@ -38,7 +38,7 @@ from . import lint
 from . import lock as lockfile
 from . import testrun
 from . import views
-from .markers import Scan
+from .markers import Scan, file_stamps
 from .model import Project, part_id, split_lines
 
 
@@ -313,11 +313,24 @@ def cmd_rehash(args, project, scan):
     return 0
 
 
+def moved_files(project, scan, scope, before):
+    """The files that a lock read and that changed while it was being worked out: the spec files, and the code files of the regions in
+    scope (all of them without a scope). `before` is `file_stamps` taken before the scan read anything."""
+    now = file_stamps(project)
+    spec = project.spec_dir + os.sep
+    regions = scan.regions if scope is None else [r for r in scan.regions if any(k in scope for k in r.keys)]
+    relevant = {p for p in set(before) | set(now) if p.startswith(spec)} | {os.path.join(project.root, r.file) for r in regions}
+    return sorted(os.path.relpath(p, project.root).replace(os.sep, '/') for p in relevant if before.get(p) != now.get(p))
+
+
 def cmd_lock(args):
-    project, scan = load(args)
+    project = Project(args.root)
+    stamps = file_stamps(project)   # before anything is read: a file that changes after this is seen when the lock is about to be written
+    scan = Scan(project)
     if args.agent:
         claims.touch(project, claims.current_session(), args.agent)   # a person at a terminal who names themselves is at work too
     old = lockfile.read(project)
+    seen = json.loads(json.dumps(old))   # the lock as it was when this one began, to tell whether another lock landed since
     try:
         lockfile.check_writable(project)
     except lockfile.LockWriteError as e:
@@ -442,9 +455,28 @@ def cmd_lock(args):
         return 2
     try:
         with claims.lock_mutex(project):
+            # Between reading the lock and the files and writing, another agent may have locked, edited or claimed. A lock is worked out from
+            # what it read, so it writes nothing that it did not read: if the lock or a file it depends on moved, or (for the whole project)
+            # a claim appeared, it stops and says to run it again.
+            current = lockfile.read(project)
+            if (scope is None and current != seen) or (scope is not None and any(current.get(k) != seen.get(k) for k in scope)):
+                print('lock refused:\n  the lock changed while this one was being worked out (another `sor lock` finished in between): '
+                      'run it again')
+                return 2
+            moved = moved_files(project, scan, scope, stamps)
+            if moved:
+                print(f'lock refused:\n  {", ".join(moved[:5])}{" and more" if len(moved) > 5 else ""} changed while this one was being '
+                      'worked out: run it again')
+                return 2
+            if scope is None:
+                now_held = claims.others(project, me)
+                if now_held:
+                    print('lock refused:\n  ' + '\n  '.join(f'claimed  {claims.describe(c)}' for c in now_held)
+                          + '\n  lock only your own clauses: sor lock <ids>')
+                    return 2
             if scope is not None:
                 # another agent may have locked their clauses since we read the lock: keep theirs
-                merged = lockfile.read(project)
+                merged = current
                 for k in scope:
                     if k in entries:
                         merged[k] = entries[k]
