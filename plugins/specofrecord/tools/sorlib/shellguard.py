@@ -12,8 +12,15 @@ the drift of a project is kept for the stamps it was worked out for, so that it 
 
 What it leaves alone: a line whose every command is `git` or `sor` (they rewrite spec, code and lock on purpose) or `cd`, `pushd`, `popd`, `export`, as long as
 nothing is redirected to a file; a project of more than MAX_FILES files or whose files take longer than STAMP_SECONDS to look through; a command that
-ends after the hook ran (a background job); a command that is cancelled (no hook runs after it). Projects are those above the folder the session
-started in or, when there is none, up to MAX_PROJECTS below it (FIND_DEPTH levels, FIND_DIRS folders, FIND_SECONDS), looked for again after FOUND_TTL.
+ends after the hook ran (a background job); a command that is cancelled (no hook runs after it). Projects are those above the folder the session is in
+when the command runs (the `cwd` of the payload; it moves when the agent does `cd`) or, when there is none, up to MAX_PROJECTS below it (FIND_DEPTH levels,
+FIND_DIRS folders, FIND_SECONDS), looked for again after FOUND_TTL.
+
+What it does not look at: spec files. The edit guard refuses to rewrite one with Write and, when claims are enforced, to change a clause someone else claimed;
+a script that does the same goes unnoticed, and so does code that a script adds outside every region (`sor check` finds that).
+
+Anything that changes between the two hooks is told as having changed while the command ran: the hook cannot tell the command's writes from a person's, who may
+save a file in an editor meanwhile, so the warning does not say to revert.
 """
 import glob
 import hashlib
@@ -176,7 +183,7 @@ def look_below(top):
 
 
 def projects_of(payload):
-    """The project roots the session works in: the one above the folder it started in, else those below it (kept for FOUND_TTL seconds)."""
+    """The project roots the session works in: the one above the folder it is in (the `cwd` of the payload), else those below it (kept for FOUND_TTL seconds)."""
     cwd = os.path.abspath(payload.get('cwd') or os.getcwd())
     above = find_root(os.path.join(cwd, 'x'))
     if above:
@@ -316,8 +323,9 @@ def after(payload):
             lines += ([f'In {root}:'] if len(saved['projects']) > 1 else []) + found
     if not lines:
         return None
-    text = ('Spec of Record: this command changed files that the edit guard watches. The guard checks Edit, Write and MultiEdit only, so it did not see '
-            'the change, and nothing was undone.\n' + '\n'.join(lines) + '\n'
-            'If the behaviour should change, edit the clause and make the code change again; if it should not, revert the change. '
+    text = ('Spec of Record: files that the edit guard watches changed while this command ran. The guard checks Edit, Write and MultiEdit only, so it did '
+            'not see the change, and nothing was undone.\n' + '\n'.join(lines) + '\n'
+            'If the behaviour should change, edit the clause and make the code change again. If the command made a change that should not stand, revert that '
+            'one. A person may have saved a file in the editor while the command ran: keep a change of theirs, and follow the steps for code a person changed. '
             'Use Edit on files the guard watches: it checks this before it writes.')
     return {'hookSpecificOutput': {'hookEventName': payload.get('hook_event_name') or 'PostToolUse', 'additionalContext': text}}

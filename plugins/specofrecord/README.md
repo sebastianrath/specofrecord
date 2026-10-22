@@ -58,9 +58,13 @@ placeholders that `sor check` reports until they are filled in. Or create the fi
 - **A shell command that changes code is told so.** The edit guard sees Edit, Write and MultiEdit only, so a `sed -i`, a script or a formatter went by it.
   Around every Bash command that is not a `git` or `sor` command (`cd` and `export` do not count), a hook notes the files the guard watches and, afterwards
   (also when the command failed), tells Claude what changed that the guard would have refused: code whose clause did not change, code of a clause that
-  another session claimed, a lock file written by something but `sor lock`. It is a warning; the command has run and nothing is undone. Every Bash call
-  starts Python for it (about 0.1 s), and a command that changes a file in a project pays for a scan of it. Projects are looked for above the folder
-  the session started in, or up to eight below it; a project of more than 20,000 files is left alone. See "After a shell command" in SPEC §15. It guards Claude Code only: your own terminal, other agents and a script that Claude writes and runs are not covered, and how Claude
+  another session claimed, a lock file written by something but `sor lock`. It is a warning; the command has run and nothing is undone, and it says
+  the files changed while the command ran, because a person may have saved one meanwhile. It does not look at spec files: a script that rewrites a spec
+  file, or changes a clause someone else claimed, is not noticed. Every Bash call starts Python for it (about 0.1 s), and a command that changes a file
+  in a project pays for a scan of it. Projects are looked for above the folder the session is in when the command runs, or up to eight below it; a project
+  of more than 20,000 files is left alone. The plugin registers the hook for `PostToolUse` only, so a command that failed is not looked at: Claude Code
+  runs `PostToolUseFailure` for those, and it is not known whether an older Claude Code takes the event name or drops the whole hooks file with it (this
+  repository's own `.claude/settings.json` has it). See "After a shell command" in SPEC §15. It guards Claude Code only: your own terminal, other agents and a script that Claude writes and runs are not covered, and how Claude
   Code's bypass-permissions mode treats an `ask` is not verified. The same flag is the way out of `sor lock` refusing a language
   that is behind or has no code, so the answer to the question is yours.
 - **A claim ends with its session or when it is idle.** It is renewed by every `sor` command and every edit or read that carries the session id, and a

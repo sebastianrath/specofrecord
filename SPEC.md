@@ -620,13 +620,17 @@ the plugin at `plugins/specofrecord/`, DECISIONS.md):
   last lock (clauses changed, a language behind, drift; the rest as "and N more") and which claims are in force, so a session that did not start that work
   still knows of it. It says nothing for a project in agreement or with no lock yet, and it is left out whole if working it out fails.
 - *After a shell command* (the Bash tool), a warning. `pre-bash` notes the stamps (time and size) of the files the guard watches in the project and
-  which clauses already drift, `post-bash` runs after the command, also one that failed (Claude Code's PostToolUse and PostToolUseFailure), and compares.
+  which clauses already drift, `post-bash` runs after the command (PostToolUse; this repository's settings also register it for PostToolUseFailure, a command
+  that failed, which the plugin does not yet), and compares.
   If the command made code drift whose clause had not changed, or changed a file with code of a clause that another session claimed (when claims are
   enforced), or wrote the lock file, the agent is told so in the words of the edit guard. Nothing is undone and nothing is refused: the command has run.
-  Drift that was there before the command is not counted. A line whose every command is `git` or `sor` (they rewrite spec, code and lock on purpose), or
-  `cd`, `pushd`, `popd` or `export`, and that redirects nothing to a file, is left out; so is the lock file when the line runs `sor` or `git`. The
-  project is the one above the folder the session started in or, when there is none, up to eight below it (four levels down). A project with more than
-  20,000 files, a command that goes on in the background and one that is cancelled are not covered.
+  Drift that was there before the command is not counted. What changed between the two hooks is told as having changed while the command ran, and the
+  warning does not say to revert it: a person may have saved a file in the editor meanwhile, and a person's change is kept (see below). A line whose every
+  command is `git` or `sor` (they rewrite spec, code and lock on purpose), or `cd`, `pushd`, `popd` or `export`, and that redirects nothing to a file, is
+  left out; so is the lock file when the line runs `sor` or `git`. The project is the one above the folder the session is in when the command runs or, when
+  there is none, up to eight below it (four levels down). It looks at code and the lock file, **not at spec files**: the edit guard's refusal to rewrite
+  a spec file with Write and its claim check on a spec edit have no equivalent after a command, and code that a script adds outside every region is left
+  to `sor check`. A project with more than 20,000 files, a command that goes on in the background and one that is cancelled are not covered.
 - Not covered: code changed where no hook runs: a person's editor, another agent, a script outside Claude Code. That still shows as drift in
   `sor status`, and `sor lock` refuses it.
 

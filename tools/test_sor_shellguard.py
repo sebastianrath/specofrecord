@@ -119,12 +119,14 @@ class TestWhichCommandsAreLeftOut(unittest.TestCase):
 class TestTheCheckAfterACommand(Base):
     def test_code_changed_behind_the_guard_whose_clause_did_not_change_is_said(self):
         out = self.run_command(SED, lambda: change(self.dir, 'src/greet.py', 'Hello', 'Hi'))
-        self.assertIn('this command changed files that the edit guard watches', out)
+        self.assertIn('files that the edit guard watches changed while this command ran', out)
         self.assertIn('Clauses come first: code changes only after the clause it serves has changed.', out)
         self.assertIn('src/greet.py:1-3 serves `greet/hello`: change **hello** in sor/greet.md first.', out)
         self.assertNotIn('greet/bye', out)
         self.assertNotIn(f'In {self.dir}:', out)   # one project: no need to name it
         self.assertIn('Use Edit on files the guard watches', out)
+        self.assertIn('A person may have saved a file in the editor while the command ran: keep a change of theirs', out)
+        self.assertNotIn('if it should not, revert the change', out)   # not a blanket instruction: a person\'s change is kept
 
     def test_it_says_it_with_the_name_of_the_event_it_was_called_for(self):
         shellguard.before(self.payload(SED))
@@ -369,6 +371,18 @@ class TestTheHooksAsPrograms(Base):
         done = self.run_hook('post-bash', self.payload(SED))
         self.assertEqual((done.returncode, done.stdout), (0, ''))
 
+    def test_a_real_write_between_the_two_programs_is_seen_without_setting_any_time_by_hand(self):
+        done = self.run_hook('pre-bash', self.payload('sed -i s/Hello/Hiya/ src/greet.py', call='real'))
+        self.assertEqual((done.returncode, done.stdout), (0, ''), done.stderr)
+        path = os.path.join(self.dir, 'src', 'greet.py')
+        with open(path, 'r+', encoding='utf8') as fh:   # what sed does: the file is rewritten, with whatever time and size the system gives it
+            text = fh.read().replace('Hello', 'Hiya')
+            fh.seek(0)
+            fh.write(text)
+            fh.truncate()
+        done = self.run_hook('post-bash', self.payload('sed -i s/Hello/Hiya/ src/greet.py', call='real'))
+        self.assertIn('serves `greet/hello`', json.loads(done.stdout)['hookSpecificOutput']['additionalContext'])
+
     def test_a_lock_that_asks_is_still_asked_when_the_command_is_noted_too(self):
         done = self.run_hook('pre-bash', self.payload('sor lock greet/bye --allow-behind ts'))
         self.assertEqual(json.loads(done.stdout)['hookSpecificOutput']['permissionDecision'], 'ask')
@@ -385,18 +399,24 @@ class TestTheRegisteredCommands(Base):
             groups = json.load(fh)['hooks'].get(event, [])
         return [h['command'] for g in groups if g.get('matcher') == matcher for h in g['hooks']]
 
-    def test_a_command_after_bash_is_registered_for_success_and_failure_in_both_places(self):
+    # The plugin is installed on any Claude Code, and it is not known whether an older one takes an event name it does not know or drops the file with it
+    # (and with the edit guard), so the plugin has only PostToolUse; this repository, worked in with the current one, has PostToolUseFailure too.
+    EVENTS = {'the plugin': ('PostToolUse',), 'this repository': ('PostToolUse', 'PostToolUseFailure')}
+
+    def test_a_command_after_bash_is_registered_for_the_events_each_place_can_take(self):
         for name, path, env in guard.TestTheRegisteredCommands.WHERE:
-            for event in ('PostToolUse', 'PostToolUseFailure'):
+            for event in self.EVENTS[name]:
                 with self.subTest(name, event=event):
                     found = self.commands(path, event, 'Bash')
                     self.assertEqual(len(found), 1)
                     self.assertIn('hook post-bash', found[0])
                     self.assertIn('SOR_ENFORCE_CLAIMS=1', found[0])
+        with open(guard.TestTheRegisteredCommands.WHERE[0][1], encoding='utf8') as fh:
+            self.assertNotIn('PostToolUseFailure', json.load(fh)['hooks'])
 
     def test_the_registered_commands_note_and_then_say_what_a_command_changed(self):
         for name, path, env in guard.TestTheRegisteredCommands.WHERE:
-            for event in ('PostToolUse', 'PostToolUseFailure'):
+            for event in self.EVENTS[name]:
                 with self.subTest(name, event=event):
                     environment = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', TMPDIR=self.notes.name, **env)
                     before = self.commands(path, 'PreToolUse', 'Bash')

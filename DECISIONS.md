@@ -1267,16 +1267,25 @@ Edit, Write and MultiEdit tools). The owner chose a warning, not a refusal, with
 - **Left out:** a line whose every command is `git` or `sor`, or `cd`, `pushd`, `popd`, `export`, that redirects nothing to a file (`git show x > f` is looked
   at); the lock file when the line runs `sor` or `git`. The user's words were git and sor; `cd` is there because `cd x && sor lock` is how this repository is
   worked in, and without it every such line would be called a hand-written lock.
-- **Also after a failure.** Claude Code runs PostToolUse after a command that succeeded and PostToolUseFailure after one that failed (the hooks reference),
-  so `sed -i x f && false` is checked too; both are wired to `post-bash`, which names the event it answers. `tool_use_id` pairs the two hooks of a command (the
-  session and the command text when a payload has none).
+- **Also after a failure, where it is safe.** Claude Code runs PostToolUse after a command that succeeded and PostToolUseFailure after one that failed (the
+  hooks reference), so `sed -i x f && false` is checked too, and `post-bash` names the event it answers. This repository's `.claude/settings.json` has both. The
+  plugin has PostToolUse only: it is installed on any Claude Code, I could not find which version added the event (a third-party tracker puts it in the 2.1
+  releases of early 2026) nor what an older one does with a hook event it does not know, and a hooks file it drops would take the edit guard with it. Add the
+  event to `hooks/hooks.json` once that is known. `tool_use_id` pairs the two hooks of a command (the session and the command text when a payload has none).
 - **Projects below the session.** A session that starts at the root of a repository whose projects are `examples/x` and `editors/y` has no `sor/` above it, so
   looking up finds nothing (the incident that led here happened that way). The hook looks up first and then up to eight projects below, four levels down,
-  skipping hidden folders, `node_modules` and the like, for 0.25 s at most; the list is kept for ten minutes.
+  skipping hidden folders, `node_modules` and the like, for 0.25 s at most; the list is kept for ten minutes. "Above" is above the `cwd` of the payload, the folder the
+  session is in when the command runs, which moves when the agent does `cd`.
+- **Not run in a live session.** The tests feed payloads in the documented shape through the registered commands with `sh`. Claude Code reads its hooks when a
+  session starts, so the edit of `.claude/settings.json` made in the session that wrote this was not picked up: a `sed` on the example page produced no warning
+  and no note in the temporary folder. The first real run is the next session started here; it is worth one `sed -i` on a marked region and then `git checkout -- file`.
 - **Cost.** The shell test that made Python start only for a command with `--allow-behind` in it is gone, so every Bash call starts Python (75 ms here) twice. In a
   folder with no project nothing else happens (the search below is bounded and kept). Recording the stamps of 5,100 files took 25 ms; a project of more than
   20,000 files, or one that takes more than a second to look through, is left alone, quietly.
-- **Not covered:** a command that goes on after the hook ran (a background job), a command that is cancelled (no hook runs; its note is removed after a day), a
+- **A person's edit during a command.** The hook cannot tell the command's writes from a file a person saves in the editor while it runs (a build, a test run
+  of two minutes). So it says the files changed while the command ran, and it does not say to revert: the skill says a person's change is kept.
+- **Not covered:** spec files (the guard's refusal to rewrite one with Write and its claim check on a spec edit have no equivalent after a command, and
+  code a script adds outside every region is left to `sor check`; the owner can ask for a spec check as a next step), a command that goes on after the hook ran (a background job), a command that is cancelled (no hook runs; its note is removed after a day), a
   project more than four levels below the session's folder, a person's editor and another agent outside Claude Code (they still show as drift in `sor status`).
 - **Tested** with the commands in a table (what is left out and what is not), a project in about twenty situations (a clause changed first, drift that was
   there, two commands at once, two projects below, claims, a failing check, a lock file), the registered commands run through `sh` for both events, and a
