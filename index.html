@@ -309,7 +309,7 @@
   .cl-box { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--soft); }
   .cl-head, .cl-grid { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); }
   .cl-head .fe-file { position: static; z-index: auto; height: 36px; }
-  .cl-spec, .cl-code { position: relative; min-width: 0; border-top: 1px solid var(--line); --c: var(--muted); transition: background-color .35s, box-shadow .35s; }
+  .cl-spec, .cl-code { position: relative; min-width: 0; border-top: 1px solid var(--line); --c: var(--muted); transition: background-color .42s, box-shadow .42s; }
   .cl-spec { grid-column: 1; padding: 10px 76px 10px 16px; border-right: 1px solid var(--line); font-size: .92rem; line-height: 1.5; }
   .cl-code { grid-column: 2; }
   .cl-spec p { margin: 0; }
@@ -321,7 +321,7 @@
   .cl-spec[data-st], .cl-code[data-st] { background-color: color-mix(in srgb, var(--c) 14%, var(--soft)); background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 24%, transparent) 0 1.5px, transparent 1.5px 8px); box-shadow: inset 0 0 0 2px var(--c); }
   .cl-bd { display: none; flex: none; width: 20px; height: 20px; padding: 4px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px var(--soft); }
   .cl-bd-code { position: absolute; right: 10px; top: 8px; width: 28px; height: 28px; padding: 6px; }
-  .cl [data-st] > .cl-bd, .cl [data-st] > .cl-id > .cl-bd { display: block; animation: cl-pop .35s ease-out; }
+  .cl [data-st] > .cl-bd, .cl [data-st] > .cl-id > .cl-bd { display: block; animation: cl-pop .42s ease-out; }
   .cl-bd .sh-c { display: none; }
   .cl [data-st="locked"] .cl-bd .sh-c { display: inline; }
   .cl [data-st="locked"] .cl-bd .sh-o { display: none; }
@@ -332,10 +332,10 @@
   .cl-spec[data-refused] .cl-id::after { content: none; }
   .cl-no { margin-left: auto; display: none; color: var(--cl-no); font-weight: 600; }
   .cl-spec[data-refused] .cl-no { display: inline; }
-  .cl [data-edit] { background-image: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--c) 32%, transparent) 50%, transparent 70%), repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 24%, transparent) 0 1.5px, transparent 1.5px 8px); background-size: 260% 100%, auto; animation: cl-sweep 1.3s linear infinite; }
+  .cl [data-edit] { background-image: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--c) 32%, transparent) 50%, transparent 70%), repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 24%, transparent) 0 1.5px, transparent 1.5px 8px); background-size: 260% 100%, auto; animation: cl-sweep 1.56s linear infinite; }
   @keyframes cl-sweep { from { background-position: 130% 0, 0 0; } to { background-position: -30% 0, 0 0; } }
   /* a changed value stays yellow for about two seconds, then fades out as the next step begins */
-  .cl .chg { border-radius: 3px; animation: cl-chg 2.6s ease-out forwards; }
+  .cl .chg { border-radius: 3px; animation: cl-chg 3.12s ease-out forwards; }
   @keyframes cl-chg { 0%, 78% { background-color: #ffd84d; box-shadow: 0 0 0 3px #ffd84d; color: #111; } 100% { background-color: transparent; box-shadow: 0 0 0 3px transparent; } }
   .cl-agents { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
   .clawd { position: absolute; left: 0; top: 0; width: 36px; height: 24px; opacity: 0; will-change: transform; }
@@ -354,7 +354,7 @@
   .cl-tl.drag, .cl-tl.drag .cl-thumb { cursor: grabbing; }
   .cl-thumb:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
   .cl-tl u { flex: none; margin-left: 5px; font-size: .85rem; line-height: 1; text-decoration: none; opacity: .55; }
-  .cl-tl u.again { animation: cl-again 1.2s ease-out; }
+  .cl-tl u.again { animation: cl-again 1.44s ease-out; }
   @keyframes cl-again { 0% { opacity: 1; transform: rotate(-200deg); } 100% { opacity: .55; transform: none; } }
   .cl-cap { display: flex; align-items: baseline; gap: 12px; margin: 8px 0 0; font-size: .92rem; line-height: 1.5; color: var(--muted); min-height: 3em; }
   .cl-cap span { flex: 1; }
@@ -467,11 +467,11 @@
 
 <h2 id="goal">Why use SoR?</h2>
 <p>The reason a code line exists usually lives in a verbose commit message, a Jira ticket or a Slack message, not in the code itself. AI can write code quickly and loves to rewrite larger parts of the source code because it feels like it. AI agents mostly find context with a keyword search like grep, so when someone makes a change, they either miss things they should address or change too much.</p>
-<p>Over time, the team loses track of how their software actually works. In a review, you face hundreds of new lines that nobody can meaningfully trace, and you send them back to the AI with "fix this" or wave them through with an LGTM. The AI needs help too. Round after round of fixes, it keeps changing things until the code has moved away from its original purpose and nobody knows what it is changing anymore. It is a quality and liability risk.</p>
-<p>Here is what Spec of Record changes, for people and AI:</p>
+<p>Over time, the team loses track of how their software actually works. In a review, you face hundreds of new lines that nobody can meaningfully trace, and you send them back to the AI with "fix this" or wave them through with LGTM (sry that's me, I do that). The AI needs help too. Round after round of fixes, it keeps changing code until it has moved so far away from what it is meant to address that no one understands it anymore. It is a quality and liability risk.</p>
+<p>Here is what Spec of Record offers, for people and AI:</p>
 <ul>
-  <li>The <code>sor/</code> folder is the new <code>src/</code>, hierarchically structured like source folders used to be, only more compact. It holds up-to-date spec files, each covering one responsibility. There is no stack of old versions, so everyone knows what the software does now and how.</li>
-  <li>Engineering, QA and UX each work in their own field of expertise while sharing a common design document. You decide what the software does and stay its author.</li>
+  <li>The <code>sor/</code> folder is your new <code>src/</code> folder, hierarchically structured like source folders used to be, only more compact. It contains up-to-date spec files, each covering one responsibility. There is no stack of old versions, so everyone knows what the software does now and how.</li>
+  <li>Product, engineering, QA and UX each work in their own field of expertise while sharing a common design document. You decide what the software does and stay its author.</li>
   <li>A change to one clause in a spec file changes only the necessary code and reduces drift. It gives AI tremendous guard rails for attention and context.</li>
   <li>Several agents can work in parallel, because each claims its spec clauses before touching anything, and a clause someone else holds is refused.</li>
   <li>Every line of code names its origin in the spec and every finished build keeps its test results. "Why is this here?" and "Was it tested?" become easy lookups.</li>
@@ -1549,19 +1549,19 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
     var who = { a: stage.querySelector('.clawd.a'), b: stage.querySelector('.clawd.b') };
     var LOCK = '<path class="sh-o" d="M5 7V5a3 3 0 0 1 5.8-1" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><path class="sh-c" d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><rect x="3" y="7" width="10" height="7" rx="1.5" fill="#fff"/>';   /* the padlock in every badge: open shackle while claimed, closed once locked */
     Array.prototype.forEach.call(stage.querySelectorAll('.cl-bd'), function (b) { b.innerHTML = LOCK; });
-    var W = 36, H = 24, GAP = 22, EVERY = 2600, DWELL = 1500;   /* GAP: room left of the cell edge for the Clawd's hat, magnifier and Z */
+    var W = 36, H = 24, GAP = 22, EVERY = 3120, DWELL = 1500;   /* GAP: room left of the cell edge for the Clawd's hat, magnifier and Z */
     var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     var P = 'p';
     /* ed: edits that happen in a step, [v: a value in the spec | k: a constant in the code, which one, the new text] */
     var steps = [
       { a: 's:movement', b: P,          cl: { movement: 'a.claimed' },                      m: { a: 'working', b: 'idle' },    ed: [['v', 'step', '40 px'], ['v', 'room', '600 px']], cap: 'An agent claims a clause with <code>sor claim</code> and changes the clause first.' },
       { a: 'c:0',        b: P,          cl: { movement: 'a.claimed' },                      m: { a: 'working', b: 'idle' },    ed: [['k', 'step', '40']],                              cap: 'Then it changes the code blocks that carry its marker.' },
-      { a: 'c:2',        b: P,          cl: { movement: 'a.claimed' },                      m: { a: 'working', b: 'idle' },    ed: [['k', 'room', '600']],                             cap: 'The last block names two clauses, so it is shut too, while the clause in between stays free.' },
+      { a: 'c:2',        b: P,          cl: { movement: 'a.claimed' },                      m: { a: 'working', b: 'idle' },    ed: [['k', 'room', '600']],                             cap: 'The last block names two clauses, so it is shut too, and with it the spec of <code>monsters/chase</code>.' },
       { a: 'c:2',        b: 's:movement', cl: { movement: 'a.claimed' },                    m: { a: 'working', b: 'waiting' }, ed: [],                                                  cap: 'A second agent that claims the same clause is refused, and waits.' },
       { a: 'c:2',        b: 's:movement', cl: { movement: 'a.locked' },                     m: { a: 'idle', b: 'waiting' },    ed: [],                                                  cap: '<code>sor lock</code> saves the clause with its code blocks and test results. All of them are now locked.' },
       { a: 's:lives',    b: 's:movement', cl: { movement: 'b.claimed', lives: 'a.claimed' }, m: { a: 'working', b: 'working' }, ed: [['v', 'lives', '5 lives'], ['v', 'room', '400 px']], cap: 'The claim is released. The waiting agent takes the clause, and the first one another.' },
       { a: 'c:1',        b: 'c:2',       cl: { movement: 'b.claimed', lives: 'a.claimed' }, m: { a: 'working', b: 'working' }, ed: [['k', 'lives', '5'], ['k', 'room', '400']],     cap: 'Each changes the code of its own clause.' },
-      { a: 'c:1',        b: 'c:2',       cl: { movement: 'b.locked', lives: 'a.locked' },   m: { a: 'idle', b: 'idle' },       ed: [],                                                  cap: 'Each locks only what it claimed. <code>monsters/chase</code> is free, but its code block belongs to <code>player/movement</code> too.' },
+      { a: 'c:1',        b: 'c:2',       cl: { movement: 'b.locked', lives: 'a.locked' },   m: { a: 'idle', b: 'idle' },       ed: [],                                                  cap: 'Each locks what it claimed. <code>monsters/chase</code> is shut as well, because its code block belongs to <code>player/movement</code> too.' },
       { a: P,            b: P,           cl: {},                                           m: { a: 'idle', b: 'idle' },       ed: [],                                                  cap: 'Released. Nothing is held any more.' }
     ];
     var rest = { a: P, b: P, cl: {}, m: { a: 'idle', b: 'idle' }, ed: [], cap: 'Two agents work on one spec. Nothing is claimed yet.' };   /* before the first step: both Clawds sit in the tab bar, nothing is claimed */
@@ -1600,7 +1600,7 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
         var up = Math.min(from.y, to.y) - 26;
         el.animate([{ transform: 'translate(' + from.x + 'px,' + from.y + 'px)' },
                     { transform: 'translate(' + Math.round((from.x + to.x) / 2) + 'px,' + up + 'px)', offset: 0.5 },
-                    { transform: end }], { duration: 650, easing: 'ease-in-out' });
+                    { transform: end }], { duration: 780, easing: 'ease-in-out' });
       }
       el.style.transform = end;
     }
@@ -1615,6 +1615,13 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
         var v = (held ? s.cl[held] : '').split('.');
         if (v[0]) { c.setAttribute('data-by', v[0]); c.setAttribute('data-st', v[1]); }
       });
+      cells.forEach(function (c) {                   /* a spec whose code block is held through another clause is shut as well: a claim on it would be refused */
+        if (!c.classList.contains('cl-spec') || c.hasAttribute('data-st')) return;
+        var k = c.getAttribute('data-cl'), via = cells.filter(function (o) {
+          return o.classList.contains('cl-code') && o.hasAttribute('data-st') && (' ' + o.getAttribute('data-cl') + ' ').indexOf(' ' + k + ' ') > -1;
+        })[0];
+        if (via) { c.setAttribute('data-by', via.getAttribute('data-by')); c.setAttribute('data-st', via.getAttribute('data-st')); }
+      });
       ['a', 'b'].forEach(function (n) {              /* an agent at work on its own clause: that cell is being edited */
         var c = s[n] === P ? null : cellOf(s[n]);
         if (c && s.m[n] === 'working' && c.getAttribute('data-by') === n && c.getAttribute('data-st') === 'claimed') c.setAttribute('data-edit', '');
@@ -1626,7 +1633,7 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
       cells.forEach(function (c) {
         if (c !== waitCell) c.removeAttribute('data-refused');
         else if (!c.hasAttribute('data-refused')) {
-          if (hop) refusing = setTimeout(function () { c.setAttribute('data-refused', ''); }, 550);
+          if (hop) refusing = setTimeout(function () { c.setAttribute('data-refused', ''); }, 660);
           else c.setAttribute('data-refused', '');
         }
       });
@@ -1730,7 +1737,7 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
       fill(s); thumb.style.transform = 'translateX(' + to + 'px)'; thumbX = to;
       var done = function () { snapAnim = null; if (dragging) return; place(s); if (playing()) launch(s); };
       if (thumb.animate && !reduce && from !== to) {
-        var a = thumb.animate([{ transform: 'translateX(' + from + 'px)' }, { transform: 'translateX(' + to + 'px)' }], { duration: 300, easing: 'ease-out' });
+        var a = thumb.animate([{ transform: 'translateX(' + from + 'px)' }, { transform: 'translateX(' + to + 'px)' }], { duration: 360, easing: 'ease-out' });
         snapAnim = a; a.onfinish = done; a.oncancel = done;
       } else done();
     }
