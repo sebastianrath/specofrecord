@@ -351,7 +351,8 @@ when the root file has none; and a clause whose lock line `clause@target` (§11)
   is still one starter (`;;`, `///`, `##`), so `;; @clause end` is the whole line and not code before a line marker. A type adds its own: `%`
   for Erlang, MATLAB and TeX; `!` for Fortran; `'` for Visual Basic; `REM` and `::` for batch files, at the start of a line only; `(*` for
   OCaml, Pascal and F# (the closing `*)` is not an id). A target may declare more for the files under its paths with `{comment: %}` in its Rules,
-  a list of starters of one to three characters (none a letter, a digit, a space, `@`, `{` or `}`) separated by commas. That adds starters
+  a list of starters of one to three characters (none a letter, a digit, a space, a quote, `@`, `{` or `}`) separated by commas. A quote cannot
+  be declared, because it would make a string such as `'@clause end'` a marker (the one for Visual Basic is built in). That adds starters
   and takes none away, and `sor check` reports a malformed one. A starter in a type that does not list it is text, so a string such as
   `'@clause end'` in a JavaScript file is never a marker. `vectors/hashing.json` has rows for all of this.
 - Where the tool looks for code: the declared code paths, or the whole project when none is declared yet.
@@ -641,17 +642,23 @@ Choices the tool made where this spec is silent:
   name (`Dockerfile`, and `BUILD` and `WORKSPACE` exactly as written; a script called `build` is not Bazel's). A rule is a style, written `family[-keep][+kinds]`: which lines are comments, whether indentation counts,
   and which multi-line strings the type has. `vectors/hashing.json` lists the types and pins every style with rows.
   - **Safe** (`safe`) is the style of a type that is not listed, and nothing is hidden but blank lines and trailing spaces. Comments are
-    code and spaces inside a line stay. Each line carries its column, counted from the smallest indentation of the lines kept (a tab is
-    eight columns), so moving a whole piece of code is not a change and moving a line inside it is. YAML, Makefiles, Erlang, MATLAB and
+    code and spaces inside a line stay. Each line carries its indentation as written, less the characters all the lines kept start with (spaces
+    are counted, a tab or another whitespace character is written out, so a tab is never eight spaces), so moving a whole piece of code is
+    not a change and moving a line inside it is. YAML, Makefiles, Erlang, MATLAB and
     every type nobody listed are safe: more false alarms, never a change that goes unseen.
   - **C family** (`c`): no blank lines, no comment-only lines (`//`, `/* */`, `<!-- -->`), no indentation, one space for each run of spaces
-    outside quotes. Listed: C, C++, Objective-C, Rust, PHP, Zig, Solidity, protocol buffers, shaders, Verilog, HTML, CSS and JSON, and
+    outside quotes. Listed: C, C++, Objective-C, CUDA, Rust, PHP, Zig, Solidity, protocol buffers, shaders (GLSL, HLSL, WGSL), Verilog, HTML and its
+    templates, XML and its dialects (SVG, XAML, project files), CSS and JSON, and
     with the multi-line strings they have, JavaScript, TypeScript, Go, Java, Kotlin, Swift, C#, Dart and Groovy.
+  - Whitespace at the start and end of a line means what Python's `str.strip()` removes: the Unicode White_Space characters and U+001C to
+    U+001F. A port strips the same characters (`vectors/hashing.json` has a row).
   - **Multi-line strings** (`+tick` for backticks, `+rawtick` for backticks in which a backslash is only a backslash (Go), `+triple` for
     `"""`, `+triple1` for Dart's `'''`): a line inside one is text, never a comment,
     even when it looks like one (`// the query` in a template literal, `<!-- hello -->` in a Go raw string). `//` comments and `/* */`
     blocks are skipped before a quote is looked for, and a string that closes on its line is not a multi-line string. Inside one, blank
-    lines, indentation and runs of spaces are not seen, as in a Python docstring.
+    lines, indentation and runs of spaces are not seen, as in a Python docstring. A region does not end inside a string or a comment: when
+    one does, the tracker has lost its place (a lone backtick in JSX text, say), and none of that region's lines is dropped, which can only
+    give a false alarm. Two strays in a region still put it out of step without a sign.
   - **Python** (`.py`, `.pyi`, `.pyw`): comment-only lines are the `#` lines, and the nesting counts. Every statement carries its depth,
     in levels and not in columns, so changing 2 spaces to 4 is not a change and moving a line into a loop is. Lines that go on inside
     brackets, after a backslash or inside a multi-line string carry no depth (a string that a backslash at the end of a line continues
@@ -665,7 +672,7 @@ Choices the tool made where this spec is silent:
   - **SQL, Lua, VHDL, Ada** (`dash`): `--` lines, one-line `/* */` comments and one-line `{- -}` comments are comments. A line that
     starts with `-->` or `--|` is a Haskell operator, and `{-# … #-}` is a pragma: both are code.
   - **Types where indentation is meaning** keep it (`-keep`): Haskell and Elm (`--` comments), Nim and CoffeeScript (`#`), F#, Scala, Sass
-    and Stylus (`//`). Scala 3 may leave out braces. They are compared by column as the safe style is, and their spaces are not collapsed.
+    and Stylus (`//`). Scala 3 may leave out braces. They are compared by their indentation as written, as the safe style is, and their spaces are not collapsed.
   - A comment after code is part of its line in every type.
 
   Re-indenting or reformatting is not drift; a changed word, number or string is. Changing this rule changes every locked code hash
@@ -673,8 +680,9 @@ Choices the tool made where this spec is silent:
   leaves `text`, `refs` and results as they were. `sor status` says when hashes are waiting for it. Until then a change that only the old
   rule ignores, such as a Python line moved into a loop, is not seen. Not covered: Ruby and Perl block comments (`=begin`, `=pod`) and comments that
   span several lines in SQL, Lua and Haskell (their lines are code); C++ raw strings, PHP heredocs, C# verbatim strings, Rust strings that go
-  over lines and SQL strings (a line in one that looks like a comment is dropped); a JavaScript regular expression with a quote or a
-  backtick in it, which can put the string tracker out of step. A file that moves to another style migrates in the same way, except a Haskell lock made when it was still read without its
+  over lines, SQL strings, Lua long strings (`[[ ]]`) and a one-quote string that a backslash at the end of a line continues (a line in one
+  that looks like a comment is dropped); a JavaScript regular expression, or JSX text, with a quote or a backtick in it, which can put the
+  string tracker out of step; and in Python a tab counts as eight columns, as Python 3 reads it. A file that moves to another style migrates in the same way, except a Haskell lock made when it was still read without its
   indentation, which needs one relock. Tool copies of different ages disagree about Python code: an older tool reads a lock
   that a newer one wrote as drift on every Python region, and refuses to lock, so update every copy of the tool together (the format number above does not help
   here: it protects against formats written from now on).

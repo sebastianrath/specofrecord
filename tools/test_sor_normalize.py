@@ -51,6 +51,13 @@ class TestTheStyleOfAFile(unittest.TestCase):
             with self.subTest(rel):
                 self.assertEqual(style_of(rel), style)
 
+    def test_xml_templates_and_the_shader_family_are_c_family_too(self):
+        for rel in ('a.xml', 'a.svg', 'a.xaml', 'a.csproj', 'a.plist', 'a.cu', 'a.cuh', 'a.wgsl', 'a.comp', 'a.geom', 'a.hlsli', 'a.inl',
+                    'a.cshtml', 'a.erb', 'a.mdx', 'a.astro', 'a.cppm', 'a.prisma', 'a.dts'):
+            with self.subTest(rel):
+                self.assertEqual(style_of(rel), 'c')
+        self.assertEqual(style_of('a.graphql'), 'hash')
+
     def test_types_where_indentation_is_meaning_keep_it(self):
         for rel, style in (('a.hs', 'dash-keep'), ('a.elm', 'dash-keep'), ('a.nim', 'hash-keep'), ('a.coffee', 'hash-keep'),
                            ('a.fs', 'c-keep'), ('a.yml', 'safe'), ('a.yaml', 'safe'), ('Makefile', 'safe'), ('a.pyx', 'python'),
@@ -73,9 +80,21 @@ class TestTheStyleOfAFile(unittest.TestCase):
             with self.subTest(rel):
                 self.assertEqual(style_of(rel), 'safe')
 
-    def test_an_unknown_style_is_refused_and_not_guessed(self):
-        with self.assertRaises(ValueError):
-            normalized(['x'], 'cc')
+    def test_an_unknown_style_or_kind_is_refused_and_not_guessed(self):
+        for style in ('cc', 'c+ticks', 'c+', 'c+tick+nothing', 'hash+tick', 'python+triple', 'dash+tick', 'safe+tick'):
+            with self.subTest(style), self.assertRaises(ValueError):
+                normalized(['x'], style)
+
+    def test_every_style_in_the_table_is_one_the_tool_knows(self):
+        from sorlib.markers import LANGUAGES
+        for _, style, _ in LANGUAGES:
+            with self.subTest(style):
+                normalized(['x'], style)
+
+    def test_no_extension_is_listed_in_two_rows(self):
+        from sorlib.markers import LANGUAGES
+        listed = [ext for exts, _, _ in LANGUAGES for ext in exts.split()]
+        self.assertEqual(sorted(e for e in set(listed) if listed.count(e) > 1), [])
 
     def test_c_family_hashes_are_byte_for_byte_what_they_were(self):
         # hashes made by the rule before it followed the file type; a drift here would rewrite every locked project
@@ -291,8 +310,22 @@ class TestTheSafeStyle(unittest.TestCase):
     def test_the_smallest_indentation_of_the_kept_lines_is_the_base(self):
         self.assertEqual(normalized(['    a', '  b', '      c'], 'safe'), '2:a\n0:b\n4:c')
 
-    def test_tabs_count_as_eight_columns(self):
-        self.assertEqual(normalized(['a', '\tb'], 'safe'), '0:a\n8:b')
+    def test_a_tab_is_not_eight_spaces(self):
+        # a Makefile recipe needs its tab: with spaces it does not run, so the two must not hash alike
+        tab, spaces = ['all:', '\tcc -o x x.c'], ['all:', '        cc -o x x.c']
+        self.assertEqual(normalized(tab, 'safe'), 'all:'.join(['0:', '']) + '\n\\u0009:cc -o x x.c')
+        self.assertNotEqual(normalized(tab, 'safe'), normalized(spaces, 'safe'))
+        for style in ('dash-keep', 'hash-keep', 'c-keep'):
+            with self.subTest(style):
+                self.assertNotEqual(normalized(tab, style), normalized(spaces, style))
+
+    def test_the_start_every_kept_line_shares_is_dropped_whatever_it_is(self):
+        self.assertEqual(normalized(['\ta', '\t\tb', '\t  c'], 'safe'), '0:a\n\\u0009:b\n2:c')
+        self.assertEqual(normalized(['\ta', '\t\tb'], 'safe'), normalized(['a', '\tb'], 'safe'))
+
+    def test_another_whitespace_character_in_the_indentation_is_written_out_and_the_ends_of_a_line_are_what_python_strips(self):
+        self.assertEqual(normalized(['\u00a0a', 'b'], 'safe'), '\\u00a0:a\n0:b')
+        self.assertEqual(normalized(['\u00a0a\u00a0', '\x0cb\x0c', '\x1cc\x1c'], 'c'), 'a\nb\nc')
 
 
 class TestTheStylesThatKeepIndentation(unittest.TestCase):
@@ -375,6 +408,15 @@ class TestMultiLineStrings(unittest.TestCase):
         lines = ['/* a ` in a block', '   comment */', 'const s = "a `";', '// a comment', 'const t = 1;']
         self.assertEqual(normalized(lines, 'c+tick'), '/* a ` in a block\ncomment */\nconst s = "a `";\nconst t = 1;')
 
+    def test_a_region_that_ends_inside_a_string_has_lost_its_place_and_drops_no_line(self):
+        # a lone backtick in JSX text: read on, the template literal after it would count as outside
+        lines = ['const a = <p>use ` here</p>;', 'const q = `', '// the query', '`;', 'const z = 1;']
+        self.assertEqual(normalized(lines, 'c+tick'), 'const a = <p>use ` here</p>;\nconst q = `\n// the query\n`;\nconst z = 1;')
+        self.assertNotEqual(normalized(lines, 'c+tick'), normalized([l.replace('the query', 'x') for l in lines], 'c+tick'))
+
+    def test_a_region_that_ends_inside_a_block_comment_drops_no_line_either(self):
+        self.assertEqual(normalized(['/* never closed', '// a comment', 'x'], 'c+tick'), '/* never closed\n// a comment\nx')
+
     def test_a_backtick_on_a_later_line_of_a_block_comment_opens_nothing(self):
         lines = ['/* a block', '   with a ` in it */', '// a comment', 'const t = 1;']
         self.assertEqual(normalized(lines, 'c+tick'), '/* a block\nwith a ` in it */\nconst t = 1;')
@@ -395,6 +437,22 @@ class TestMultiLineStrings(unittest.TestCase):
             with self.subTest(style):
                 self.assertEqual(normalized(code, style), normalized(code, 'c'))
         self.assertEqual(hashed(code, 'c+tick'), '5502253e7c35')
+
+
+class TestABackslashEscapesInEveryScanner(unittest.TestCase):
+    """The three scanners (Python, `#` languages, the C family's strings) each read quotes and escapes in their own way; one case
+    for each, so that a mistake in one cannot hide behind the others."""
+
+    def test_python(self):
+        self.assertEqual(normalized(['x = "\\"("', 'y = 1'], 'python'), '0:x = "\\"("\n0:y = 1')
+
+    def test_hash_languages(self):
+        lines = ['echo "a \\"', '# inside', 'b"', '# outside', 'ls']
+        self.assertEqual(normalized(lines, 'hash'), 'echo "a \\"\n# inside\nb"\nls')
+
+    def test_the_c_family(self):
+        lines = ['const s = "a \\" ` b";', '// a comment', 'const t = 1;']
+        self.assertEqual(normalized(lines, 'c+tick'), 'const s = "a \\" ` b";\nconst t = 1;')
 
 
 class TestAPieceThatDipsBelowItsFirstLine(unittest.TestCase):

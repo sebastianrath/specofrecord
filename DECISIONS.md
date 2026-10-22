@@ -820,8 +820,8 @@ template literal, `/* */` in a Go raw string, `<!-- -->` in a JavaScript templat
 rule that can do both. No project here had hit the second one: a scan of the three real projects found none. The work is per style, not per
 language: there are four families, and a port writes them once.
 - **A style is `family[-keep][+kinds]` and one table has a row per kind of file** (extensions, style, marker starters). Families: `c`, `hash`,
-  `dash`, `python` and `safe` (no comments dropped). `-keep` counts indentation as a column relative to the smallest of the lines kept (a tab
-  is eight columns) and does not collapse spaces. `+tick`, `+triple`, `+triple1` name the multi-line strings the type has.
+  `dash`, `python` and `safe` (no comments dropped). `-keep` counts indentation as written, less what all the lines kept start with
+  (see the review fixes below for tabs), and does not collapse spaces. `+tick`, `+triple`, `+triple1` name the multi-line strings the type has.
 - **The default is `safe`: nothing is hidden except blank lines and trailing spaces.** More false alarms for a type nobody listed, never a
   change that goes unseen. Every C-family type the real projects use was listed first (`.html`, `.js`, `.cpp`, `.h`, `.mm` and the rest), or the
   default would have turned them noisy. `.html` keeps plain `c`: prose backticks in HTML must not open a string.
@@ -859,6 +859,27 @@ Fortran `!`, Visual Basic `'`, OCaml `(*`; batch files `REM` too).
 - **Not changed:** the VS Code extension keeps its own list of marker comment styles to hide and fold marker lines, so a line with a new starter
   is not hidden or folded there. The regions come from the tool and are right. That JS is its own project and was not edited.
 - Vectors: 27 rows for `parse_marker`, among them the string case, `;;`, `///`, REM at the start only, and declared starters.
+
+## Review fixes to the table of types and the markers (2026-10-21)
+A full review of the styles and the markers (12 findings; three of them reproduced before fixing) changed these things.
+- **A tab is no longer eight spaces in the safe and keep styles.** Indentation is kept as written, less the characters all the lines kept start
+  with: spaces are counted, a tab or another whitespace character is written out (`\u0009:b`). A Makefile recipe with a tab turned into eight
+  spaces used to hash the same and no longer runs, which broke the promise "nothing hidden but blank lines and trailing spaces". Python keeps
+  eight columns, as Python 3 reads it, and the SPEC says so.
+- **A region that ends inside a string or a block comment has lost its place** and drops no line. One lone backtick in JSX text used to flip
+  the tracker, so a later template literal read as outside and its comment-looking lines were dropped (reproduced). Now such a region keeps
+  them: a false alarm at worst. Two strays in one region still go unseen, and the SPEC lists JSX text and regular expressions as limits.
+- **A style is checked.** An unknown kind (`c+ticks`), a trailing `+`, or kinds on a family that has none raise instead of switching the
+  protection off in silence; a test runs every style in the table, and another fails when an extension is listed in two rows.
+- **More types are listed** so that the long tail is not noisy: XML and its dialects, templates (ERB, Razor, Handlebars, MDX, Astro), CUDA, the
+  shader stages, WGSL and `.inl` are C family, GraphQL is `hash`.
+- **A target cannot declare a quote as a starter.** `{comment: '}` made `x = '@clause a/b'` a marker with the id `a/b'` (reproduced).
+- **One place reads a marker** (`_split_marker`), and a vectors test runs every marker row through `scan_text` as well as `parse_marker`.
+- **The vectors generator is in the repository** (`vectors/make_hashing.py`, with `--check`), and a test fails when the file is not what it
+  writes. The rows that list the table are generated from the tool's table, so they stop the table changing without the file changing; they
+  cannot prove it right, and the README says so. New rows pin the whitespace Python strips, tabs, and the lost place.
+- **Not changed:** the three quote scanners (Python, `#` languages, C family strings) stay separate. A shared lexer would be a larger change
+  than the review warranted; instead each scanner has a test of the same backslash case, since the escape bug that hid for a day was in one of them.
 
 ## Still open
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for

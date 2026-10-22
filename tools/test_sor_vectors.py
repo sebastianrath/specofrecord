@@ -55,6 +55,14 @@ class TestTheFile(unittest.TestCase):
         missing += [n for n in list(markers.LANGUAGES_BY_NAME) + list(markers.LANGUAGES_BY_EXACT_NAME) if f'x/{n}' not in paths]
         self.assertEqual(missing, [], 'a type without a row: add it to the file')
 
+    def test_the_file_is_what_the_generator_in_the_repository_writes(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('make_hashing', os.path.join(REPO, 'vectors', 'make_hashing.py'))
+        generator = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(generator)
+        with open(PATH, encoding='utf8', newline='') as fh:
+            self.assertEqual(fh.read(), generator.render(), 'run: python3 vectors/make_hashing.py')
+
     def test_the_hashes_in_the_file_are_sha256_of_its_own_texts(self):
         for r in rows('normalize'):
             self.assertEqual(r['hash'], sha(r['normalized']), r['name'])
@@ -100,6 +108,17 @@ class TestEveryRow(unittest.TestCase):
         for r in rows('text_hash'):
             with self.subTest(r['name']):
                 self.assertEqual(lockfile.h(r['input']), r['hash'])
+
+    def test_scan_text_reads_every_marker_row_as_parse_marker_does(self):
+        for r in rows('marker'):
+            with self.subTest(r['name']):
+                regions, _, unmarked = markers.scan_text(r['path'], r['line'] + '\n', r['starters'])
+                if r['marker'] is None:
+                    self.assertEqual((regions, unmarked), ([], [1]))
+                elif r['marker']['code']:
+                    self.assertEqual([(g.kind, g.ids, g.lines) for g in regions], [('line', r['marker']['words'], [r['marker']['code']])])
+                else:
+                    self.assertEqual(unmarked, [])
 
     def test_starters_of(self):
         for r in rows('starters_of'):

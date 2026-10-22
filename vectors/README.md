@@ -8,6 +8,10 @@ lock file's lines, and how the lock file is written.
 An implementation passes when it gives the expected output for every row. The Python tool runs them in `tools/test_sor_vectors.py`;
 a port (for example a TypeScript one, so that an editor needs no Python) loads the same file.
 
+- `make_hashing.py` writes the file (`python3 vectors/make_hashing.py`, and `--check` to see whether it is up to date); a test fails when the
+  two differ. The expected texts in it were written by hand, and every hash was computed with SHA-256 alone, never with the tool. The rows
+  that list the table of types (an extension and its style or starters) come from the tool's own table: they stop the table changing
+  without the file changing, and cannot prove it right.
 - The expected texts were written by hand, and every hash was computed with SHA-256 alone, never with the tool. Three rows carry the
   hashes the tool pinned before the rule followed the file type.
 - A row has a unique `name`, so a failure names the row. `style_of` has a row for every extension and name in the tool's table, and a

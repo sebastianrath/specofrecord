@@ -163,14 +163,18 @@ class TestAStarterATargetDeclares(base.Case):
         self.assertEqual([(r.kind, r.ids) for r in scan.regions], [('code', ['bodies/sun']), ('code', ['bodies/sun'])])
         self.assertEqual([p for p in scan.problems if p.kind == 'unmarked'], [])
 
-    def test_a_file_outside_the_target_does_not_get_them(self):
-        write(self.dir, 'src/a.xyz', '// @clause bodies/sun\ncode\n// @clause end\n')
-        write(self.dir, 'other.xyz', '% @clause bodies/sun\ncode\n% @clause end\n')
-        scan = Scan(Project(self.dir))        # other.xyz is not under the code path, so it is not even read
+    def test_a_file_of_another_target_does_not_get_them(self):
+        # two targets, the same type of file, and only one of them declares the starter
+        self.project({'targets/odd': self.TARGET, 'targets/plain': doc('Plain', 'Another.', rules=['- **code** - The code is under {path: lib/}.']),
+                      'bodies': doc('Bodies', 'The sky.', rules=['- **sun** - Size {size: 28}.'])})
+        write(self.dir, 'src/a.xyz', '% @clause bodies/sun\ncode\n% @clause end\n')
+        write(self.dir, 'lib/b.xyz', '% @clause bodies/sun\ncode\n% @clause end\n')
+        scan = Scan(Project(self.dir))
         self.assertEqual([r.file for r in scan.regions], ['src/a.xyz'])
+        self.assertEqual([p.where for p in scan.problems if p.kind == 'unmarked'], ['lib/b.xyz:1-3'])
 
     def test_a_malformed_starter_is_a_problem(self):
-        for bad in ('abc', '@@', 'a%', '%%%%'):
+        for bad in ('abc', '@@', 'a%', '%%%%', "'", '"', '`'):
             with self.subTest(bad):
                 self.project({'targets/odd': self.TARGET.replace('{comment: %, ||}', f'{{comment: {bad}}}'),
                               'bodies': doc('Bodies', 'The sky.', rules=['- **sun** - Size {size: 28}.'])})

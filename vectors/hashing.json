@@ -290,6 +290,21 @@
     "style": "dash"
    },
    {
+    "name": "the table: .asp",
+    "path": "a.asp",
+    "style": "c"
+   },
+   {
+    "name": "the table: .aspx",
+    "path": "a.aspx",
+    "style": "c"
+   },
+   {
+    "name": "the table: .astro",
+    "path": "a.astro",
+    "style": "c"
+   },
+   {
     "name": "the table: .awk",
     "path": "a.awk",
     "style": "hash"
@@ -325,6 +340,11 @@
     "style": "c"
    },
    {
+    "name": "the table: .c++",
+    "path": "a.c++",
+    "style": "c"
+   },
+   {
     "name": "the table: .cc",
     "path": "a.cc",
     "style": "c"
@@ -333,6 +353,11 @@
     "name": "the table: .cjs",
     "path": "a.cjs",
     "style": "c+tick"
+   },
+   {
+    "name": "the table: .cl",
+    "path": "a.cl",
+    "style": "c"
    },
    {
     "name": "the table: .cmake",
@@ -350,8 +375,18 @@
     "style": "hash-keep"
    },
    {
+    "name": "the table: .comp",
+    "path": "a.comp",
+    "style": "c"
+   },
+   {
     "name": "the table: .cpp",
     "path": "a.cpp",
+    "style": "c"
+   },
+   {
+    "name": "the table: .cppm",
+    "path": "a.cppm",
     "style": "c"
    },
    {
@@ -365,6 +400,16 @@
     "style": "c+triple"
    },
    {
+    "name": "the table: .cshtml",
+    "path": "a.cshtml",
+    "style": "c"
+   },
+   {
+    "name": "the table: .csproj",
+    "path": "a.csproj",
+    "style": "c"
+   },
+   {
     "name": "the table: .css",
     "path": "a.css",
     "style": "c"
@@ -373,6 +418,16 @@
     "name": "the table: .cts",
     "path": "a.cts",
     "style": "c+tick"
+   },
+   {
+    "name": "the table: .cu",
+    "path": "a.cu",
+    "style": "c"
+   },
+   {
+    "name": "the table: .cuh",
+    "path": "a.cuh",
+    "style": "c"
    },
    {
     "name": "the table: .cxx",
@@ -390,9 +445,29 @@
     "style": "c+triple+triple1"
    },
    {
+    "name": "the table: .dts",
+    "path": "a.dts",
+    "style": "c"
+   },
+   {
+    "name": "the table: .dtsi",
+    "path": "a.dtsi",
+    "style": "c"
+   },
+   {
+    "name": "the table: .ejs",
+    "path": "a.ejs",
+    "style": "c"
+   },
+   {
     "name": "the table: .elm",
     "path": "a.elm",
     "style": "dash-keep"
+   },
+   {
+    "name": "the table: .erb",
+    "path": "a.erb",
+    "style": "c"
    },
    {
     "name": "the table: .erl",
@@ -460,6 +535,11 @@
     "style": "c-keep"
    },
    {
+    "name": "the table: .fsproj",
+    "path": "a.fsproj",
+    "style": "c"
+   },
+   {
     "name": "the table: .fsx",
     "path": "a.fsx",
     "style": "c-keep"
@@ -475,6 +555,11 @@
     "style": "hash"
    },
    {
+    "name": "the table: .geom",
+    "path": "a.geom",
+    "style": "c"
+   },
+   {
     "name": "the table: .glsl",
     "path": "a.glsl",
     "style": "c"
@@ -485,9 +570,19 @@
     "style": "c+rawtick"
    },
    {
+    "name": "the table: .gql",
+    "path": "a.gql",
+    "style": "hash"
+   },
+   {
     "name": "the table: .gradle",
     "path": "a.gradle",
     "style": "c+triple+triple1"
+   },
+   {
+    "name": "the table: .graphql",
+    "path": "a.graphql",
+    "style": "hash"
    },
    {
     "name": "the table: .groovy",
@@ -500,6 +595,16 @@
     "style": "c"
    },
    {
+    "name": "the table: .h++",
+    "path": "a.h++",
+    "style": "c"
+   },
+   {
+    "name": "the table: .hbs",
+    "path": "a.hbs",
+    "style": "c"
+   },
+   {
     "name": "the table: .hh",
     "path": "a.hh",
     "style": "c"
@@ -507,6 +612,11 @@
    {
     "name": "the table: .hlsl",
     "path": "a.hlsl",
+    "style": "c"
+   },
+   {
+    "name": "the table: .hlsli",
+    "path": "a.hlsli",
     "style": "c"
    },
    {
@@ -545,8 +655,23 @@
     "style": "dash-keep"
    },
    {
+    "name": "the table: .inl",
+    "path": "a.inl",
+    "style": "c"
+   },
+   {
     "name": "the table: .ino",
     "path": "a.ino",
+    "style": "c"
+   },
+   {
+    "name": "the table: .ipp",
+    "path": "a.ipp",
+    "style": "c"
+   },
+   {
+    "name": "the table: .ixx",
+    "path": "a.ixx",
     "style": "c"
    },
    {
@@ -580,6 +705,11 @@
     "style": "c"
    },
    {
+    "name": "the table: .jsp",
+    "path": "a.jsp",
+    "style": "c"
+   },
+   {
     "name": "the table: .jsx",
     "path": "a.jsx",
     "style": "c+tick"
@@ -605,6 +735,11 @@
     "style": "c"
    },
    {
+    "name": "the table: .liquid",
+    "path": "a.liquid",
+    "style": "c"
+   },
+   {
     "name": "the table: .lua",
     "path": "a.lua",
     "style": "dash"
@@ -612,6 +747,16 @@
    {
     "name": "the table: .m",
     "path": "a.m",
+    "style": "c"
+   },
+   {
+    "name": "the table: .mdx",
+    "path": "a.mdx",
+    "style": "c"
+   },
+   {
+    "name": "the table: .mesh",
+    "path": "a.mesh",
     "style": "c"
    },
    {
@@ -655,6 +800,11 @@
     "style": "c+tick"
    },
    {
+    "name": "the table: .mustache",
+    "path": "a.mustache",
+    "style": "c"
+   },
+   {
     "name": "the table: .nim",
     "path": "a.nim",
     "style": "hash-keep"
@@ -685,6 +835,11 @@
     "style": "hash"
    },
    {
+    "name": "the table: .plist",
+    "path": "a.plist",
+    "style": "c"
+   },
+   {
     "name": "the table: .pm",
     "path": "a.pm",
     "style": "hash"
@@ -692,6 +847,16 @@
    {
     "name": "the table: .pp",
     "path": "a.pp",
+    "style": "c"
+   },
+   {
+    "name": "the table: .prisma",
+    "path": "a.prisma",
+    "style": "c"
+   },
+   {
+    "name": "the table: .props",
+    "path": "a.props",
     "style": "c"
    },
    {
@@ -750,9 +915,19 @@
     "style": "hash"
    },
    {
+    "name": "the table: .rahit",
+    "path": "a.rahit",
+    "style": "c"
+   },
+   {
     "name": "the table: .rake",
     "path": "a.rake",
     "style": "hash"
+   },
+   {
+    "name": "the table: .razor",
+    "path": "a.razor",
+    "style": "c"
    },
    {
     "name": "the table: .rb",
@@ -760,8 +935,43 @@
     "style": "hash"
    },
    {
+    "name": "the table: .rcall",
+    "path": "a.rcall",
+    "style": "c"
+   },
+   {
+    "name": "the table: .rchit",
+    "path": "a.rchit",
+    "style": "c"
+   },
+   {
+    "name": "the table: .resx",
+    "path": "a.resx",
+    "style": "c"
+   },
+   {
+    "name": "the table: .rgen",
+    "path": "a.rgen",
+    "style": "c"
+   },
+   {
+    "name": "the table: .rint",
+    "path": "a.rint",
+    "style": "c"
+   },
+   {
+    "name": "the table: .rmiss",
+    "path": "a.rmiss",
+    "style": "c"
+   },
+   {
     "name": "the table: .rs",
     "path": "a.rs",
+    "style": "c"
+   },
+   {
+    "name": "the table: .rss",
+    "path": "a.rss",
     "style": "c"
    },
    {
@@ -795,6 +1005,11 @@
     "style": "python"
    },
    {
+    "name": "the table: .slang",
+    "path": "a.slang",
+    "style": "c"
+   },
+   {
     "name": "the table: .sol",
     "path": "a.sol",
     "style": "c"
@@ -808,6 +1023,11 @@
     "name": "the table: .star",
     "path": "a.star",
     "style": "python"
+   },
+   {
+    "name": "the table: .storyboard",
+    "path": "a.storyboard",
+    "style": "c"
    },
    {
     "name": "the table: .sty",
@@ -830,6 +1050,11 @@
     "style": "c"
    },
    {
+    "name": "the table: .svg",
+    "path": "a.svg",
+    "style": "c"
+   },
+   {
     "name": "the table: .svh",
     "path": "a.svh",
     "style": "c"
@@ -840,9 +1065,29 @@
     "style": "c+triple"
    },
    {
+    "name": "the table: .targets",
+    "path": "a.targets",
+    "style": "c"
+   },
+   {
+    "name": "the table: .task",
+    "path": "a.task",
+    "style": "c"
+   },
+   {
     "name": "the table: .tcl",
     "path": "a.tcl",
     "style": "hash"
+   },
+   {
+    "name": "the table: .tesc",
+    "path": "a.tesc",
+    "style": "c"
+   },
+   {
+    "name": "the table: .tese",
+    "path": "a.tese",
+    "style": "c"
    },
    {
     "name": "the table: .tex",
@@ -870,6 +1115,11 @@
     "style": "hash"
    },
    {
+    "name": "the table: .tpp",
+    "path": "a.tpp",
+    "style": "c"
+   },
+   {
     "name": "the table: .ts",
     "path": "a.ts",
     "style": "c+tick"
@@ -880,6 +1130,11 @@
     "style": "c+tick"
    },
    {
+    "name": "the table: .twig",
+    "path": "a.twig",
+    "style": "c"
+   },
+   {
     "name": "the table: .v",
     "path": "a.v",
     "style": "c"
@@ -888,6 +1143,11 @@
     "name": "the table: .vb",
     "path": "a.vb",
     "style": "safe"
+   },
+   {
+    "name": "the table: .vbproj",
+    "path": "a.vbproj",
+    "style": "c"
    },
    {
     "name": "the table: .vbs",
@@ -915,8 +1175,48 @@
     "style": "c"
    },
    {
+    "name": "the table: .wgsl",
+    "path": "a.wgsl",
+    "style": "c"
+   },
+   {
+    "name": "the table: .wsdl",
+    "path": "a.wsdl",
+    "style": "c"
+   },
+   {
+    "name": "the table: .xaml",
+    "path": "a.xaml",
+    "style": "c"
+   },
+   {
     "name": "the table: .xhtml",
     "path": "a.xhtml",
+    "style": "c"
+   },
+   {
+    "name": "the table: .xib",
+    "path": "a.xib",
+    "style": "c"
+   },
+   {
+    "name": "the table: .xml",
+    "path": "a.xml",
+    "style": "c"
+   },
+   {
+    "name": "the table: .xsd",
+    "path": "a.xsd",
+    "style": "c"
+   },
+   {
+    "name": "the table: .xsl",
+    "path": "a.xsl",
+    "style": "c"
+   },
+   {
+    "name": "the table: .xslt",
+    "path": "a.xslt",
     "style": "c"
    },
    {
@@ -1629,14 +1929,46 @@
     "hash": "6b23a0c2b22f"
    },
    {
-    "name": "safe: a tab is eight columns",
+    "name": "safe: a tab is its own indentation and never eight spaces",
     "style": "safe",
     "lines": [
      "a",
      "\tb"
     ],
-    "normalized": "0:a\n8:b",
-    "hash": "788b5200056f"
+    "normalized": "0:a\n\\u0009:b",
+    "hash": "b2c9bbea3ade"
+   },
+   {
+    "name": "safe: the start every kept line has in common is dropped, tabs too",
+    "style": "safe",
+    "lines": [
+     "\ta",
+     "\t\tb"
+    ],
+    "normalized": "0:a\n\\u0009:b",
+    "hash": "b2c9bbea3ade"
+   },
+   {
+    "name": "safe: another whitespace character in the indentation is written out",
+    "style": "safe",
+    "lines": [
+     " a",
+     "b"
+    ],
+    "normalized": "\\u00a0:a\n0:b",
+    "hash": "73871f375251"
+   },
+   {
+    "name": "c: whitespace at the ends of a line is what Python strips: no-break space, form feed, U+001C",
+    "style": "c",
+    "lines": [
+     " a ",
+     "\fb\f",
+     "\u001cc\u001c"
+    ],
+    "normalized": "a\nb\nc",
+    "note": "a port has to strip the same characters",
+    "hash": "ea7fb08b7a2d"
    },
    {
     "name": "safe: moving the whole piece is not a change",
@@ -1762,6 +2094,19 @@
     ],
     "normalized": "var s = '''\n// not a comment\n''';",
     "hash": "8cf68d4c54a1"
+   },
+   {
+    "name": "c+tick: a region that ends inside a string has lost its place, so none of its lines is dropped",
+    "style": "c+tick",
+    "lines": [
+     "const a = <p>use ` here</p>;",
+     "const q = `",
+     "// the query",
+     "`;",
+     "const z = 1;"
+    ],
+    "normalized": "const a = <p>use ` here</p>;\nconst q = `\n// the query\n`;\nconst z = 1;",
+    "hash": "ba5c4afc1ab3"
    },
    {
     "name": "c+rawtick: a backslash does not escape the backtick, so a raw string can end in one",
@@ -2450,6 +2795,21 @@
     "starters": []
    },
    {
+    "name": "the starters of .asp",
+    "path": "a.asp",
+    "starters": []
+   },
+   {
+    "name": "the starters of .aspx",
+    "path": "a.aspx",
+    "starters": []
+   },
+   {
+    "name": "the starters of .astro",
+    "path": "a.astro",
+    "starters": []
+   },
+   {
     "name": "the starters of .awk",
     "path": "a.awk",
     "starters": []
@@ -2489,6 +2849,11 @@
     "starters": []
    },
    {
+    "name": "the starters of .c++",
+    "path": "a.c++",
+    "starters": []
+   },
+   {
     "name": "the starters of .cc",
     "path": "a.cc",
     "starters": []
@@ -2496,6 +2861,11 @@
    {
     "name": "the starters of .cjs",
     "path": "a.cjs",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cl",
+    "path": "a.cl",
     "starters": []
    },
    {
@@ -2516,8 +2886,18 @@
     "starters": []
    },
    {
+    "name": "the starters of .comp",
+    "path": "a.comp",
+    "starters": []
+   },
+   {
     "name": "the starters of .cpp",
     "path": "a.cpp",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cppm",
+    "path": "a.cppm",
     "starters": []
    },
    {
@@ -2531,6 +2911,16 @@
     "starters": []
    },
    {
+    "name": "the starters of .cshtml",
+    "path": "a.cshtml",
+    "starters": []
+   },
+   {
+    "name": "the starters of .csproj",
+    "path": "a.csproj",
+    "starters": []
+   },
+   {
     "name": "the starters of .css",
     "path": "a.css",
     "starters": []
@@ -2538,6 +2928,16 @@
    {
     "name": "the starters of .cts",
     "path": "a.cts",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cu",
+    "path": "a.cu",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cuh",
+    "path": "a.cuh",
     "starters": []
    },
    {
@@ -2556,8 +2956,28 @@
     "starters": []
    },
    {
+    "name": "the starters of .dts",
+    "path": "a.dts",
+    "starters": []
+   },
+   {
+    "name": "the starters of .dtsi",
+    "path": "a.dtsi",
+    "starters": []
+   },
+   {
+    "name": "the starters of .ejs",
+    "path": "a.ejs",
+    "starters": []
+   },
+   {
     "name": "the starters of .elm",
     "path": "a.elm",
+    "starters": []
+   },
+   {
+    "name": "the starters of .erb",
+    "path": "a.erb",
     "starters": []
    },
    {
@@ -2644,6 +3064,11 @@
     ]
    },
    {
+    "name": "the starters of .fsproj",
+    "path": "a.fsproj",
+    "starters": []
+   },
+   {
     "name": "the starters of .fsx",
     "path": "a.fsx",
     "starters": [
@@ -2663,6 +3088,11 @@
     "starters": []
    },
    {
+    "name": "the starters of .geom",
+    "path": "a.geom",
+    "starters": []
+   },
+   {
     "name": "the starters of .glsl",
     "path": "a.glsl",
     "starters": []
@@ -2673,8 +3103,18 @@
     "starters": []
    },
    {
+    "name": "the starters of .gql",
+    "path": "a.gql",
+    "starters": []
+   },
+   {
     "name": "the starters of .gradle",
     "path": "a.gradle",
+    "starters": []
+   },
+   {
+    "name": "the starters of .graphql",
+    "path": "a.graphql",
     "starters": []
    },
    {
@@ -2688,6 +3128,16 @@
     "starters": []
    },
    {
+    "name": "the starters of .h++",
+    "path": "a.h++",
+    "starters": []
+   },
+   {
+    "name": "the starters of .hbs",
+    "path": "a.hbs",
+    "starters": []
+   },
+   {
     "name": "the starters of .hh",
     "path": "a.hh",
     "starters": []
@@ -2695,6 +3145,11 @@
    {
     "name": "the starters of .hlsl",
     "path": "a.hlsl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .hlsli",
+    "path": "a.hlsli",
     "starters": []
    },
    {
@@ -2735,8 +3190,23 @@
     "starters": []
    },
    {
+    "name": "the starters of .inl",
+    "path": "a.inl",
+    "starters": []
+   },
+   {
     "name": "the starters of .ino",
     "path": "a.ino",
+    "starters": []
+   },
+   {
+    "name": "the starters of .ipp",
+    "path": "a.ipp",
+    "starters": []
+   },
+   {
+    "name": "the starters of .ixx",
+    "path": "a.ixx",
     "starters": []
    },
    {
@@ -2770,6 +3240,11 @@
     "starters": []
    },
    {
+    "name": "the starters of .jsp",
+    "path": "a.jsp",
+    "starters": []
+   },
+   {
     "name": "the starters of .jsx",
     "path": "a.jsx",
     "starters": []
@@ -2795,6 +3270,11 @@
     "starters": []
    },
    {
+    "name": "the starters of .liquid",
+    "path": "a.liquid",
+    "starters": []
+   },
+   {
     "name": "the starters of .lua",
     "path": "a.lua",
     "starters": []
@@ -2805,6 +3285,16 @@
     "starters": [
      "%"
     ]
+   },
+   {
+    "name": "the starters of .mdx",
+    "path": "a.mdx",
+    "starters": []
+   },
+   {
+    "name": "the starters of .mesh",
+    "path": "a.mesh",
+    "starters": []
    },
    {
     "name": "the starters of .metal",
@@ -2855,6 +3345,11 @@
     "starters": []
    },
    {
+    "name": "the starters of .mustache",
+    "path": "a.mustache",
+    "starters": []
+   },
+   {
     "name": "the starters of .nim",
     "path": "a.nim",
     "starters": []
@@ -2887,6 +3382,11 @@
     "starters": []
    },
    {
+    "name": "the starters of .plist",
+    "path": "a.plist",
+    "starters": []
+   },
+   {
     "name": "the starters of .pm",
     "path": "a.pm",
     "starters": []
@@ -2897,6 +3397,16 @@
     "starters": [
      "(*"
     ]
+   },
+   {
+    "name": "the starters of .prisma",
+    "path": "a.prisma",
+    "starters": []
+   },
+   {
+    "name": "the starters of .props",
+    "path": "a.props",
+    "starters": []
    },
    {
     "name": "the starters of .proto",
@@ -2954,8 +3464,18 @@
     "starters": []
    },
    {
+    "name": "the starters of .rahit",
+    "path": "a.rahit",
+    "starters": []
+   },
+   {
     "name": "the starters of .rake",
     "path": "a.rake",
+    "starters": []
+   },
+   {
+    "name": "the starters of .razor",
+    "path": "a.razor",
     "starters": []
    },
    {
@@ -2964,8 +3484,43 @@
     "starters": []
    },
    {
+    "name": "the starters of .rcall",
+    "path": "a.rcall",
+    "starters": []
+   },
+   {
+    "name": "the starters of .rchit",
+    "path": "a.rchit",
+    "starters": []
+   },
+   {
+    "name": "the starters of .resx",
+    "path": "a.resx",
+    "starters": []
+   },
+   {
+    "name": "the starters of .rgen",
+    "path": "a.rgen",
+    "starters": []
+   },
+   {
+    "name": "the starters of .rint",
+    "path": "a.rint",
+    "starters": []
+   },
+   {
+    "name": "the starters of .rmiss",
+    "path": "a.rmiss",
+    "starters": []
+   },
+   {
     "name": "the starters of .rs",
     "path": "a.rs",
+    "starters": []
+   },
+   {
+    "name": "the starters of .rss",
+    "path": "a.rss",
     "starters": []
    },
    {
@@ -2999,6 +3554,11 @@
     "starters": []
    },
    {
+    "name": "the starters of .slang",
+    "path": "a.slang",
+    "starters": []
+   },
+   {
     "name": "the starters of .sol",
     "path": "a.sol",
     "starters": []
@@ -3011,6 +3571,11 @@
    {
     "name": "the starters of .star",
     "path": "a.star",
+    "starters": []
+   },
+   {
+    "name": "the starters of .storyboard",
+    "path": "a.storyboard",
     "starters": []
    },
    {
@@ -3036,6 +3601,11 @@
     "starters": []
    },
    {
+    "name": "the starters of .svg",
+    "path": "a.svg",
+    "starters": []
+   },
+   {
     "name": "the starters of .svh",
     "path": "a.svh",
     "starters": []
@@ -3046,8 +3616,28 @@
     "starters": []
    },
    {
+    "name": "the starters of .targets",
+    "path": "a.targets",
+    "starters": []
+   },
+   {
+    "name": "the starters of .task",
+    "path": "a.task",
+    "starters": []
+   },
+   {
     "name": "the starters of .tcl",
     "path": "a.tcl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .tesc",
+    "path": "a.tesc",
+    "starters": []
+   },
+   {
+    "name": "the starters of .tese",
+    "path": "a.tese",
     "starters": []
    },
    {
@@ -3078,6 +3668,11 @@
     "starters": []
    },
    {
+    "name": "the starters of .tpp",
+    "path": "a.tpp",
+    "starters": []
+   },
+   {
     "name": "the starters of .ts",
     "path": "a.ts",
     "starters": []
@@ -3085,6 +3680,11 @@
    {
     "name": "the starters of .tsx",
     "path": "a.tsx",
+    "starters": []
+   },
+   {
+    "name": "the starters of .twig",
+    "path": "a.twig",
     "starters": []
    },
    {
@@ -3098,6 +3698,11 @@
     "starters": [
      "'"
     ]
+   },
+   {
+    "name": "the starters of .vbproj",
+    "path": "a.vbproj",
+    "starters": []
    },
    {
     "name": "the starters of .vbs",
@@ -3127,8 +3732,48 @@
     "starters": []
    },
    {
+    "name": "the starters of .wgsl",
+    "path": "a.wgsl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .wsdl",
+    "path": "a.wsdl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .xaml",
+    "path": "a.xaml",
+    "starters": []
+   },
+   {
     "name": "the starters of .xhtml",
     "path": "a.xhtml",
+    "starters": []
+   },
+   {
+    "name": "the starters of .xib",
+    "path": "a.xib",
+    "starters": []
+   },
+   {
+    "name": "the starters of .xml",
+    "path": "a.xml",
+    "starters": []
+   },
+   {
+    "name": "the starters of .xsd",
+    "path": "a.xsd",
+    "starters": []
+   },
+   {
+    "name": "the starters of .xsl",
+    "path": "a.xsl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .xslt",
+    "path": "a.xslt",
     "starters": []
    },
    {

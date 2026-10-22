@@ -31,7 +31,7 @@ def within(rel, path):
     return path in ('.', '') or rel == path or rel.startswith(path + '/')
 
 
-STARTER = re.compile(r'^[^\w\s@{}]{1,3}$')   # a comment starter a target may declare: one to three characters, none a letter, digit or space
+STARTER = re.compile(r'^[^\w\s@{}\'"`]{1,3}$')   # a comment starter a target may declare: one to three characters, none a letter, digit, space or quote
 
 
 def starters_in(text):
@@ -975,7 +975,7 @@ class Project:
                         bad = starters_in(it.values['comment'])[1]
                         for token in bad:
                             out.append(Problem('target', p.rel, f'`comment: {token}` is not a comment starter: one to three characters, '
-                                                                'none a letter, a digit, a space, `@`, `{` or `}`'))
+                                                                'none a letter, a digit, a space, a quote, `@`, `{` or `}`'))
                         if not it.values['comment'].strip():
                             out.append(Problem('target', p.rel, '`comment:` names no starter'))
         known = set(names)

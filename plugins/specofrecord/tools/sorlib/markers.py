@@ -32,11 +32,16 @@ def marker_regex(extras=()):
     return _MARKERS[key]
 
 
+def _split_marker(m, line):
+    """(the code before the marker, the words after `@clause`) of a line, from the match of `marker_regex`."""
+    return line[:m.start()].rstrip(), MARKER_CLOSERS.sub('', m.group(1)).split()
+
+
 def parse_marker(rel, line, starters=()):
     """(the code before the marker, the words after `@clause`) of a line of the file at this path that holds a marker, else None.
     `starters`: what the file's target declares besides the starters of its type."""
     m = marker_regex(starters_of(rel) + tuple(starters)).search(line)
-    return None if m is None else (line[:m.start()].rstrip(), MARKER_CLOSERS.sub('', m.group(1)).split())
+    return None if m is None else _split_marker(m, line)
 
 SKIP_DIRS = {'node_modules', '__pycache__', 'venv'}   # and every folder whose name starts with a dot (.git, .venv, .claude)
 MAX_BYTES = 2_000_000
@@ -94,10 +99,9 @@ def scan_text(rel, text, starters=()):
             elif line.strip():
                 unmarked.append(n)
             continue
-        words = MARKER_CLOSERS.sub('', m.group(1)).split()
+        code, words = _split_marker(m, line)
         head = words[0] if words else ''
-        code = line[:m.start()].rstrip()
-        if code.strip():
+        if code:
             # a line marker: this one line belongs to the ids at its end (a table row, say),
             # not to the region around it
             r = Region(rel, n, 'line', words)
@@ -169,8 +173,8 @@ MAGIC = re.compile(r'^#.*(?:coding[:=]|frozen_string_literal:|shareable_constant
 # How a file's code is normalized follows its type (SPEC §11). A style is written `family[-keep][+kinds]`.
 #   family   which lines are comments: c (`//`, `/* */`, `<!-- -->`), hash (`#`), dash (`--`, `/* */`, `{- -}`), python (`#`, and the
 #            nesting of statements counts), or safe (none: a comment is code).
-#   -keep    indentation counts: each line carries its column, relative to the smallest of the lines kept, and spaces are not collapsed.
-#            safe means -keep.
+#   -keep    indentation counts: each line carries its indentation as written, less what all the kept lines start with, and spaces
+#            are not collapsed. safe means -keep.
 #   +kinds   the multi-line strings the type has, whose lines are text and never a comment: tick (`` ` ``), rawtick (the same where a
 #            backslash is just a backslash: Go), triple (`"""`), triple1 (`'''`).
 # A file of a type that is not listed gets `safe`, which hides nothing but blank lines and trailing spaces. One row per kind of file:
@@ -188,8 +192,12 @@ LANGUAGES = [
     ('scala sc', 'c-keep+triple', ''),
     ('fs fsx fsi', 'c-keep', '(*'),
     ('sass styl', 'c-keep', ''),
-    ('c h cc cpp cxx hh hpp hxx ino mm rs php zig sol proto thrift glsl vert frag hlsl metal d v sv svh html htm xhtml css scss less '
-     'json jsonc json5 vue svelte', 'c', ''),
+    ('c h cc cpp cxx c++ h++ hh hpp hxx cppm ixx inl ipp tpp ino mm rs php zig sol proto thrift prisma dts dtsi d v sv svh '
+     'glsl vert frag comp geom tesc tese mesh task rgen rchit rmiss rahit rint rcall hlsl hlsli wgsl slang metal cu cuh cl '
+     'html htm xhtml css scss less vue svelte astro erb cshtml razor jsp asp aspx hbs mustache twig ejs liquid mdx '
+     'xml svg xsd xsl xslt xaml plist csproj fsproj vbproj props targets resx wsdl rss storyboard xib '
+     'json jsonc json5', 'c', ''),
+    ('graphql gql', 'hash', ''),
     ('m', 'c', '%'),                       # Objective-C, or MATLAB
     ('pas pp', 'c', '(*'),
     ('erl hrl tex sty', 'safe', '%'),
@@ -206,6 +214,7 @@ LANGUAGES_BY_EXACT_NAME = {'BUILD': 'python', 'WORKSPACE': 'python'}
 DEFAULT_STYLE = 'safe'
 STYLES = {ext: (style, starters) for exts, style, starters in LANGUAGES for ext in exts.split()}
 FAMILIES = ('c', 'hash', 'dash', 'python', 'safe')
+KINDS = ('tick', 'rawtick', 'triple', 'triple1')
 
 
 def _language(rel):
@@ -234,14 +243,23 @@ def _collapse(t):
     return ''.join(part if i % 2 else re.sub(r'[ \t]+', ' ', part) for i, part in enumerate(QUOTED.split(t)))
 
 
+def _lead(rest):
+    """How indentation reads in a hash: the number of spaces (`3`), or, when it holds a tab or another whitespace character, the
+    indentation itself with each of those written as `\\u` and its code point in four hex digits at least (`  \\u0009`), so that a
+    tab is never the same as eight spaces."""
+    if not rest.strip(' '):
+        return str(len(rest))
+    return ''.join(c if c == ' ' else f'\\u{ord(c):04x}' for c in rest)
+
+
 def _indented(kept, keep):
-    """The texts of the kept lines [(line, text)], each led by its column when indentation counts (`3:foo`): the line's own
-    indentation, tabs as 8 columns, less the smallest of them, so that moving the whole piece of code is not a change."""
+    """The texts of the kept lines [(line, text)], each led by its indentation when indentation counts (`3:foo`): the indentation as
+    written, less the characters all the kept lines start with, so that moving the whole piece of code is not a change."""
     if not keep:
         return [text for _, text in kept]
-    cols = [len(line[:len(line) - len(line.lstrip())].expandtabs(8)) for line, _ in kept]
-    low = min(cols, default=0)
-    return [f'{c - low}:{text}' for c, (_, text) in zip(cols, kept)]
+    lead = [line[:len(line) - len(line.lstrip())] for line, _ in kept]
+    base = len(os.path.commonprefix(lead))
+    return [f'{_lead(ws[base:])}:{text}' for ws, (_, text) in zip(lead, kept)]
 
 
 def normalized(lines, style='c'):
@@ -249,17 +267,17 @@ def normalized(lines, style='c'):
     space for every run of spaces outside quotes. Text inside quotes and everything else stays
     exactly as written, so re-indenting and re-spacing is not a change but a new word is.
     `style` (see `LANGUAGES`) says which lines are comments, whether indentation counts, and which multi-line strings there are."""
-    base, _, kinds = style.partition('+')
+    base, *kinds = style.split('+')
     family = base[:-5] if base.endswith('-keep') else base
-    if family not in FAMILIES:
-        raise ValueError(f'unknown normalization style {style!r}')
+    if family not in FAMILIES or any(k not in KINDS for k in kinds) or (kinds and family != 'c'):
+        raise ValueError(f'unknown normalization style {style!r}')    # a typo must not switch a protection off in silence
     if family == 'python':
         return _python_normalized(lines)
     keep = family == 'safe' or base.endswith('-keep')
     if family == 'hash':
         return _hash_normalized(lines, keep)
     comment = {'c': COMMENT_LINE, 'dash': DASH_COMMENT}.get(family)
-    inside = _inside_strings(lines, kinds.split('+')) if kinds else ()
+    inside = _inside_strings(lines, kinds) if kinds else ()
     kept = []
     for i, line in enumerate(lines):
         t = line.strip()
@@ -294,7 +312,8 @@ def _inside_strings(lines, kinds):
     """For each line, whether it starts inside a multi-line string (so it is text, and a line that looks like a comment is not one).
     `kinds`: tick, rawtick, triple, triple1 (see `LANGUAGES`). Comments are skipped, `//` to the end of the line and `/* */` over lines,
     before a quote is looked for, and a quote that closes on its line is a string of one line. Wrongly inside keeps comment lines,
-    which only gives a false alarm; wrongly outside is what the table cannot see, such as a regular expression with a quote in it."""
+    which only gives a false alarm. Wrongly outside hides a change, and the tracker catches the one case it can see: a region that
+    ends inside a string or a comment has lost its place, so none of its lines is dropped. An even number of strays still gets through."""
     opens = {'`': 'tick' in kinds or 'rawtick' in kinds, '"""': 'triple' in kinds, "'''": 'triple1' in kinds}
     escapes = 'rawtick' not in kinds
     out, state = [], None   # state: None, 'block' (inside /* */), or the closer of the multi-line string that is open
@@ -336,6 +355,10 @@ def _inside_strings(lines, kinds):
                     i = j
                 elif tok in ('"', "'") and j >= 0:
                     i = j                              # a string of one line (an unclosed quote is an apostrophe)
+    if state is not None:
+        # A region does not end inside a string or a comment, so the tracker lost its place (a lone backtick in JSX text, say). Every
+        # line is then kept as text, which can only give a false alarm; reading on would trust a parity that is wrong.
+        return [True] * len(lines)
     return out
 
 
