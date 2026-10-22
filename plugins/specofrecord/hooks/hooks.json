@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v python3 >/dev/null 2>&1 || exit 0; input=$(cat); case \"$input\" in *allow-b*|*already-f*|*--alr*) ;; *) exit 0;; esac; printf '%s' \"$input\" | python3 \"${CLAUDE_PLUGIN_ROOT}/tools/sor.py\" hook pre-bash || exit 1",
+            "command": "command -v python3 >/dev/null 2>&1 || exit 0; python3 \"${CLAUDE_PLUGIN_ROOT}/tools/sor.py\" hook pre-bash || exit 1",
             "timeout": 10
           }
         ]
@@ -35,11 +35,33 @@
     ],
     "PostToolUse": [
       {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v python3 >/dev/null 2>&1 || exit 0; SOR_ENFORCE_CLAIMS=1 python3 \"${CLAUDE_PLUGIN_ROOT}/tools/sor.py\" hook post-bash || exit 1",
+            "timeout": 30
+          }
+        ]
+      },
+      {
         "matcher": "Read",
         "hooks": [
           {
             "type": "command",
             "command": "command -v python3 >/dev/null 2>&1 || exit 0; python3 \"${CLAUDE_PLUGIN_ROOT}/tools/sor.py\" hook post-read || exit 1",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v python3 >/dev/null 2>&1 || exit 0; SOR_ENFORCE_CLAIMS=1 python3 \"${CLAUDE_PLUGIN_ROOT}/tools/sor.py\" hook post-bash || exit 1",
             "timeout": 30
           }
         ]

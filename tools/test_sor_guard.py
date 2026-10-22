@@ -7,8 +7,10 @@ Python 3.9, standard library only. The registered commands are run through `sh`,
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 
 sys.dont_write_bytecode = True
@@ -20,6 +22,16 @@ import test_sor as base                      # noqa: E402
 from sorlib import hook                      # noqa: E402
 
 PLUGIN = os.path.join(REPO, 'plugins', 'specofrecord')
+NOTES = tempfile.mkdtemp(prefix='sor-guard-notes-')   # where the hooks keep what they note about a shell command: not the system's temporary folder
+
+
+def setUpModule():
+    tempfile.tempdir = NOTES
+
+
+def tearDownModule():
+    tempfile.tempdir = None
+    shutil.rmtree(NOTES, ignore_errors=True)
 
 
 def bash(command, **more):
@@ -124,7 +136,7 @@ class TestWhatTheHookAnswers(unittest.TestCase):
         self.assertIsNone(hook.pre_bash({}))
 
     def test_run_as_a_program_it_answers_on_stdout_and_never_blocks_on_its_own_failure(self):
-        env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1')
+        env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', TMPDIR=NOTES)
         done = subprocess.run([sys.executable, base.SOR, 'hook', 'pre-bash'], input=json.dumps(bash('sor lock a --allow-behind ts')),
                               cwd=REPO, capture_output=True, text=True, env=env)
         self.assertEqual(done.returncode, 0, done.stderr)
@@ -147,7 +159,8 @@ def registered_command(path, matcher):
 
 
 class TestTheRegisteredCommands(unittest.TestCase):
-    """What Claude Code runs: a shell command that first looks at the text, so that Python starts only for a command that mentions the flag."""
+    """What Claude Code runs before a shell command: one command that starts the hook for every command, because the check after a command needs the
+    stamps of the files before it (a command that mentions neither flag still gets no answer)."""
     WHERE = [
         ('the plugin', os.path.join(PLUGIN, 'hooks', 'hooks.json'), {'CLAUDE_PLUGIN_ROOT': PLUGIN}),
         ('this repository', os.path.join(REPO, '.claude', 'settings.json'), {'CLAUDE_PROJECT_DIR': REPO}),
@@ -155,7 +168,7 @@ class TestTheRegisteredCommands(unittest.TestCase):
 
     def run_command(self, command, env, payload):
         return subprocess.run(['sh', '-c', command], input=json.dumps(payload), capture_output=True, text=True, cwd=REPO,
-                              env=dict(os.environ, PYTHONDONTWRITEBYTECODE='1', **env))
+                              env=dict(os.environ, PYTHONDONTWRITEBYTECODE='1', TMPDIR=NOTES, **env))
 
     def test_each_asks_for_a_lock_with_either_flag(self):
         for name, path, env in self.WHERE:

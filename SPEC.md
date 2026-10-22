@@ -534,7 +534,7 @@ with `-C <folder>`:
 | `sor needs [part] [--json]` | what a part needs, derived from the `{references}` in its items to items of other parts (words of its parent files, its own child parts and design tokens do not count, so the root needs nothing), each marked `gives` or not. A `needs` bullet (§7) stays allowed and is optional |
 | `sor changes [--json]` | the changes pending since the last lock, grouped: **Added**, **Changed**, **Removed**, **Fixes** (new or changed tests with `bug:`), and every item retired with `retired:` |
 | `sor new <part> [--why TEXT]` · `sor new --root [--why TEXT]` | writes a skeleton part (the four sections) or the root file (Rules and Approach), with hint comments at the start of a line and `<fill in: …>` placeholders, which `sor check` reports until they are filled in. Never overwrites a file. The edit hook lets one Write fill in a skeleton that is still exactly as written, whatever sentence it was given for `--why` (see the hooks below). Refuses (writing nothing): a `-C` folder that does not exist; an id that is already an item (parts and items share one set of ids, §3; the message says where the item is, `the rule **mixer** in audio.md`, and the two ways out: another part name, or rename that item first); an id whose folder already holds parts; a `--why` with a `Word:` setting inside the sentence (`Owner:`, `Run:`, …), which the reader would take for a setting of the part |
-| `sor hook pre-edit \| post-read \| session-start \| pre-bash \| session-end` | Claude Code hooks, registered in `.claude/settings.json` (below); `pre-bash` asks the user before a `sor lock --allow-behind` runs, `session-end` frees the claims of the ending session |
+| `sor hook pre-edit \| post-read \| session-start \| pre-bash \| post-bash \| session-end` | Claude Code hooks, registered in `.claude/settings.json` (below); `pre-bash` asks the user before a `sor lock --allow-behind` runs, `session-end` frees the claims of the ending session |
 
 Drift lines name who last changed their lines when the environment can tell (today from `git blame`):
 `(changed by NAME in 1a2b3c4 (2026-10-17))`, or `(not committed yet)`; without git nothing is added.
@@ -619,7 +619,15 @@ the plugin at `plugins/specofrecord/`, DECISIONS.md):
   index cannot be built, the note comes without it. In a project that has a lock it also says, in facts and in a line of at most 900 characters, what is pending since the
   last lock (clauses changed, a language behind, drift; the rest as "and N more") and which claims are in force, so a session that did not start that work
   still knows of it. It says nothing for a project in agreement or with no lock yet, and it is left out whole if working it out fails.
-- Not covered: code changed through the shell (`sed`, scripts). That still shows as drift in
+- *After a shell command* (the Bash tool), a warning. `pre-bash` notes the stamps (time and size) of the files the guard watches in the project and
+  which clauses already drift, `post-bash` runs after the command, also one that failed (Claude Code's PostToolUse and PostToolUseFailure), and compares.
+  If the command made code drift whose clause had not changed, or changed a file with code of a clause that another session claimed (when claims are
+  enforced), or wrote the lock file, the agent is told so in the words of the edit guard. Nothing is undone and nothing is refused: the command has run.
+  Drift that was there before the command is not counted. A line whose every command is `git` or `sor` (they rewrite spec, code and lock on purpose), or
+  `cd`, `pushd`, `popd` or `export`, and that redirects nothing to a file, is left out; so is the lock file when the line runs `sor` or `git`. The
+  project is the one above the folder the session started in or, when there is none, up to eight below it (four levels down). A project with more than
+  20,000 files, a command that goes on in the background and one that is cancelled are not covered.
+- Not covered: code changed where no hook runs: a person's editor, another agent, a script outside Claude Code. That still shows as drift in
   `sor status`, and `sor lock` refuses it.
 
 **Code a person changed.** The hooks watch only an agent's own edits. A person who edits code in an editor is not

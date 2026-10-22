@@ -4,7 +4,8 @@
                           code of a clause that has not changed since the last lock
     sor hook post-read   PostToolUse on Read: adds the clauses behind the regions just read
     sor hook session-start   SessionStart: a note saying this project has a spec, when it has, a short index of its parts, and what is pending
-    sor hook pre-bash    PreToolUse on Bash: asks the user before a `sor lock` that carries --allow-behind runs
+    sor hook pre-bash    PreToolUse on Bash: asks the user before a `sor lock` that carries --allow-behind runs, and notes which files the command could change
+    sor hook post-bash   PostToolUse and PostToolUseFailure on Bash: says what the guard would have refused if the command changed code or the lock (shellguard.py)
     sor hook session-end   SessionEnd: frees the claims the ending session made
 
 They read the hook's JSON on stdin. Files outside a project, or outside its code, pass.
@@ -68,6 +69,22 @@ def where_to_change(project, key):
         item = project.items[o.id.rsplit('/', 1)[0]]
         return f'the row **{o.name}** of **{item.name}** in {file(item.part)}'
     return f'**{o.name}** in {file(o.part)}'
+
+
+def clause_first_reasons(project, drift, fallback):
+    """One line for each place whose code drifts (a finding with status drift): where it is, the clauses it serves, and where to change them first.
+    `fallback` is the place to name for a finding that has none. The edit guard refuses with these lines, and the check after a shell command says them."""
+    by_where, reasons = {}, []
+    for f in drift:
+        by_where.setdefault(f.where or fallback, []).append(f.key)
+    for where, keys in by_where.items():
+        targets = [where_to_change(project, k) for k in keys]
+        if len(keys) == 1:
+            reasons.append(f'- {where} serves `{keys[0]}`: change {targets[0]} first.')
+        else:
+            reasons.append(f'- {where} serves {", ".join(f"`{k}`" for k in keys)}: change one of '
+                           + ', '.join(targets) + ' first.')
+    return reasons
 
 
 class _NoCode:
@@ -220,16 +237,7 @@ def pre_edit(payload):
     pending = {f.key for f in now if f.status in PENDING}
     was_drift = {(f.key, f.detail) for f in was if f.status == 'drift'}   # a clause drifting in another target is more drift
     drift = [f for f in now if f.status == 'drift' and (f.key, f.detail) not in was_drift]
-    reasons, by_where = [], {}
-    for f in drift:
-        by_where.setdefault(f.where or rel, []).append(f.key)
-    for where, keys in by_where.items():
-        targets = [where_to_change(project, k) for k in keys]
-        if len(keys) == 1:
-            reasons.append(f'- {where} serves `{keys[0]}`: change {targets[0]} first.')
-        else:
-            reasons.append(f'- {where} serves {", ".join(f"`{k}`" for k in keys)}: change one of '
-                           + ', '.join(targets) + ' first.')
+    reasons = clause_first_reasons(project, drift, rel)
 
     def counts(scan):
         return Counter((p.kind, p.text) for p in scan.problems if p.where.startswith(rel + ':'))
@@ -376,6 +384,11 @@ def pre_bash(payload):
     document) passes. This guards Claude Code only; a person's terminal is not touched."""
     if payload.get('tool_name') not in (None, 'Bash'):
         return None
+    try:
+        from . import shellguard   # not at the top: it uses this module
+        shellguard.before(payload)
+    except (Exception, SystemExit):
+        pass   # a note about the command that follows is not worth stopping it
     calls = lock_allowances((payload.get('tool_input') or {}).get('command') or '')
     if not calls:
         return None
@@ -389,6 +402,14 @@ def pre_bash(payload):
             parts.append(f'`{CMD} lock` of {what} with --already-fits: {who} would be cleared as fitting the changed clause, with no code change')
     reason = '; '.join(parts) + '. Allow it only if you have said that this language comes later, or have checked that its code fits.'
     return {'hookSpecificOutput': {'hookEventName': 'PreToolUse', 'permissionDecision': 'ask', 'permissionDecisionReason': reason}}
+
+
+def post_bash(payload):
+    """After a shell command, also one that failed: what the edit guard would have refused had the command been an edit. Only says it (see shellguard.py)."""
+    if payload.get('tool_name') not in (None, 'Bash'):
+        return None
+    from . import shellguard
+    return shellguard.after(payload)
 
 
 def deny(reason):
@@ -539,7 +560,7 @@ def session_start(payload):
     return {'hookSpecificOutput': {'hookEventName': 'SessionStart', 'additionalContext': ctx}}
 
 
-HOOKS = {'pre-edit': pre_edit, 'post-read': post_read, 'session-start': session_start, 'pre-bash': pre_bash, 'session-end': session_end}
+HOOKS = {'pre-edit': pre_edit, 'post-read': post_read, 'session-start': session_start, 'pre-bash': pre_bash, 'post-bash': post_bash, 'session-end': session_end}
 
 
 def run(which):

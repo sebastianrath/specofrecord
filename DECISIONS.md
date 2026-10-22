@@ -1251,6 +1251,39 @@ no such test: the tests of the behaviour they must keep stay green.
 - **Not changed:** the JavaScript tool's lock `2.0` difference and the grammar errors it does not see stay as written above. The finding that spec and
   code were edited with scripts and not with Edit is a note on how to work: the clauses were changed first, and the next edits use Edit.
 
+## A warning after a shell command changes guarded files (2026-10-22)
+The review of the JavaScript tool found that the extension's spec and code had been edited with shell scripts, which the edit guard does not see (it watches the
+Edit, Write and MultiEdit tools). The owner chose a warning, not a refusal, with `git` and `sor` commands left out.
+- **What it does.** `sor hook pre-bash` notes, before every Bash command, the stamps (time and size) of the files the guard watches and which clauses already
+  drift; `sor hook post-bash` runs after the command and compares. It tells Claude, in the words of the edit guard, about code that now drifts because of the
+  command, about a file with code of a clause that another session claimed (when claims are enforced), and about a lock file written by anything but `sor
+  lock`. It never refuses: the command has run, and a refusal after the fact would only be a story.
+- **Why stamps and not a list of write commands.** `sed -i`, `perl -pi`, `python3 - <<EOF`, a redirect, a formatter and `git checkout` all write files, and a
+  list of such programs always misses one. Comparing the files before and after sees them all, and the full check (a scan and the status) runs only when a
+  watched file changed.
+- **Drift that was there is not the command's.** The skill says drift that was already there is a person's change and is kept. So the clauses that drift are
+  noted before the command (kept for the stamps they were worked out for, so a scan is paid for only when something changed) and the warning is about drift
+  that is new.
+- **Left out:** a line whose every command is `git` or `sor`, or `cd`, `pushd`, `popd`, `export`, that redirects nothing to a file (`git show x > f` is looked
+  at); the lock file when the line runs `sor` or `git`. The user's words were git and sor; `cd` is there because `cd x && sor lock` is how this repository is
+  worked in, and without it every such line would be called a hand-written lock.
+- **Also after a failure.** Claude Code runs PostToolUse after a command that succeeded and PostToolUseFailure after one that failed (the hooks reference),
+  so `sed -i x f && false` is checked too; both are wired to `post-bash`, which names the event it answers. `tool_use_id` pairs the two hooks of a command (the
+  session and the command text when a payload has none).
+- **Projects below the session.** A session that starts at the root of a repository whose projects are `examples/x` and `editors/y` has no `sor/` above it, so
+  looking up finds nothing (the incident that led here happened that way). The hook looks up first and then up to eight projects below, four levels down,
+  skipping hidden folders, `node_modules` and the like, for 0.25 s at most; the list is kept for ten minutes.
+- **Cost.** The shell test that made Python start only for a command with `--allow-behind` in it is gone, so every Bash call starts Python (75 ms here) twice. In a
+  folder with no project nothing else happens (the search below is bounded and kept). Recording the stamps of 5,100 files took 25 ms; a project of more than
+  20,000 files, or one that takes more than a second to look through, is left alone, quietly.
+- **Not covered:** a command that goes on after the hook ran (a background job), a command that is cancelled (no hook runs; its note is removed after a day), a
+  project more than four levels below the session's folder, a person's editor and another agent outside Claude Code (they still show as drift in `sor status`).
+- **Tested** with the commands in a table (what is left out and what is not), a project in about twenty situations (a clause changed first, drift that was
+  there, two commands at once, two projects below, claims, a failing check, a lock file), the registered commands run through `sh` for both events, and a
+  mutation check of `shellguard.py` (223 changes, 27 of which do not compile and 165 of which fail a test; I read the 31 left and
+  found none that changes what the hook says: limits compared with `<` and `<=`, `[]` where `None` means the same, defaults for a missing session id, two
+  options of the shell tokenizer, and a filter that only matters for a claim of one language).
+
 ## Still open
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for
   this format (SPEC §15). The old `fdd` prototype (previous syntax) is not in this folder.

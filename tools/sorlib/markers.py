@@ -12,6 +12,7 @@ import glob
 import hashlib
 import os
 import re
+import time
 
 from . import anchors
 from .model import Problem, has_spec, split_lines
@@ -594,12 +595,17 @@ def code_hash(regions, legacy=False):
     return hashlib.sha256('\n\x00\n'.join(parts).encode('utf8')).hexdigest()[:12]
 
 
-def file_stamps(project):
+def file_stamps(project, until=None, limit=None):
     """{path: (mtime_ns, size)} of the spec files and of the files under the code roots: what a scan reads. Taken before the scan reads them,
-    a stamp that is different afterwards means the file changed in between. A path that cannot be examined is left out."""
+    a stamp that is different afterwards means the file changed in between. A path that cannot be examined is left out. `until` (a
+    `time.monotonic()` value) and `limit` (a number of files) end the walk of a project too big to be looked through in the time there is: the
+    answer is then None."""
     paths = glob.glob(os.path.join(project.spec_dir, '**', '*.md'), recursive=True)
     for root in project.code_roots():
-        paths += list(_files(project, root))
+        for p in _files(project, root):
+            paths.append(p)
+            if limit is not None and len(paths) > limit or until is not None and len(paths) % 256 == 0 and time.monotonic() > until:
+                return None
     out = {}
     for p in paths:
         try:

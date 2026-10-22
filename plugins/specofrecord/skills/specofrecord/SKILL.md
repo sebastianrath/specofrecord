@@ -104,8 +104,8 @@ in line. The steps are in `reference/code-a-person-changed.md`: read it first.
 
 ## Rules
 **Guard and files**
-- The edit guard governs only the spec folder, the declared code paths and files that contain `@clause` markers.
-  Everything else (a website, docs, config, notes) is not governed: edit it normally.
+- The edit guard governs the spec folder, the declared code paths and files with `@clause` markers; edit anything else (docs, config, notes) normally.
+  It sees Edit and Write only: a shell command that changes guarded files (`sed -i`, a script) gets a warning afterwards, so use Edit.
 - A refusal starts with "Clauses come first", "Someone else is working on this", "Do not rewrite", or (for the lock and
   claims files) a message with "is written only by"; one with "is in lock format" means this sor is older than the lock: tell
   the user to update it. A hook *error* (a message that the hook could not run) is a broken setup: tell the user. Never work around a refusal.
