@@ -44,7 +44,6 @@ from .model import Project, part_id, split_lines
 
 def load(args):
     project = Project(args.root)
-    claims.renew(project, claims.current_session())   # a command run from a Claude Code session is a sign of life of its claims
     return project, Scan(project)
 
 
@@ -311,7 +310,7 @@ def cmd_rehash(args, project, scan):
 def cmd_lock(args):
     project, scan = load(args)
     if args.agent:
-        claims.renew(project, claims.current_session(), args.agent)   # a person at a terminal who names themselves is at work too
+        claims.touch(project, claims.current_session(), args.agent)   # a person at a terminal who names themselves is at work too
     old = lockfile.read(project)
     try:
         lockfile.check_writable(project)
@@ -958,6 +957,8 @@ def main(argv=None):
     args, extra = ap.parse_known_args(argv)
     if extra:   # what parse_args says, and for --as, which commands take it
         ap.error('unrecognized arguments: ' + ' '.join(extra) + as_hint(ap, args.cmd, extra))
+    if args.cmd != 'hook' and claims.current_session():   # a command run from a Claude Code session is a sign of life of its claims
+        claims.touch(claims.at(args.root), claims.current_session())
     try:
         return args.fn(args)
     except BrokenPipeError:

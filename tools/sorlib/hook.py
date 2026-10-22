@@ -140,15 +140,20 @@ def is_skeleton(root, rel, path):
     return data == views.skeleton('' if name == PART_FILE_NAME else name, root, None if why == views.WHY else why).encode('utf8')
 
 
+def renew_quietly(project, session):
+    """A hook call is a sign of life of the claims of its session (`claims.touch`), and whatever goes wrong while recording it costs the hook
+    nothing: the edit keeps its check and the read its note."""
+    try:
+        claims.touch(project, session)
+    except Exception:  # noqa: BLE001  a hook must not fail for this
+        pass
+
+
 def renew_claims(root, payload):
-    """An edit by a session is a sign of life of its claims (`claims.renew`). It reads the claims file and nothing else, so the project is not
-    parsed for it, and a failure never costs the edit its check."""
+    """An edit by a session renews its claims. It reads the claims file and nothing else, so the project is not parsed for it."""
     session = payload.get('session_id') or ''
     if session and os.path.isfile(os.path.join(root, SPEC_DIR, CLAIMS_FILE)):
-        try:
-            claims.renew(Project(root), session)
-        except (Exception, SystemExit):
-            pass
+        renew_quietly(claims.at(root), session)
 
 
 def pre_edit(payload):
@@ -341,7 +346,8 @@ def lock_allowances(command, depth=0):
 
 def session_end(payload):
     """Frees the claims made in the session that is ending, so a closed chat does not hold clauses until its idle window runs out. A crash skips
-    this hook, and the idle window covers that. The project of the session's folder only."""
+    this hook, and the idle window covers that. It looks for the project from the folder the session ends in, so a session started above its
+    project (a monorepo root with the project in a subfolder) keeps its claims until the idle window runs out."""
     root = find_root(os.path.join(payload.get('cwd') or os.getcwd(), 'x'))
     if root:
         claims.release_session(Project(root), payload.get('session_id') or '')
@@ -378,7 +384,7 @@ def post_read(payload):
     if not root:
         return None
     project = Project(root)
-    claims.renew(project, payload.get('session_id') or '')
+    renew_quietly(project, payload.get('session_id') or '')
     scan = Scan(project)
     SPEC_DIR = project.spec_name
     rel = scan.rel(path)

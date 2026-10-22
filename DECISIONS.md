@@ -987,10 +987,13 @@ Decided by the owner on 2026-10-22: no fixed lifetime in an agentic workflow. A 
   for ever and the idle window would never fire. A claim that already ran out is never renewed (someone else may hold the clause now; its holder is told
   at the next lock or release, as before), and a claim of an older tool has no `idle` and keeps its fixed end.
 - **Cheap.** Nothing happens without a claims file, the file is read without the mutex, and it is rewritten under the mutex, re-read, only for a claim whose
-  last activity is more than half its window old (every 5 minutes for a claim with no window). A command that renews nothing never makes the file.
+  last activity is more than 5 minutes old, or more than half a short window. So a claim can end up to 5 minutes before its window is over, and the docs say so.
+  A command that renews nothing never makes the file, and the edit hook does not parse the project to renew.
+- **Renewal is best effort.** A busy claims file or a folder that cannot be written costs the command or the hook nothing: `sor status` keeps its exit code,
+  a read its note, an edit its check. Every command run with a session renews, through one call in `main()` (the hook commands renew from their payload).
 - **A session end frees its claims** (`sor hook session-end`, a `SessionEnd` hook with a 5 second timeout; the default budget of that event is 1.5 s). It
-  releases the claims whose session is the one in the payload, for any reason, in the project of the session's folder. A crash skips the hook, and the idle
-  window covers that. A claim with no window is cleared only by release, `--force`, or its session ending.
+  releases the claims whose session is the one in the payload, for any reason, in the project found from the folder the session ends in, so a session started
+  above its project (a monorepo root) keeps its claims until the idle window runs out. A crash skips the hook, and the idle window covers that. A claim with no window is cleared only by release, `--force`, or its session ending.
 - **The messages** say what ends a claim: "claims end after 30 min idle by default", and a claim is described with its last activity and when it ends if
   nothing more happens.
 

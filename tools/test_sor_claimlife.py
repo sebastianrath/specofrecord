@@ -166,6 +166,52 @@ class TestWhatRenewsAClaim(Lives):
         (after,) = [c for c in self.claims_file() if c['agent'] == 'dana']
         self.assertGreater(after['until'], dana['until'] + 60)
 
+    def test_a_claim_is_renewed_at_least_every_five_minutes_so_it_ends_at_most_that_early(self):
+        self.run_as(SESSION, 'release', '--all')
+        self.claim('greet/hello')                       # 30 minutes
+        (c,) = self.mine()
+        project = Project(self.dir)
+        self.assertEqual(claims.renew(project, SESSION, now=c['last'] + 4 * 60), 0)
+        self.assertEqual(claims.renew(project, SESSION, now=c['last'] + 6 * 60), 1)
+        self.run_as(SESSION, 'release', '--all')
+        self.claim('greet/hello', ttl='90s')            # half its window is 45 seconds
+        (c,) = self.mine()
+        self.assertEqual(claims.renew(project, SESSION, now=c['last'] + 30), 0)
+        self.assertEqual(claims.renew(project, SESSION, now=c['last'] + 50), 1)
+
+    def test_every_command_a_session_runs_renews_its_claims_and_a_hook_command_leaves_that_to_the_hook(self):
+        for args in (('status', '--json'), ('check',), ('parts',), ('show', 'greet'), ('markers', '--json'), ('needs',), ('changes',)):
+            with self.subTest(args):
+                self.run_as(SESSION, 'release', '--all')
+                self.claim('greet/hello')
+                self.age(20 * 60)
+                stale = self.until()
+                self.run_as(SESSION, *args)
+                self.assertGreater(self.until(), stale + 60)
+
+    def test_a_renewal_that_cannot_be_written_costs_the_command_nothing(self):
+        def status():
+            code, out, _ = self.run_as(SESSION, 'status', '--json')
+            return code, {k: v for k, v in json.loads(out).items() if k != 'claims'}     # the claims carry the times that renewal moves
+
+        expected = status()                                                # this renews the claim, which setUp had aged ...
+        read_answer = hook.post_read({'session_id': SESSION, 'tool_input': {'file_path': self.app}})
+        self.age(20 * 60)                                                 # ... so age it again: a renewal is due
+        stale = self.until()
+        for what, failure in (('a folder that cannot be written', mock.patch.object(claims, '_write', side_effect=OSError('read-only'))),
+                              ('a busy claims file', mock.patch.object(claims._Mutex, '__enter__', side_effect=claims.ClaimError('busy')))):
+            with self.subTest(what), failure:
+                self.assertEqual(status(), expected)
+                self.assertEqual(hook.post_read({'session_id': SESSION, 'tool_input': {'file_path': self.app}}), read_answer)
+                self.assertIsNotNone(hook.pre_edit(dict(flows.edit(self.app, '"Hello"', '"Hi"'), session_id=SESSION)))   # and still refuses
+        self.assertEqual(self.until(), stale)
+
+    def test_an_edit_renews_without_parsing_the_project(self):
+        stale = self.until()
+        with mock.patch.object(hook, 'Project', side_effect=AssertionError('the project was parsed')):
+            hook.renew_claims(self.dir, {'session_id': SESSION})
+        self.assertGreater(self.until(), stale + 60)
+
     def test_a_claim_someone_else_renewed_meanwhile_is_not_written_again(self):
         # two processes see the same stale claim; the one that gets the mutex second finds it already renewed
         stale = self.claims_file()

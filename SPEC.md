@@ -713,8 +713,9 @@ What the tool does about it:
   marked with them. Two agents conflict when their claims overlap in either: the same clause, a
   part and its item, or two clauses marked on one region. A clause that shares *another* region
   is not held: claiming the moon does not lock out the light. A claim is held while its holder is active: it ends after a window with no
-  activity (default 30 minutes idle; `--ttl` changes it for one claim, and `Claims: idle 2h` or `Claims: idle never` in the root file for the project)
-  and when its Claude Code session ends (`sor hook session-end`), so a closed or crashed chat does not block the project. Activity is a `sor` command or a
+  activity, up to 5 minutes sooner because activity is recorded at most that often (default 30 minutes idle; `--ttl` changes it for one claim, and `Claims: idle 2h` or `Claims: idle never` in the root file for the project)
+  and when its Claude Code session ends (`sor hook session-end`, which looks for the project from the folder the session ends in: a session started above its
+  project keeps its claims until the window runs out), so a closed or crashed chat does not block the project. Activity is a `sor` command or a
   hook call that carries the holder's session id, so the extension's refreshes, which carry none, keep nothing alive; a person at a terminal renews by
   naming themselves (`--as`) at `sor lock`. `sor claim` says when the claim ends if nothing more happens (`claimed audio, held while you work: it ends at
   00:31 if you do nothing for 30 min`), and `sor status` and a refusal show the last activity of each claim.

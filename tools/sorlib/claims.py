@@ -26,9 +26,10 @@ import json
 import os
 import re
 import time
+from types import SimpleNamespace
 
 from .invoke import getenv
-from .model import PART_FILE_NAME
+from .model import PART_FILE_NAME, SPEC_DIR, has_spec
 
 
 CLAIMS_FILE = '.sor-claims.json'
@@ -38,7 +39,7 @@ STALE_LOCK = 10      # seconds after which a leftover mutex is broken
 WAIT_LOCK = 5        # seconds to wait for the mutex
 DEFAULT_TTL = 30 * 60   # the idle window of a claim, in seconds, when nothing else says (`--ttl`, `Claims:` in the root file)
 NEVER = 4102444800      # 2100-01-01: the `until` of a claim with no idle window, a date every tool can read (not null, not year 9999)
-RENEW_FLOOR = 300       # a claim with no idle window records its last activity at most this often
+RENEW_FLOOR = 300       # a claim records its last activity at most this often, so it can end this much before its idle window is over
 TOMBSTONE = 2 * 3600   # seconds an expired claim stays in the file, to tell its holder; pruned when the file is written
 
 
@@ -408,13 +409,29 @@ def _claim(project, scan, universe, ids, agent, ttl, session):
     return True, {'keys': sorted(keys), 'shared': shared, 'until': record['until']}
 
 
+def at(root):
+    """Just enough of a project to read and write its claims file (the folder of it), without parsing a spec: `root` is a project folder or
+    the spec folder itself, as for `Project`."""
+    root = os.path.abspath(root)
+    return SimpleNamespace(spec_dir=os.path.join(root, SPEC_DIR) if has_spec(root) else root)
+
+
+def touch(project, session='', agent=''):
+    """`renew`, as a side effect that is allowed to fail: a busy claims file or a folder that cannot be written costs the command that renewed
+    nothing, and `sor status` must not fail because a claim could not be renewed. 0 when it failed."""
+    try:
+        return renew(project, session, agent)
+    except (ClaimError, OSError):
+        return 0
+
+
 def renew(project, session='', agent='', now=None):
     """Records that the holder is at work: the claims of this Claude Code session (`session`), or, for a person at a terminal who names
     themselves, of this `agent` with no session, get `last` = now and `until` = now + their idle window. Only a claim in force is renewed:
     one that ran out may be someone else's now, and its holder is told through the lapse notice. A claim with no `idle` (made by a tool from
     before) keeps its fixed end. Cheap, as the hooks call it on every read and edit: nothing happens without a claims file, the file is read
-    without the mutex, and it is rewritten (under the mutex, re-read) only for a claim whose last activity is older than half its window, or
-    RENEW_FLOOR seconds for a claim with no window. Returns the number of claims renewed."""
+    without the mutex, and it is rewritten (under the mutex, re-read) only for a claim whose last activity is older than RENEW_FLOOR seconds
+    or half its window, whichever is less. So a claim ends at most that long before its window is over. Returns the number of claims renewed."""
     if not (session or agent):
         return 0
     now = time.time() if now is None else now
@@ -423,7 +440,7 @@ def renew(project, session='', agent='', now=None):
         if 'idle' not in c or c['until'] <= now:
             return False
         mine = c.get('session') == session if session else (not c.get('session') and c['agent'] == agent)
-        step = RENEW_FLOOR if c['idle'] is None else c['idle'] / 2
+        step = RENEW_FLOOR if c['idle'] is None else min(c['idle'] / 2, RENEW_FLOOR)
         return mine and now - c.get('last', c['since']) >= step
 
     if not any(due(c) for c in read(project)):
