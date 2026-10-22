@@ -73,6 +73,8 @@ placeholders that `sor check` reports until they are filled in. Or create the fi
   hold the TypeScript side. `sor lock greet/hello@py` writes that language's lock lines and never the clause's own, so the two locks cannot undo each
   other. The clause has to be locked first, and the hook that asks before `--allow-behind` asks before `--already-fits` as well. The order is in
   `skills/specofrecord/reference/parallel-agents.md`.
+- **Tests of other targets.** A target whose rules say `{run: …}` and `{results: …}` has its tests run by `sor test --targets py`, and
+  `sor lock --run-tests --targets py` locks with their results. A command runs only when the call names its target.
 - **Open questions and notes.** An `open: <question>` line under any item but a test flags a question nobody has
   answered: `sor check` lists it as a note, it is not part of the item's lock text, and the agent builds only what is
   not in question instead of choosing an answer. `sor check` also notes a part that outgrows the limits of the format

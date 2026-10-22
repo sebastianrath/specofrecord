@@ -1136,6 +1136,22 @@ change to a clause leaves the other language behind and a lock refuses until bot
 copy disagreeing is the shared test vectors (`vectors/hashing.json`) and the cross-check of `tools/test_sor_js.py`, and a change to the rules goes into both copies in the
 same change (`CLAUDE.md`).
 
+## `sor test` runs the tests of a target, when the call names it (2026-10-22)
+Item 2 of the open list: `sor test` ran headless Chrome against a web target and nothing else, so a project with Python and TypeScript targets had to run its own
+frameworks and hand in a results file. The owner chose when a command written in a spec file may run: **only when the call names the target**.
+- **What a target says.** The values `run`, `results` and `lcov` of the Rules items of its part, read like `path` and `comment`. `{run: python3 -m pytest -q}` parses
+  as a value (a command cannot contain braces). The tool still reads no pytest or jest output: the framework writes the `sor test --out` format.
+- **`sor test --targets py`** (and `sor lock --run-tests --targets py`) runs the command from the project root, split with `shlex`, with no shell and a time limit. A
+  plain `sor test` runs none and says which targets could run; with no web target and no `--targets` it says why nothing ran. The web run is as it was.
+- **A results file counts only if the run wrote it.** The tool does not delete a file named by a spec (a path in a spec file is no reason to remove anything): it
+  compares the file's time and size before and after, and a file that is as it was is never read. `sor check` refuses paths that are absolute, leave the project or
+  are in `sor/`.
+- **A plain id stands for the language of the run** (`result_language(..., bare=)`, the one rule of the lock, the language lock and the evidence). Another language in
+  the file is ignored and said, a test with test code in that language that the file leaves out is `skipped`, a test that says `runs on:` is `deferred` as for the web
+  tests, and the result of a run replaces the EXTERNAL row of its test.
+- **Not changed.** `measure: clause-coverage` and `line-coverage` keep their meaning (the web run): the example's `quality` test sits at 90.5% against a bar of 90.
+- **Still not run by the tool.** The test strength (`--strength`) and the other `measure:` metrics: web only.
+
 ## Review of stages 6 to 8 (2026-10-22)
 A review of the code of stages 6 to 8, with each finding reproduced before it was fixed.
 - **A language covers the rows of its clause.** `sor lock greet/hello@ts` ignored the rows of the clause that have code of their own in TypeScript: it said

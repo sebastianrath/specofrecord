@@ -4,6 +4,7 @@ import difflib
 import glob
 import os
 import re
+import shlex
 
 ITEM = re.compile(r'^- (?:(gives|owns|offers|provides|exports|stores) )?\*\*([^*]+)\*\*')
 NEEDS = re.compile(r'^- (?:needs|uses|requires|depends on)\b')
@@ -31,6 +32,20 @@ def within(rel, path):
     return path in ('.', '') or rel == path or rel.startswith(path + '/')
 
 
+def unsafe_path(path):
+    """Why a path that a target names for a file of its test run (`results`, `lcov`) cannot be used, or '' when it can: it is relative to the
+    project, stays inside it and is not in the spec folder."""
+    p = path.replace('\\', '/').strip()
+    if not p or p.startswith('/') or re.match(r'^[A-Za-z]:', p):
+        return 'is not a path relative to the project'
+    segments = p.split('/')
+    if '..' in segments:
+        return 'leaves the project'
+    if segments[0] == SPEC_DIR:
+        return f'is in {SPEC_DIR}/, which holds the spec'
+    return ''
+
+
 STARTER = re.compile(r'^[^\w\s@{}\'"`]{1,3}$')   # a comment starter a target may declare: one to three characters, none a letter, digit, space or quote
 
 
@@ -40,6 +55,7 @@ def starters_in(text):
     return [t for t in found if STARTER.match(t)], [t for t in found if not STARTER.match(t)]
 
 
+TARGET_RUN_VALUES = ('run', 'results', 'lcov')   # what a target may say about running its tests (SPEC §9)
 RESERVED_TARGETS = ('glue', 'test', 'ROOT')   # a target may not have a name that a lock key starts with
 
 LINE_BREAK = re.compile(r'\r\n|\r|\n')
@@ -901,6 +917,19 @@ class Project:
         """The names of the targets that declare a path, sorted."""
         return sorted({name for name, _, _ in self.target_paths()})
 
+    def target_commands(self):
+        """{target name: {'run', 'results', 'lcov'}} for the targets that say how their tests run (SPEC §9): the values of those names in the
+        Rules items of the target's part and of the parts inside it; the first of each counts (`target_problems` reports a second)."""
+        if getattr(self, '_target_commands', None) is None:
+            self._target_commands = {}
+            for p in self.parts.values():
+                if p.id.startswith('targets/'):
+                    for it in p.items.values():
+                        for kind in TARGET_RUN_VALUES:
+                            if it.section == 'Rules' and kind in it.values:
+                                self._target_commands.setdefault(p.id.split('/')[1], {}).setdefault(kind, it.values[kind])
+        return self._target_commands
+
     def root_part(self):
         return self.parts.get('')
 
@@ -1002,6 +1031,7 @@ class Project:
                                                                 'none a letter, a digit, a space, a quote, `@`, `{` or `}`'))
                         if not good and not bad:
                             out.append(Problem('target', p.rel, '`comment:` names no starter'))
+        out += self.target_run_problems()
         known = set(names)
         for p in self.parts.values():
             text = p.header.get('Targets', '').strip()
@@ -1023,6 +1053,45 @@ class Project:
             if any(piece.startswith('*') for piece in p.id.split('/')):
                 out.append(Problem('name', p.rel, 'a part name may not start with `*`: the lock marks its format with a key '
                                                   'that starts with it'))
+        return out
+
+    def target_run_problems(self):
+        """Problems with what a target says about running its tests: a command with nowhere to read its results, a file outside the project,
+        a command that cannot be split into words, a declaration twice, and a command for a target that `sor test` runs itself."""
+        out, seen, web = [], {}, set()
+        for name, path, _ in self.target_paths():
+            if path.endswith('.html'):
+                web.add(name)
+        for p in self.parts.values():
+            if not p.id.startswith('targets/'):
+                continue
+            name = p.id.split('/')[1]
+            for it in p.items.values():
+                for kind in TARGET_RUN_VALUES:
+                    if it.section != 'Rules' or kind not in it.values:
+                        continue
+                    if (name, kind) in seen:
+                        out.append(Problem('target', p.rel, f'target {name} says `{kind}:` twice (also in {seen[(name, kind)]}): one command runs its tests'))
+                    seen.setdefault((name, kind), p.rel)
+                    value = it.values[kind]
+                    if kind == 'run':
+                        try:
+                            if not shlex.split(value):
+                                raise ValueError('empty')
+                        except ValueError:
+                            out.append(Problem('target', p.rel, f'`run: {value}` is not a command: words separated by spaces, quotes closed'))
+                        if name in web:
+                            out.append(Problem('target', p.rel, f'target {name} is a web target: `sor test` runs its tests itself, so it has no `run:`'))
+                    elif unsafe_path(value):
+                        out.append(Problem('target', p.rel, f'`{kind}: {value}` {unsafe_path(value)}'))
+        for name, kinds in self.target_commands().items():
+            rel = next(p.rel for p in self.parts.values() if p.id.startswith(f'targets/{name}'))
+            if 'run' in kinds and 'results' not in kinds:
+                out.append(Problem('target', rel, f'target {name} has a `run:` and no `results:`: say which file its test run writes the results to'))
+            if 'run' not in kinds:
+                for kind in ('results', 'lcov'):
+                    if kind in kinds:
+                        out.append(Problem('target', rel, f'target {name} has a `{kind}:` and no `run:`: it is the file that command writes'))
         return out
 
     def hand_written(self):

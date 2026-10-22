@@ -652,13 +652,17 @@ def owner_parts(project):
     return owners
 
 
-def result_language(key, languages):
+def result_language(key, languages, bare=None):
     """(language, reason) for a result given as `test` or `test@language` when the test has test code in `languages` (sorted names; none when it has
     no test code per language). The language is '' for a test with none, whose one result is the test's. The reason is None, or why the key names no
-    result: the lock and the evidence a CI job writes read their results by this rule."""
+    result: the lock and the evidence a CI job writes read their results by this rule. `bare`: the language a plain `test` stands for when the
+    results come from the run of that language (`sor test --targets`)."""
     base, _, target = key.partition('@')
     if not languages:
         return '', (f'results: {key}: {base} has no test code per language, so it has one result: {base}' if target else None)
+    if bare and not target:
+        return (bare, None) if bare in languages else \
+            ('', f'results: {key}: the test code of {base} is in {", ".join(languages)}, not in {bare}')
     if target:
         return (target, None) if target in languages else \
             ('', f'results: {key}: the test code of {base} is in {", ".join(languages)}, not in {target}')

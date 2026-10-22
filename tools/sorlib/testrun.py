@@ -571,7 +571,8 @@ def run(project, only=None, timeout=90, confirmed=(), provides=None, everything=
     results, tests, measured = {}, {}, []
     targets = web_targets(project)
     if not targets:
-        raise SystemExit('no web target: a targets/*.md part whose Rules give a `path` ending in .html')
+        raise SystemExit('no web target: a targets/*.md part whose Rules give a `path` ending in .html. The tests of another target run when a '
+                         'call names it (`sor test --targets py`) and its rules say how (SPEC §9)')
     target = targets[0]
     compiled = []
     # confirmed: manual checks a person confirms in the same `sor lock` that runs these tests

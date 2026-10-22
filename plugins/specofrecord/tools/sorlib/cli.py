@@ -36,6 +36,7 @@ from . import hook
 from . import index
 from . import lint
 from . import lock as lockfile
+from . import targetrun
 from . import testrun
 from . import views
 from .markers import Scan, file_stamps
@@ -463,9 +464,19 @@ def cmd_lock(args):
         return 2
     confirm = [c if '/test:' in c or c.startswith('test:') else lockfile.own_test(c) for c in args.confirm]
     results, external = {}, set()
+    targets, err = targetrun.names_of(project, args.targets or '')
+    if err or (targets and not args.run_tests):
+        print(f'lock refused:\n  {err or "--targets runs the tests of a target: add --run-tests"}')
+        return 2
     if args.run_tests:
-        ran, summary = testrun.run(project, confirmed=confirm)
+        try:
+            ran, summary, notes = run_tests(project, targets, confirmed=confirm)
+        except targetrun.TargetError as e:
+            print(f'lock refused:\n  {e}')
+            return 2
         print_results(ran)
+        for note in notes:
+            print('note: ' + note)
         print_coverage(summary, False)
         results = {k: r['status'] for k, r in ran.items() if r['status'] in ('pass', 'fail')}
         external = {k for k, r in ran.items() if r['status'] == 'external'}
@@ -698,7 +709,24 @@ def print_results(results):
     return n
 
 
+def run_tests(project, targets, only=None, confirmed=(), provides=None, everything=False):
+    """(results, summary, notes) of the tests a call runs: the web tests when the project has a web target (or when no target is named, which
+    says why nothing can run), and the tests of the targets it names. A result of a target's own run replaces the EXTERNAL row of its test."""
+    results, summary, notes = {}, None, []
+    if testrun.web_targets(project) or not targets:
+        results, summary = testrun.run(project, only, confirmed=confirmed, provides=provides, everything=everything)
+    if targets:
+        rows, notes = targetrun.run(project, targets, only, provides, everything)
+        for key in rows:
+            if results.get(key.partition('@')[0], {}).get('status') == 'external':
+                del results[key.partition('@')[0]]
+        results.update(rows)
+    return dict(sorted(results.items())), summary, notes
+
+
 def print_coverage(summary, detail):
+    if summary is None:   # only the tests of a target ran
+        return
     fc, lc = summary['clause_coverage'], summary['line_coverage']
     if fc is not None:
         print(f'clause coverage {fc:.1f}% ({len(summary["unproven"])} rules and gives without a passing test)')
@@ -762,8 +790,20 @@ def cmd_test(args):
         return cmd_test_list(args, project, scan, prov)
     if args.strength:
         return cmd_strength(project, args.ids or None, prov, args.all)
-    results, summary = testrun.run(project, args.ids or None, provides=prov, everything=args.all)
+    targets, err = targetrun.names_of(project, args.targets or '')
+    if err:
+        print(f'sor test: {err}', file=sys.stderr)
+        return 2
+    try:
+        results, summary, notes = run_tests(project, targets, args.ids or None, provides=prov, everything=args.all)
+    except targetrun.TargetError as e:
+        print(f'sor test: {e}', file=sys.stderr)
+        return 2
     n = print_results(results)
+    for note in notes:
+        print('note: ' + note)
+    for hint in targetrun.hints(project, targets):
+        print('note: ' + hint)
     print_coverage(summary, args.coverage)
     if args.out:
         with open(args.out, 'w', encoding='utf8') as fh:
@@ -1054,6 +1094,8 @@ def build_parser():
     s.add_argument('--as', dest='agent', help='who you are (or set SOR_AGENT): your own claims do not block your lock')
     s.add_argument('--results', help='JSON file: {"camera/test:limits": "pass", ...}; with --run-tests only the tests shown as EXTERNAL take their result from it')
     s.add_argument('--run-tests', action='store_true', help='run `sor test` and lock with its results')
+    s.add_argument('--targets', metavar='TARGETS',
+                   help='with --run-tests: also run the tests of these targets (comma-separated) with the command their rules give, `{run: …}`')
     s.add_argument('--confirm', nargs='+', default=[], metavar='TEST',
                    help='manual tests you checked yourself, e.g. scene/test:bodies')
     s.add_argument('--allow-incomplete', action='store_true',
@@ -1082,6 +1124,8 @@ def build_parser():
     s.add_argument('ids', nargs='*', help='tests, items or parts to run (default: all)')
     s.add_argument('--out', help='write {test id: pass|fail} for `sor lock --results`')
     s.add_argument('--coverage', action='store_true', help='list unproven clauses and line coverage per clause')
+    s.add_argument('--targets', metavar='TARGETS',
+                   help='also run the tests of these targets (comma-separated) with the command their rules give, `{run: …}`; a command runs only when named')
     s.add_argument('--strength', action='store_true',
                    help='list weak tests: ones that still pass with a value they refer to changed')
     s.add_argument('--provides', help='the environments this run provides, comma-separated: it also runs the tests that say `runs on:` one of them')
