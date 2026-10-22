@@ -55,8 +55,8 @@ placeholders that `sor check` reports until they are filled in. Or create the fi
 - **`--allow-behind` asks you first.** A Bash hook reads each command Claude is about to run and asks you before a `sor lock` that carries
   `--allow-behind` (the flag that lets a language stay behind a clause, or lack code for it). A command that only mentions the flag, a grep or a
   document, is not asked; a command line that runs `sor lock` the hook cannot read counts as one. Every other Bash call pays about 15 ms for a text
-  check. It guards Claude Code only: your own terminal, other agents and a script that Claude writes and runs are not covered, and I have not
-  verified how Claude Code's bypass-permissions mode treats an `ask`. The same flag is the way out of `sor lock` refusing a language
+  check. It guards Claude Code only: your own terminal, other agents and a script that Claude writes and runs are not covered, and how Claude
+  Code's bypass-permissions mode treats an `ask` is not verified. The same flag is the way out of `sor lock` refusing a language
   that is behind or has no code, so the answer to the question is yours.
 - **Claims.** `sor claim` records who works on which clauses and `sor lock` respects it. The edit hook also
   refuses edits to a clause someone else holds (it says who and until when, and the agent decides what to do).

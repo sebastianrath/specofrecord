@@ -950,7 +950,10 @@ Decided by the owner on 2026-10-22, because the flag now covers "no code yet" as
   open quote) that holds `lock` and the flag counts, because a guard that errs the other way would not guard.
 - **The cost is paid only by a mention.** The registered command first looks at the text in the shell (about 15 ms for every other Bash call);
   Python (about 120 ms) starts only for a command that contains `allow-b`.
-- **What it does not cover:** a person's terminal (deliberately), another agent than Claude Code, a script that Claude writes and then runs, and `ssh`. I
+- **A here-document is skipped when it only writes data.** `cat > x.sh <<'EOF'` with a `sor lock --allow-behind` line inside asks nothing, because the
+  lines are written to a file, not run; `bash <<EOF` and `sh -s <<EOF` are read, since there the lines are commands.
+- **What it does not cover:** a person's terminal (deliberately), another agent than Claude Code, a script that Claude writes and then runs, `ssh`, and a
+  program word behind an option with a value (`sudo -u bob sor lock ...`). I
   did not verify how Claude Code's bypass-permissions mode treats a hook's `ask`; the documentation excerpt I read did not say.
 - **Changing this repository's `.claude/settings.json` changes the sessions held in it** (new sessions at least), so every Bash call there now runs the
   filter, and a `sor lock --allow-behind` run by hand through Claude here asks.

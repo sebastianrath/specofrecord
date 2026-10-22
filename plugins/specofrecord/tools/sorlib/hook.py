@@ -288,8 +288,12 @@ def lock_allowances(command, depth=0):
     """[(ids, languages)] of every `sor lock --allow-behind` in a shell command line: the commands joined by `&&`, `||`, `;`, `|` or a new
     line, and what a quoted argument holds (`bash -c "..."`). A word `lock` and the option in a command that cannot be read (an open quote) count,
     for a guard that errs the other way would not guard."""
-    found = []
+    found, body_ends = [], None   # body_ends: the word that ends a here-document whose lines are data, not commands
     for line in command.split('\n'):
+        if body_ends is not None:
+            if line.strip() == body_ends:
+                body_ends = None
+            continue
         try:
             lexer = shlex.shlex(line, posix=True, punctuation_chars=True)
             lexer.whitespace_split = True
@@ -299,7 +303,11 @@ def lock_allowances(command, depth=0):
                 found.append(([], []))
             continue
         segments, current = [], []
-        for w in words:
+        for n, w in enumerate(words):
+            if w == '<<' and n + 1 < len(words) and body_ends is None:   # a here-document: `cat > f <<'EOF'` writes the lines that follow, `bash <<EOF` runs them
+                i = program_index(current)
+                if not (i < len(current) and os.path.basename(current[i]) in SHELLS):
+                    body_ends = words[n + 1].lstrip('-')
             if SHELL_OPERATOR.match(w):
                 segments, current = segments + ([current] if current else []), []
             else:

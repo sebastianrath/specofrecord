@@ -43,6 +43,9 @@ class TestWhichCommandsAreALockWithAllowBehind(unittest.TestCase):
         ('inside eval', "eval 'cd p && sor lock a --allow-behind ts'", (['a'], ['ts'])),
         ('the values of other options are not ids', 'sor lock a --as bob --results r.json --allow-behind ts', (['a'], ['ts'])),
         ('a command that cannot be read still counts', "sor lock a --allow-behind ts 'unbalanced", ([], [])),
+        ('a here-document for a shell is a list of commands', "bash <<EOF\nsor lock a --allow-behind ts\nEOF", (['a'], ['ts'])),
+        ('the command after a here-document', "cat <<EOF\nsor status\nEOF\nsor lock a --allow-behind ts", (['a'], ['ts'])),
+        ('the command after a here-document with tabs', "cat <<-EOF\n\tbody\n\tEOF\nsor lock a --allow-behind ts", (['a'], ['ts'])),
     ]
     NOT_ASKED = [
         ('a search for the flag', 'grep -rn "allow-behind" docs/'),
@@ -55,6 +58,8 @@ class TestWhichCommandsAreALockWithAllowBehind(unittest.TestCase):
         ('another option that starts alike', 'sor lock a --allow-incomplete'),
         ('another command with the flag', 'sor status --allow-behind ts'),
         ('nothing', ''),
+        ('a here-document that writes a file', "cat > x.sh <<'EOF'\nsor lock a --allow-behind ts\nEOF"),
+        ('a here-document for a script of Python', "python3 - <<'EOF'\nprint('sor lock a --allow-behind ts')\nEOF"),
         ('a command that cannot be read and does not hold both', "echo 'unbalanced"),
         ('an unreadable line that has the word but not the flag', "sor lock a 'unbalanced"),
     ]

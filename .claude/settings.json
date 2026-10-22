@@ -18,8 +18,7 @@
           {
             "type": "command",
             "command": "input=$(cat); case \"$input\" in *allow-b*) ;; *) exit 0;; esac; d=\"$CLAUDE_PROJECT_DIR\"; [ -f \"$d/tools/sor.py\" ] || { d=\"$PWD\"; while [ \"$d\" != / ] && [ ! -f \"$d/tools/sor.py\" ]; do d=$(dirname \"$d\"); done; }; [ -f \"$d/tools/sor.py\" ] || exit 0; printf '%s' \"$input\" | python3 \"$d/tools/sor.py\" hook pre-bash || exit 1",
-            "timeout": 10,
-            "statusMessage": "Checking --allow-behind"
+            "timeout": 10
           }
         ]
       }
