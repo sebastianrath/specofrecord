@@ -1187,10 +1187,11 @@ Record is not part of this (see "The tool stays outside Spec of Record").
   JavaScript does not keep the difference (Python refuses it as not a whole number).
 - **Python files are read by a tokenizer, not by `ast`.** An anchor `code: src/x.py#Class.method` asks Python's parser for the first and last line of
   a def, a class or an assignment. JavaScript has no such parser. The first version looked at indentation, and it disagreed with `ast` on 568 of
-  11,955 anchors in the standard library (a bracket or a quote inside a string, a decorator, a class in a class). The second one reads logical
+  11,955 anchors in the standard library and this repository (a bracket or a quote inside a string, a decorator, a class in a class). The second one reads logical
   lines the way the tokenizer does (strings, brackets, comments, backslash continuations, form feeds, tabs as 8), builds the blocks, and looks
   only at the direct children of a module, a class or a def, as `ast` does; it answers nothing for a file with an unfinished string or bracket or
-  an indentation that does not fit. It now agrees on all 11,955, and a test pins over thirty hand-made shapes and the repository's own files with a line
+  an indentation that does not fit. It now agrees on all of them (12,016 names in the top-level modules of the Python 3.9 standard library and this repository's own files, run again
+  after the last change to it), and a test pins over thirty hand-made shapes and the repository's own files with a line
   taken out or a character put in. What it cannot see is a syntax error of the grammar (a bad operator): Python refuses the whole file there and the
   JavaScript still finds the function. That is the friendlier answer while someone types, and it is written down in `tools/js/README.md`. A `match`
   statement is read although Python 3.9 refuses it.
@@ -1224,7 +1225,9 @@ Record is not part of this (see "The tool stays outside Spec of Record").
   tool are not run here.
 
 ## Review of the JavaScript tool and of `sor test --targets` (2026-10-22)
-A review of the changes since the multi-target work (fifteen findings) found these, and each is fixed with a test that fails on the old code.
+A review of the changes since the multi-target work (fifteen findings) found these. Each correctness fix has a test that fails on the old code and passes
+on the new (checked by running the tests against the old file). The speed fixes, the dead code, the deletion in `suite.js`, the documents and the CI job have
+no such test: the tests of the behaviour they must keep stay green.
 - **A target's result replaced a web result.** `run_tests` merged the rows with `update()`, so a test that both the web run and the run of a target
   reported took the target's status, and a web failure could turn into a pass. A failure now stands whichever run it is from, the other statuses give way to
   the run that has a result, and a note names the test.

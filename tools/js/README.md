@@ -16,8 +16,8 @@ code points, as the Python tool counts them). Three things differ on purpose:
 - `status --json` has no `problems`. Finding them is `sor check`, which is not in this copy, and the extension never read them.
 - It never touches a claim. The Python tool marks the claims of the Claude Code session that runs it as alive; this one only reads them.
 - An anchor `code: path#name` in a `.py` file is found by a tokenizer (strings, brackets, comments, continuation lines and the blocks that
-  indentation makes), not by Python's parser. They agree on the first and last line of a def, a class or an assignment, on every name in the
-  standard library, and on a file with a string or bracket left open or an indentation that does not fit (no anchor). The tokenizer does not
+  indentation makes), not by Python's parser. They agree on the first and last line of a def, a class or an assignment for every one in the top-level
+  modules of the Python 3.9 standard library and in this repository's Python files (checked again after the last change), and on a file with a string or bracket left open or an indentation that does not fit (no anchor). The tokenizer does not
   check the grammar: a file that Python refuses as a whole for a bad operator still has its functions found here. A `match` statement is read
   although Python 3.9 refuses it, and `match` and `case` are names where they are used as names.
 - An anchor path that is absolute is read where it is, as in the Python tool.

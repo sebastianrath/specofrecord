@@ -342,45 +342,35 @@ class TestAResultsFileThatWasNotWritten(Runs):
 
 @unittest.skipUnless(os.name == 'posix', 'process groups: the Windows way (taskkill /T) is not run here')
 class TestStoppingARunAndWhatItStarted(Runs):
-    # a "framework" that starts a worker, which writes its process number and goes on for a minute, and holds the pipes of the run like a worker does
-    SPAWN = ('import os, subprocess, sys, time\n'
-             "subprocess.Popen([sys.executable, '-c', \"import os, time; open('worker.pid', 'w').write(str(os.getpid())); time.sleep(60)\"])\n"
-             'time.sleep(60)\n')
+    # a "framework" that starts a worker and waits; the worker adds a byte to beat.txt every 50 ms for at most 20 s and holds the pipes of the run like a
+    # worker does. Whether it still runs is read from the file: a process that was killed can stay a zombie that kill(pid, 0) finds (in a container
+    # whose first process reaps nothing), and a file does not care.
+    WORKER = 'import time\nfor _ in range(400):\n    open("beat.txt", "a").write("x")\n    time.sleep(0.05)\n'
+    SPAWN = ('import subprocess, sys, time\n'
+             'subprocess.Popen([sys.executable, "-c", %r])\n'
+             'time.sleep(60)\n') % WORKER
 
     def start(self):
         write(self.dir, 'spawn.py', self.SPAWN)
         self.build(py_extra='Run with {run: "%s" spawn.py}, results in {results: out/r.json}.' % sys.executable.replace('\\', '/'))
-        self.addCleanup(self.reap)
         return Project(self.dir)
 
-    def pid(self):
-        path = os.path.join(self.dir, 'worker.pid')
+    def beats(self):
+        path = os.path.join(self.dir, 'beat.txt')
+        return len(read(path)) if os.path.exists(path) else 0
+
+    def running(self):
+        """Waits for the worker to beat, so that the test knows it started."""
         end = time.time() + 5
-        while not os.path.exists(path) or not read(path):
+        while self.beats() < 3:
             self.assertLess(time.time(), end, 'the worker did not start')
             time.sleep(0.05)
-        return int(read(path))
 
-    def alive(self, pid):
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
-            return False
-        return True
-
-    def reap(self):
-        path = os.path.join(self.dir, 'worker.pid')
-        if os.path.exists(path) and read(path):
-            try:
-                os.kill(int(read(path)), 9)
-            except ProcessLookupError:
-                pass
-
-    def gone(self, pid):
-        end = time.time() + 5
-        while self.alive(pid) and time.time() < end:
-            time.sleep(0.05)
-        return not self.alive(pid)
+    def silent(self):
+        """Whether the worker stopped beating (it has not written for twice the time between two beats and more)."""
+        before = self.beats()
+        time.sleep(0.6)
+        return self.beats() == before
 
     def test_a_run_that_takes_too_long_is_stopped_with_the_programs_it_started(self):
         project = self.start()
@@ -389,21 +379,20 @@ class TestStoppingARunAndWhatItStarted(Runs):
             targetrun.run_command(project, 'py', say=lambda *_: None, timeout=1)
         self.assertIn('the run took more than 1 s and was stopped', str(caught.exception))
         self.assertLess(time.time() - began, 10)
-        self.assertTrue(self.gone(self.pid()), 'the worker is still running')
+        self.assertGreaterEqual(self.beats(), 3, 'the worker never ran')
+        self.assertTrue(self.silent(), 'the worker still runs')
 
     def test_ctrl_c_ends_the_run_and_what_it_started_and_goes_on_to_the_caller(self):
         from unittest import mock
         project = self.start()
-        original = targetrun.subprocess.Popen.communicate
 
         def interrupted(proc, *args, **kwargs):
-            self.pid()   # the worker is running
+            self.running()
             raise KeyboardInterrupt
         with mock.patch.object(targetrun.subprocess.Popen, 'communicate', interrupted):
             with self.assertRaises(KeyboardInterrupt):
                 targetrun.run_command(project, 'py', say=lambda *_: None, timeout=30)
-        self.assertTrue(self.gone(self.pid()), 'the worker is still running')
-        self.assertTrue(original)
+        self.assertTrue(self.silent(), 'the worker still runs')
 
 
 class TestCoverageOfATarget(Runs):
