@@ -3,9 +3,11 @@ Why: clickable lines above clauses and above their code, to jump from one to the
 
 ## Rules
 - **clause-lens** — every item and table row with code gets a lens naming its code region
-  (`out/index.html:26-28`), or how many regions it has; a part heading gets one even with no code.
+  (`out/index.html:26-28`), or how many regions it has and, when they are in more than one target,
+  which (`2 code regions (py, ts)`); a part heading gets one even with no code.
 - **flags** — an item that needs attention ends with `● drift`, `● to review` or `● to recompile`.
-- **jump** — clicking a clause lens jumps to its code; with several regions it asks which first.
+- **jump** — clicking a clause lens jumps to its code; with several regions it asks which first,
+  naming the target of each when they are in more than one.
 - **marker-lens** — every `@clause <id>` line gets one lens per id, `<id> · <state>`; clicking it
   jumps to that clause. `@clause end` and `@clause glue` lines get none.
 - **show-all** — a line with several ids also gets a "Show all code" lens.
@@ -36,5 +38,9 @@ Why: clickable lines above clauses and above their code, to jump from one to the
   shows the moon's lens instead (test/suite.js).
 - **flags** — a clause whose code is out of date shows `● to review`.
   manual: by eye
+- **targets** — an item whose code is in two targets says which in its lens (`2 code regions (py, ts)`),
+  and the list of regions it asks about names the target of each; code in one target shows neither
+  (test/regions.js).
+  proves: {clause-lens}
 - **jump** — an item with several regions asks which one to open.
   manual: by eye

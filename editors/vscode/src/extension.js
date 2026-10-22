@@ -20,7 +20,27 @@ const cp = require('child_process');
 // @clause end
 
 // @clause marker-lines/which
-const MARKER_RE = /^\s*(\/\/|#|--|;|\/\*|<!--)\s*@clause\b/;
+const MARKER_RE = /^\s*(?:[^\w\s]{1,4}|[Rr][Ee][Mm]\b)\s*@clause\b/;
+// @clause end
+// @clause lenses/clause-lens lenses/jump
+/** Where a region is, as the lens and the list of regions say it: `out/index.html:26-28`. */
+const rangeOf = (r) => `${r.file}:${r.start === r.end ? r.start : r.start + '-' + r.end}`;
+/** The targets (languages) the regions are in, as `py, ts`, when they are in more than one; '' for code in one target or in none. */
+function targetsOf(regs) {
+  const names = [...new Set(regs.map((r) => r.targetName).filter(Boolean))].sort();
+  return names.length > 1 ? names.join(', ') : '';
+}
+/** The title of a clause lens: the place of its one region, or how many regions it has and, when they differ, which targets they are in. */
+function codeTitle(regs) {
+  if (!regs.length) return 'no code';
+  if (regs.length === 1) return rangeOf(regs[0]);
+  const targets = targetsOf(regs);
+  return `${regs.length} code regions` + (targets ? ` (${targets})` : '');
+}
+/** One entry of the list of regions a click asks about: its place, and its ids, with its target in front when the regions are in several. */
+function pickOf(r, several) {
+  return { label: rangeOf(r), description: [several && r.targetName, ...(r.ids || [])].filter(Boolean).join(' '), region: r };
+}
 // @clause end
 // @clause marker-lines/fallback-folds
 const SERVER_LANGS = new Set(['html', 'javascript', 'typescript', 'javascriptreact', 'typescriptreact', 'css', 'scss', 'less', 'json', 'jsonc', 'xml', 'markdown']);
@@ -606,10 +626,7 @@ function activate(context) {
           if (norm(it.path) !== k || it !== block.item) continue;
           const regs = it.regions.map((i) => project.index.regions[i]);
           if (!regs.length && it.kind !== 'part') continue;
-          let title;
-          if (!regs.length) title = 'no code';
-          else if (regs.length > 1) title = `${regs.length} code regions`;
-          else title = `${regs[0].file}:${regs[0].start === regs[0].end ? regs[0].start : regs[0].start + '-' + regs[0].end}`;
+          let title = codeTitle(regs);
           const w = project.worst.get(it.id);
           if (w) title += ' ' + FLAG[w.cls];
           lenses.push(new vscode.CodeLens(at(Math.max(0, it.line - 1)), { title, command: 'sor.showCode', arguments: [regs] }));
@@ -652,9 +669,8 @@ function activate(context) {
     if (!Array.isArray(regions) || !regions.length) return;
     let r = regions[0];
     if (regions.length > 1) {
-      const pick = await vscode.window.showQuickPick(regions.map((x) => ({
-        label: `${x.file}:${x.start === x.end ? x.start : x.start + '-' + x.end}`, description: (x.ids || []).join(' '), region: x,
-      })), { placeHolder: 'Which code region?' });
+      const several = targetsOf(regions);   // name the target of each region only when they are in more than one
+      const pick = await vscode.window.showQuickPick(regions.map((x) => pickOf(x, several)), { placeHolder: 'Which code region?' });
       if (!pick) return;
       r = pick.region;
     }

@@ -51,5 +51,46 @@ check('a status the extension does not know counts as in sync', () => {
   for (const s of ['built', 'fixing', 'glue', 'code-changed', 'something-new', undefined]) assert.strictEqual(classOf(s), null, String(s));
 });
 
+// marker-lines/which
+const { MARKER_RE } = load('marker-lines/which', 'MARKER_RE');
+check('a marker line is a marker of its own after any comment starter', () => {
+  for (const l of ['// @clause a', '  # @clause end', '-- @clause a b', '; @clause x', '% @clause x', '! @clause x', "' @clause x", '(* @clause x',
+    ':: @clause x', 'rem @clause x', 'REM @clause x', '/* @clause x', '<!-- @clause x', '//@clause x', '\t/// @clause x']) {
+    assert.ok(MARKER_RE.test(l), `${l} should be a marker line`);
+  }
+});
+check('code that ends with a marker, and other comments, are not', () => {
+  for (const l of ['x = 1 // @clause a', 'const a = 1; // @clause a', 'foo(); % @clause a', '// about @clause', '// @clauses', 'REMARK @clause x',
+    '@clause a', 'print("// @clause a")', '']) {
+    assert.ok(!MARKER_RE.test(l), `${l} should not be a marker line`);
+  }
+});
+
+// lenses/clause-lens lenses/jump
+const { codeTitle, targetsOf, pickOf } = load('lenses/clause-lens', 'codeTitle', 'targetsOf', 'pickOf');
+const region = (file, start, end, targetName, ids) => ({ file, start, end, targetName, ids });
+check('a lens names the one region, the line when it is one', () => {
+  assert.strictEqual(codeTitle([region('out/a.py', 3, 5, 'py')]), 'out/a.py:3-5');
+  assert.strictEqual(codeTitle([region('out/a.py', 7, 7, 'py')]), 'out/a.py:7');
+  assert.strictEqual(codeTitle([]), 'no code');
+});
+check('a lens names the targets when the regions are in more than one, and not otherwise', () => {
+  assert.strictEqual(codeTitle([region('a.py', 1, 2, 'py'), region('b.ts', 1, 2, 'ts')]), '2 code regions (py, ts)');
+  assert.strictEqual(codeTitle([region('b.ts', 1, 2, 'ts'), region('a.py', 1, 2, 'py'), region('c.py', 1, 2, 'py')]), '3 code regions (py, ts)');
+  assert.strictEqual(codeTitle([region('a.py', 1, 2, 'py'), region('c.py', 5, 6, 'py')]), '2 code regions');
+  assert.strictEqual(codeTitle([region('a.html', 1, 2, null), region('b.html', 5, 6, null)]), '2 code regions');
+  assert.strictEqual(targetsOf([region('a.py', 1, 2, 'py')]), '');
+});
+check('the list of regions names the target of each only when they are in more than one', () => {
+  const regs = [region('a.py', 1, 2, 'py', ['x/y']), region('b.ts', 4, 4, 'ts', ['x/y', 'x/z'])];
+  const a = pickOf(regs[0], targetsOf(regs));
+  const b = pickOf(regs[1], targetsOf(regs));
+  assert.deepStrictEqual([a.label, a.description, b.label, b.description], ['a.py:1-2', 'py x/y', 'b.ts:4', 'ts x/y x/z']);
+  assert.ok(a.region === regs[0] && b.region === regs[1], 'the entry carries its region');
+  const same = [region('a.py', 1, 2, 'py', ['x/y']), region('c.py', 9, 9, 'py')];
+  assert.strictEqual(pickOf(same[0], targetsOf(same)).description, 'x/y');
+  assert.strictEqual(pickOf(same[1], targetsOf(same)).description, '');
+});
+
 console.log(failed ? `${failed} check(s) failed` : 'all checks passed');
 process.exit(failed ? 1 : 0);

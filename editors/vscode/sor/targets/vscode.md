@@ -15,8 +15,9 @@ Why: where the extension runs, and how its code is delivered and tested.
 - **markers** — JavaScript `// @clause …`; `package.json`, the grammar and the tests are not marked.
 - **notes** — the builder's notes go in the comment at the top of `extension.js` and in
   `BUILD-NOTES.md`.
-- **test-run** — `npm test` runs `test/grammar.js` and `test/bundle.js`, then a real VS Code with
-  `@vscode/test-electron` on `examples/solar-system`, running `test/suite.js`.
+- **test-run** — `npm test` runs `test/grammar.js`, `test/bundle.js` and `test/regions.js` (the code of a
+  few clauses, run alone without VS Code), then a real VS Code with `@vscode/test-electron` on
+  `examples/solar-system`, running `test/suite.js`.
 
 ## Contract
 - gives **api** — `activate()` returns `state` (projects, marks, marker lines and fold plans per
