@@ -10,7 +10,8 @@ a port (for example a TypeScript one, so that an editor needs no Python) loads t
 
 - The expected texts were written by hand, and every hash was computed with SHA-256 alone, never with the tool. Three rows carry the
   hashes the tool pinned before the rule followed the file type.
-- A row has a unique `name`, so a failure names the row.
+- A row has a unique `name`, so a failure names the row. `style_of` has a row for every extension and name in the tool's table, and a
+  test fails when the table gains one without a row, so a port cannot map a type differently.
 - The Python rows include f-strings with fields that reuse their quote or span lines (Python 3.12 and later): a port reads them whatever
   Python it runs on.
 - A rule that changes means the rows change in the same commit, and `format` in the file counts the changes that are not

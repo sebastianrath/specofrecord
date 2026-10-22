@@ -46,7 +46,7 @@ class TestTheStyleOfAFile(unittest.TestCase):
     def test_the_c_family_is_listed_with_the_multi_line_strings_it_has(self):
         for rel, style in (('a.c', 'c'), ('a.h', 'c'), ('a.cpp', 'c'), ('a.mm', 'c'), ('a.rs', 'c'), ('a.php', 'c'), ('a.html', 'c'),
                            ('a.css', 'c'), ('a.json', 'c'), ('a.ts', 'c+tick'), ('a.tsx', 'c+tick'), ('a.js', 'c+tick'), ('a.mjs', 'c+tick'),
-                           ('a.go', 'c+tick'), ('a.java', 'c+triple'), ('a.kt', 'c+triple'), ('a.swift', 'c+triple'), ('a.cs', 'c+triple'),
+                           ('a.go', 'c+rawtick'), ('a.java', 'c+triple'), ('a.kt', 'c+triple'), ('a.swift', 'c+triple'), ('a.cs', 'c+triple'),
                            ('a.dart', 'c+triple+triple1'), ('a.scala', 'c-keep+triple')):
             with self.subTest(rel):
                 self.assertEqual(style_of(rel), style)
@@ -54,7 +54,7 @@ class TestTheStyleOfAFile(unittest.TestCase):
     def test_types_where_indentation_is_meaning_keep_it(self):
         for rel, style in (('a.hs', 'dash-keep'), ('a.elm', 'dash-keep'), ('a.nim', 'hash-keep'), ('a.coffee', 'hash-keep'),
                            ('a.fs', 'c-keep'), ('a.yml', 'safe'), ('a.yaml', 'safe'), ('Makefile', 'safe'), ('a.pyx', 'python'),
-                           ('rules.bzl', 'python'), ('BUILD', 'python')):
+                           ('rules.bzl', 'python'), ('BUILD', 'python'), ('pkg/WORKSPACE', 'python')):
             with self.subTest(rel):
                 self.assertEqual(style_of(rel), style)
 
@@ -62,6 +62,11 @@ class TestTheStyleOfAFile(unittest.TestCase):
         for rel, style in (('Dockerfile', 'hash'), ('dir/dockerfile', 'hash'), ('Rakefile', 'hash'), ('CMakeLists.txt', 'hash')):
             with self.subTest(rel):
                 self.assertEqual(style_of(rel), style)
+
+    def test_a_script_called_build_is_not_bazel(self):
+        for rel in ('scripts/build', 'build', 'Build', 'workspace', 'dir/Workspace'):
+            with self.subTest(rel):
+                self.assertEqual(style_of(rel), 'safe')
 
     def test_everything_not_listed_is_safe(self):
         for rel in ('a.erl', 'a.unknown', 'noext', 'dir.py/file', 'a.b/c', 'a.txt', 'a.xyz'):
@@ -345,6 +350,21 @@ class TestMultiLineStrings(unittest.TestCase):
         a = ["var s = \'\'\'", '// not a comment', "\'\'\';"]
         self.assertEqual(normalized(a, 'c+triple+triple1'), "var s = \'\'\'\n// not a comment\n\'\'\';")
         self.assertEqual(normalized(a, 'c+triple'), "var s = \'\'\'\n\'\'\';")      # a style without them does not see it
+
+    def test_a_backslash_makes_the_next_quote_no_closer(self):
+        # a double-quoted string with an escaped quote and a backtick in it, then a template literal with an escaped backtick
+        a = ['const s = "a \\" ` b";', '// a comment', 'const t = 1;']
+        self.assertEqual(normalized(a, 'c+tick'), 'const s = "a \\" ` b";\nconst t = 1;')
+        b = ['const p = `a \\` b`;', '// a comment', 'const t = 1;']
+        self.assertEqual(normalized(b, 'c+tick'), 'const p = `a \\` b`;\nconst t = 1;')
+        c = ["const q = 'it\\'s `';", '// a comment', 'const t = 1;']
+        self.assertEqual(normalized(c, 'c+tick'), "const q = 'it\\'s `';\nconst t = 1;")
+
+    def test_in_a_go_raw_string_a_backslash_is_just_a_backslash(self):
+        lines = ['p := `C:\\`', 'q := `', '// x', '`', '// a comment', 'r := 1']
+        self.assertEqual(normalized(lines, 'c+rawtick'), 'p := `C:\\`\nq := `\n// x\n`\nr := 1')
+        # in a template literal the same backslash escapes the backtick, so that string goes on
+        self.assertEqual(normalized(['const p = `C:\\`;', '// a comment', 'const r = 1;'], 'c+tick'), 'const p = `C:\\`;\n// a comment\nconst r = 1;')
 
     def test_a_backtick_in_a_comment_does_not_open_a_string(self):
         # editors/vscode/src/extension.js has a trailing comment `// inside a ``` block: ...`

@@ -830,6 +830,10 @@ language: there are four families, and a port writes them once.
   rehash every region with a template literal). The tracker skips `//` comments and `/* */` blocks before it looks for a quote, takes a string that
   closes on its line as one line, and reads an unclosed `"` or `'` as an apostrophe. Wrongly inside keeps comment lines (a false alarm); wrongly
   outside is what a regular expression with a quote in it can cause, and is a known limit.
+- **Go has its own kind, `+rawtick`:** a backslash inside a Go raw string is a backslash, so a string such as `` `C:\` `` ends there. With
+  escapes the next raw string would read as outside and its comment-looking lines would be dropped. Found by a test written for it: the
+  closer pattern had an extra backslash that made every escape a no-op, now fixed for all kinds and tested for `\"` and `\`` and `\'`.
+- **`BUILD` and `WORKSPACE` are Bazel's only exactly as written.** A script called `build` is a shell script and stays safe.
 - **YAML is safe, not `hash`:** a `#` line inside a `|` block scalar is text, and `#` at the start of a line cannot be told from a comment
   without a YAML parser. Makefiles are safe too.
 - **Not tracked, said in the SPEC:** C++ raw strings, PHP heredocs, C# verbatim strings, Rust strings over lines, SQL strings. Each needs its own

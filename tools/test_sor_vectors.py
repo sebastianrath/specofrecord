@@ -49,6 +49,12 @@ class TestTheFile(unittest.TestCase):
         names = [r['name'] for c in CATEGORIES for r in rows(c)]
         self.assertEqual(len(names), len(set(names)), 'a failing row must be found by its name')
 
+    def test_every_type_the_tool_knows_has_a_row_so_that_a_port_cannot_map_one_differently(self):
+        paths = {r['path'] for r in rows('style_of')}
+        missing = [f'.{e}' for e in markers.STYLES if f'a.{e}' not in paths]
+        missing += [n for n in list(markers.LANGUAGES_BY_NAME) + list(markers.LANGUAGES_BY_EXACT_NAME) if f'x/{n}' not in paths]
+        self.assertEqual(missing, [], 'a type without a row: add it to the file')
+
     def test_the_hashes_in_the_file_are_sha256_of_its_own_texts(self):
         for r in rows('normalize'):
             self.assertEqual(r['hash'], sha(r['normalized']), r['name'])

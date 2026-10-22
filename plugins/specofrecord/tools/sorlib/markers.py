@@ -148,7 +148,8 @@ MAGIC = re.compile(r'^#.*(?:coding[:=]|frozen_string_literal:|shareable_constant
 #            nesting of statements counts), or safe (none: a comment is code).
 #   -keep    indentation counts: each line carries its column, relative to the smallest of the lines kept, and spaces are not collapsed.
 #            safe means -keep.
-#   +kinds   the multi-line strings the type has, whose lines are text and never a comment: tick (`` ` ``), triple (`"""`), triple1 (`'''`).
+#   +kinds   the multi-line strings the type has, whose lines are text and never a comment: tick (`` ` ``), rawtick (the same where a
+#            backslash is just a backslash: Go), triple (`"""`), triple1 (`'''`).
 # A file of a type that is not listed gets `safe`, which hides nothing but blank lines and trailing spaces. One row per kind of file:
 # its extensions, its style, and the comment starters (besides the ones every file has) that a marker may be written after.
 LANGUAGES = [
@@ -157,7 +158,8 @@ LANGUAGES = [
     ('sql lua vhd vhdl ada adb ads', 'dash', ''),
     ('hs elm purs idr', 'dash-keep', ''),
     ('nim nims coffee', 'hash-keep', ''),
-    ('js jsx mjs cjs ts tsx mts cts go', 'c+tick', ''),
+    ('js jsx mjs cjs ts tsx mts cts', 'c+tick', ''),
+    ('go', 'c+rawtick', ''),
     ('java kt kts swift cs', 'c+triple', ''),
     ('dart groovy gradle', 'c+triple+triple1', ''),
     ('scala sc', 'c-keep+triple', ''),
@@ -175,7 +177,9 @@ LANGUAGES = [
 ]
 # Files known by their name, not their extension.
 LANGUAGES_BY_NAME = {'dockerfile': 'hash', 'containerfile': 'hash', 'rakefile': 'hash', 'gemfile': 'hash', 'vagrantfile': 'hash',
-                     'cmakelists.txt': 'hash', 'build': 'python', 'workspace': 'python'}
+                     'cmakelists.txt': 'hash'}
+# ... and by the name exactly as written: a script called `build` is a shell script, `BUILD` is Bazel's.
+LANGUAGES_BY_EXACT_NAME = {'BUILD': 'python', 'WORKSPACE': 'python'}
 DEFAULT_STYLE = 'safe'
 STYLES = {ext: (style, starters) for exts, style, starters in LANGUAGES for ext in exts.split()}
 FAMILIES = ('c', 'hash', 'dash', 'python', 'safe')
@@ -183,7 +187,10 @@ FAMILIES = ('c', 'hash', 'dash', 'python', 'safe')
 
 def _language(rel):
     """(style, extra marker starters) of the file at this project-relative path."""
-    name = os.path.basename(rel).lower()
+    exact = os.path.basename(rel)
+    name = exact.lower()
+    if exact in LANGUAGES_BY_EXACT_NAME:
+        return LANGUAGES_BY_EXACT_NAME[exact], ''
     if name in LANGUAGES_BY_NAME:
         return LANGUAGES_BY_NAME[name], ''
     return STYLES.get(name.rpartition('.')[2], (DEFAULT_STYLE, '')) if '.' in name else (DEFAULT_STYLE, '')
@@ -238,26 +245,30 @@ _LEX = re.compile(r'//|/\*|`|"""|\'\'\'|"|\'')
 _CLOSERS = {}
 
 
-def _after_closer(line, i, quote):
-    """The index just after the next `quote` at or after i, where a backslash makes the next character no closer; -1 when the
-    line has none."""
+def _after_closer(line, i, quote, escapes=True):
+    """The index just after the next `quote` at or after i, where a backslash makes the next character no closer (unless `escapes`
+    is false); -1 when the line has none."""
+    if not escapes:
+        j = line.find(quote, i)
+        return -1 if j < 0 else j + len(quote)
     if quote not in _CLOSERS:
-        _CLOSERS[quote] = re.compile(r'\\\\|' + re.escape(quote))
+        _CLOSERS[quote] = re.compile(r'\\|' + re.escape(quote))
     while True:
         m = _CLOSERS[quote].search(line, i)
         if m is None:
             return -1
-        if m.group() != '\\\\':
+        if m.group() != '\\':
             return m.end()
         i = m.end() + 1
 
 
 def _inside_strings(lines, kinds):
     """For each line, whether it starts inside a multi-line string (so it is text, and a line that looks like a comment is not one).
-    `kinds`: tick, triple, triple1 (see `LANGUAGES`). Comments are skipped, `//` to the end of the line and `/* */` over lines,
+    `kinds`: tick, rawtick, triple, triple1 (see `LANGUAGES`). Comments are skipped, `//` to the end of the line and `/* */` over lines,
     before a quote is looked for, and a quote that closes on its line is a string of one line. Wrongly inside keeps comment lines,
     which only gives a false alarm; wrongly outside is what the table cannot see, such as a regular expression with a quote in it."""
-    opens = {'`': 'tick' in kinds, '"""': 'triple' in kinds, "'''": 'triple1' in kinds}
+    opens = {'`': 'tick' in kinds or 'rawtick' in kinds, '"""': 'triple' in kinds, "'''": 'triple1' in kinds}
+    escapes = 'rawtick' not in kinds
     out, state = [], None   # state: None, 'block' (inside /* */), or the closer of the multi-line string that is open
     for line in lines:
         out.append(state not in (None, 'block'))
@@ -269,7 +280,7 @@ def _inside_strings(lines, kinds):
                     break
                 state, i = None, j + 2
             elif state is not None:
-                j = _after_closer(line, i, state)
+                j = _after_closer(line, i, state, escapes or state != '`')
                 if j < 0:
                     break
                 state, i = None, j
@@ -289,7 +300,7 @@ def _inside_strings(lines, kinds):
                     continue
                 if tok in ('"""', "'''") and not opens[tok]:
                     tok, i = tok[0], m.start() + 1     # an empty string, then whatever follows
-                j = _after_closer(line, i, tok)
+                j = _after_closer(line, i, tok, escapes or tok != '`')
                 if tok in opens and opens[tok]:
                     if j < 0:
                         state = tok

@@ -630,7 +630,7 @@ Choices the tool made where this spec is silent:
   listed for review and their tests must pass again.
 - The root part's lock key is `ROOT`; root items have no prefix (`year`). A lock written before the rename calls it `CLAUSES`: the tool reads that as `ROOT`, so nothing counts as changed, and the next lock writes `ROOT` with every hash as it was.
 - The lock hashes code without layout, and the rule follows the type of the file, found by its extension or, for a few files, its
-  name (`Dockerfile`, `BUILD`). A rule is a style, written `family[-keep][+kinds]`: which lines are comments, whether indentation counts,
+  name (`Dockerfile`, and `BUILD` and `WORKSPACE` exactly as written; a script called `build` is not Bazel's). A rule is a style, written `family[-keep][+kinds]`: which lines are comments, whether indentation counts,
   and which multi-line strings the type has. `vectors/hashing.json` lists the types and pins every style with rows.
   - **Safe** (`safe`) is the style of a type that is not listed, and nothing is hidden but blank lines and trailing spaces. Comments are
     code and spaces inside a line stay. Each line carries its column, counted from the smallest indentation of the lines kept (a tab is
@@ -639,7 +639,8 @@ Choices the tool made where this spec is silent:
   - **C family** (`c`): no blank lines, no comment-only lines (`//`, `/* */`, `<!-- -->`), no indentation, one space for each run of spaces
     outside quotes. Listed: C, C++, Objective-C, Rust, PHP, Zig, Solidity, protocol buffers, shaders, Verilog, HTML, CSS and JSON, and
     with the multi-line strings they have, JavaScript, TypeScript, Go, Java, Kotlin, Swift, C#, Dart and Groovy.
-  - **Multi-line strings** (`+tick` for backticks, `+triple` for `"""`, `+triple1` for Dart's `'''`): a line inside one is text, never a comment,
+  - **Multi-line strings** (`+tick` for backticks, `+rawtick` for backticks in which a backslash is only a backslash (Go), `+triple` for
+    `"""`, `+triple1` for Dart's `'''`): a line inside one is text, never a comment,
     even when it looks like one (`// the query` in a template literal, `<!-- hello -->` in a Go raw string). `//` comments and `/* */`
     blocks are skipped before a quote is looked for, and a string that closes on its line is not a multi-line string. Inside one, blank
     lines, indentation and runs of spaces are not seen, as in a Python docstring.

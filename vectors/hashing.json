@@ -35,9 +35,19 @@
     "style": "python"
    },
    {
-    "name": "bazel build files are known by their name",
+    "name": "bazel build files are known by their name, as written",
     "path": "pkg/BUILD",
     "style": "python"
+   },
+   {
+    "name": "a script called build is not bazel",
+    "path": "scripts/build",
+    "style": "safe"
+   },
+   {
+    "name": "nor is a file called workspace",
+    "path": "workspace",
+    "style": "safe"
    },
    {
     "name": "shell",
@@ -135,9 +145,9 @@
     "style": "c+tick"
    },
    {
-    "name": "go has raw strings with backticks",
+    "name": "go has raw strings with backticks, where a backslash is just a backslash",
     "path": "a.go",
-    "style": "c+tick"
+    "style": "c+rawtick"
    },
    {
     "name": "java has text blocks",
@@ -262,6 +272,701 @@
    {
     "name": "a name that is only an extension",
     "path": ".py",
+    "style": "python"
+   },
+   {
+    "name": "the table: .ada",
+    "path": "a.ada",
+    "style": "dash"
+   },
+   {
+    "name": "the table: .adb",
+    "path": "a.adb",
+    "style": "dash"
+   },
+   {
+    "name": "the table: .ads",
+    "path": "a.ads",
+    "style": "dash"
+   },
+   {
+    "name": "the table: .awk",
+    "path": "a.awk",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .bas",
+    "path": "a.bas",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .bash",
+    "path": "a.bash",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .bat",
+    "path": "a.bat",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .bazel",
+    "path": "a.bazel",
+    "style": "python"
+   },
+   {
+    "name": "the table: .bzl",
+    "path": "a.bzl",
+    "style": "python"
+   },
+   {
+    "name": "the table: .c",
+    "path": "a.c",
+    "style": "c"
+   },
+   {
+    "name": "the table: .cc",
+    "path": "a.cc",
+    "style": "c"
+   },
+   {
+    "name": "the table: .cjs",
+    "path": "a.cjs",
+    "style": "c+tick"
+   },
+   {
+    "name": "the table: .cmake",
+    "path": "a.cmake",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .cmd",
+    "path": "a.cmd",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .coffee",
+    "path": "a.coffee",
+    "style": "hash-keep"
+   },
+   {
+    "name": "the table: .cpp",
+    "path": "a.cpp",
+    "style": "c"
+   },
+   {
+    "name": "the table: .cr",
+    "path": "a.cr",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .cs",
+    "path": "a.cs",
+    "style": "c+triple"
+   },
+   {
+    "name": "the table: .css",
+    "path": "a.css",
+    "style": "c"
+   },
+   {
+    "name": "the table: .cts",
+    "path": "a.cts",
+    "style": "c+tick"
+   },
+   {
+    "name": "the table: .cxx",
+    "path": "a.cxx",
+    "style": "c"
+   },
+   {
+    "name": "the table: .d",
+    "path": "a.d",
+    "style": "c"
+   },
+   {
+    "name": "the table: .dart",
+    "path": "a.dart",
+    "style": "c+triple+triple1"
+   },
+   {
+    "name": "the table: .elm",
+    "path": "a.elm",
+    "style": "dash-keep"
+   },
+   {
+    "name": "the table: .erl",
+    "path": "a.erl",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .ex",
+    "path": "a.ex",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .exs",
+    "path": "a.exs",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .f",
+    "path": "a.f",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .f03",
+    "path": "a.f03",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .f08",
+    "path": "a.f08",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .f90",
+    "path": "a.f90",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .f95",
+    "path": "a.f95",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .fish",
+    "path": "a.fish",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .for",
+    "path": "a.for",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .frag",
+    "path": "a.frag",
+    "style": "c"
+   },
+   {
+    "name": "the table: .fs",
+    "path": "a.fs",
+    "style": "c-keep"
+   },
+   {
+    "name": "the table: .fsi",
+    "path": "a.fsi",
+    "style": "c-keep"
+   },
+   {
+    "name": "the table: .fsx",
+    "path": "a.fsx",
+    "style": "c-keep"
+   },
+   {
+    "name": "the table: .ftn",
+    "path": "a.ftn",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .gemspec",
+    "path": "a.gemspec",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .glsl",
+    "path": "a.glsl",
+    "style": "c"
+   },
+   {
+    "name": "the table: .go",
+    "path": "a.go",
+    "style": "c+rawtick"
+   },
+   {
+    "name": "the table: .gradle",
+    "path": "a.gradle",
+    "style": "c+triple+triple1"
+   },
+   {
+    "name": "the table: .groovy",
+    "path": "a.groovy",
+    "style": "c+triple+triple1"
+   },
+   {
+    "name": "the table: .h",
+    "path": "a.h",
+    "style": "c"
+   },
+   {
+    "name": "the table: .hh",
+    "path": "a.hh",
+    "style": "c"
+   },
+   {
+    "name": "the table: .hlsl",
+    "path": "a.hlsl",
+    "style": "c"
+   },
+   {
+    "name": "the table: .hpp",
+    "path": "a.hpp",
+    "style": "c"
+   },
+   {
+    "name": "the table: .hrl",
+    "path": "a.hrl",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .hs",
+    "path": "a.hs",
+    "style": "dash-keep"
+   },
+   {
+    "name": "the table: .htm",
+    "path": "a.htm",
+    "style": "c"
+   },
+   {
+    "name": "the table: .html",
+    "path": "a.html",
+    "style": "c"
+   },
+   {
+    "name": "the table: .hxx",
+    "path": "a.hxx",
+    "style": "c"
+   },
+   {
+    "name": "the table: .idr",
+    "path": "a.idr",
+    "style": "dash-keep"
+   },
+   {
+    "name": "the table: .ino",
+    "path": "a.ino",
+    "style": "c"
+   },
+   {
+    "name": "the table: .java",
+    "path": "a.java",
+    "style": "c+triple"
+   },
+   {
+    "name": "the table: .jl",
+    "path": "a.jl",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .js",
+    "path": "a.js",
+    "style": "c+tick"
+   },
+   {
+    "name": "the table: .json",
+    "path": "a.json",
+    "style": "c"
+   },
+   {
+    "name": "the table: .json5",
+    "path": "a.json5",
+    "style": "c"
+   },
+   {
+    "name": "the table: .jsonc",
+    "path": "a.jsonc",
+    "style": "c"
+   },
+   {
+    "name": "the table: .jsx",
+    "path": "a.jsx",
+    "style": "c+tick"
+   },
+   {
+    "name": "the table: .ksh",
+    "path": "a.ksh",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .kt",
+    "path": "a.kt",
+    "style": "c+triple"
+   },
+   {
+    "name": "the table: .kts",
+    "path": "a.kts",
+    "style": "c+triple"
+   },
+   {
+    "name": "the table: .less",
+    "path": "a.less",
+    "style": "c"
+   },
+   {
+    "name": "the table: .lua",
+    "path": "a.lua",
+    "style": "dash"
+   },
+   {
+    "name": "the table: .m",
+    "path": "a.m",
+    "style": "c"
+   },
+   {
+    "name": "the table: .metal",
+    "path": "a.metal",
+    "style": "c"
+   },
+   {
+    "name": "the table: .mjs",
+    "path": "a.mjs",
+    "style": "c+tick"
+   },
+   {
+    "name": "the table: .ml",
+    "path": "a.ml",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .mli",
+    "path": "a.mli",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .mll",
+    "path": "a.mll",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .mly",
+    "path": "a.mly",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .mm",
+    "path": "a.mm",
+    "style": "c"
+   },
+   {
+    "name": "the table: .mts",
+    "path": "a.mts",
+    "style": "c+tick"
+   },
+   {
+    "name": "the table: .nim",
+    "path": "a.nim",
+    "style": "hash-keep"
+   },
+   {
+    "name": "the table: .nims",
+    "path": "a.nims",
+    "style": "hash-keep"
+   },
+   {
+    "name": "the table: .nix",
+    "path": "a.nix",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .pas",
+    "path": "a.pas",
+    "style": "c"
+   },
+   {
+    "name": "the table: .php",
+    "path": "a.php",
+    "style": "c"
+   },
+   {
+    "name": "the table: .pl",
+    "path": "a.pl",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .pm",
+    "path": "a.pm",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .pp",
+    "path": "a.pp",
+    "style": "c"
+   },
+   {
+    "name": "the table: .proto",
+    "path": "a.proto",
+    "style": "c"
+   },
+   {
+    "name": "the table: .ps1",
+    "path": "a.ps1",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .psm1",
+    "path": "a.psm1",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .purs",
+    "path": "a.purs",
+    "style": "dash-keep"
+   },
+   {
+    "name": "the table: .pxd",
+    "path": "a.pxd",
+    "style": "python"
+   },
+   {
+    "name": "the table: .pxi",
+    "path": "a.pxi",
+    "style": "python"
+   },
+   {
+    "name": "the table: .py",
+    "path": "a.py",
+    "style": "python"
+   },
+   {
+    "name": "the table: .pyi",
+    "path": "a.pyi",
+    "style": "python"
+   },
+   {
+    "name": "the table: .pyw",
+    "path": "a.pyw",
+    "style": "python"
+   },
+   {
+    "name": "the table: .pyx",
+    "path": "a.pyx",
+    "style": "python"
+   },
+   {
+    "name": "the table: .r",
+    "path": "a.r",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .rake",
+    "path": "a.rake",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .rb",
+    "path": "a.rb",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .rs",
+    "path": "a.rs",
+    "style": "c"
+   },
+   {
+    "name": "the table: .sass",
+    "path": "a.sass",
+    "style": "c-keep"
+   },
+   {
+    "name": "the table: .sc",
+    "path": "a.sc",
+    "style": "c-keep+triple"
+   },
+   {
+    "name": "the table: .scala",
+    "path": "a.scala",
+    "style": "c-keep+triple"
+   },
+   {
+    "name": "the table: .scss",
+    "path": "a.scss",
+    "style": "c"
+   },
+   {
+    "name": "the table: .sh",
+    "path": "a.sh",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .sky",
+    "path": "a.sky",
+    "style": "python"
+   },
+   {
+    "name": "the table: .sol",
+    "path": "a.sol",
+    "style": "c"
+   },
+   {
+    "name": "the table: .sql",
+    "path": "a.sql",
+    "style": "dash"
+   },
+   {
+    "name": "the table: .star",
+    "path": "a.star",
+    "style": "python"
+   },
+   {
+    "name": "the table: .sty",
+    "path": "a.sty",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .styl",
+    "path": "a.styl",
+    "style": "c-keep"
+   },
+   {
+    "name": "the table: .sv",
+    "path": "a.sv",
+    "style": "c"
+   },
+   {
+    "name": "the table: .svelte",
+    "path": "a.svelte",
+    "style": "c"
+   },
+   {
+    "name": "the table: .svh",
+    "path": "a.svh",
+    "style": "c"
+   },
+   {
+    "name": "the table: .swift",
+    "path": "a.swift",
+    "style": "c+triple"
+   },
+   {
+    "name": "the table: .tcl",
+    "path": "a.tcl",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .tex",
+    "path": "a.tex",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .tf",
+    "path": "a.tf",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .tfvars",
+    "path": "a.tfvars",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .thrift",
+    "path": "a.thrift",
+    "style": "c"
+   },
+   {
+    "name": "the table: .toml",
+    "path": "a.toml",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .ts",
+    "path": "a.ts",
+    "style": "c+tick"
+   },
+   {
+    "name": "the table: .tsx",
+    "path": "a.tsx",
+    "style": "c+tick"
+   },
+   {
+    "name": "the table: .v",
+    "path": "a.v",
+    "style": "c"
+   },
+   {
+    "name": "the table: .vb",
+    "path": "a.vb",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .vbs",
+    "path": "a.vbs",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .vert",
+    "path": "a.vert",
+    "style": "c"
+   },
+   {
+    "name": "the table: .vhd",
+    "path": "a.vhd",
+    "style": "dash"
+   },
+   {
+    "name": "the table: .vhdl",
+    "path": "a.vhdl",
+    "style": "dash"
+   },
+   {
+    "name": "the table: .vue",
+    "path": "a.vue",
+    "style": "c"
+   },
+   {
+    "name": "the table: .xhtml",
+    "path": "a.xhtml",
+    "style": "c"
+   },
+   {
+    "name": "the table: .zig",
+    "path": "a.zig",
+    "style": "c"
+   },
+   {
+    "name": "the table: .zsh",
+    "path": "a.zsh",
+    "style": "hash"
+   },
+   {
+    "name": "the table, by name: cmakelists.txt",
+    "path": "x/cmakelists.txt",
+    "style": "hash"
+   },
+   {
+    "name": "the table, by name: containerfile",
+    "path": "x/containerfile",
+    "style": "hash"
+   },
+   {
+    "name": "the table, by name: dockerfile",
+    "path": "x/dockerfile",
+    "style": "hash"
+   },
+   {
+    "name": "the table, by name: gemfile",
+    "path": "x/gemfile",
+    "style": "hash"
+   },
+   {
+    "name": "the table, by name: rakefile",
+    "path": "x/rakefile",
+    "style": "hash"
+   },
+   {
+    "name": "the table, by name: vagrantfile",
+    "path": "x/vagrantfile",
+    "style": "hash"
+   },
+   {
+    "name": "the table, by exact name: BUILD",
+    "path": "x/BUILD",
+    "style": "python"
+   },
+   {
+    "name": "the table, by exact name: WORKSPACE",
+    "path": "x/WORKSPACE",
     "style": "python"
    }
   ]
@@ -1057,6 +1762,20 @@
     ],
     "normalized": "var s = '''\n// not a comment\n''';",
     "hash": "8cf68d4c54a1"
+   },
+   {
+    "name": "c+rawtick: a backslash does not escape the backtick, so a raw string can end in one",
+    "style": "c+rawtick",
+    "lines": [
+     "p := `C:\\`",
+     "q := `",
+     "// x",
+     "`",
+     "// a comment",
+     "r := 1"
+    ],
+    "normalized": "p := `C:\\`\nq := `\n// x\n`\nr := 1",
+    "hash": "e8c33644f0dd"
    },
    {
     "name": "c+tick: backticks in a trailing comment open nothing",
