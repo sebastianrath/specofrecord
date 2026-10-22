@@ -11,7 +11,11 @@ different agents conflict when either overlaps: a part against its items, an ite
 rows, or two clauses that share a code region, because editing that region is editing both. A
 clause that merely shares *some other* region is not held: `colors` shares regions with almost
 everything, and claiming the moon must not lock out the light.
-Claims expire (default 30 minutes), so a crashed agent does not block the project for good. An expired
+A claim ends when its holder has done nothing for a while (an idle window, default 30 minutes), so a crashed agent does
+not block the project for good, and when its Claude Code session ends (`sor hook session-end`). Work renews it: a hook
+call or a `sor` command that carries the holder's session id (`renew`). A claim records `idle`, the window in seconds
+or null for none, and `last`, the time of the last activity; `until` is `last + idle` (a date far away for none), and
+is the only field a reader has to compare with the clock, so a tool from before `idle` reads the same file. An expired
 claim stays in the file for TOMBSTONE seconds, only so that its holder can be told that it ran out
 (`sor lock`, `sor release`); every reader that wants claims in force goes through `active`, and a tool that
 does not know tombstones treats them as expired anyway, since their `until` is in the past.
@@ -32,7 +36,9 @@ MUTEX_FILE = '.sor-claims.lock'
 LOCK_MUTEX_FILE = '.sor-lock.mutex'   # held while the lock file is merged and rewritten
 STALE_LOCK = 10      # seconds after which a leftover mutex is broken
 WAIT_LOCK = 5        # seconds to wait for the mutex
-DEFAULT_TTL = 30 * 60
+DEFAULT_TTL = 30 * 60   # the idle window of a claim, in seconds, when nothing else says (`--ttl`, `Claims:` in the root file)
+NEVER = 4102444800      # 2100-01-01: the `until` of a claim with no idle window, a date every tool can read (not null, not year 9999)
+RENEW_FLOOR = 300       # a claim with no idle window records its last activity at most this often
 TOMBSTONE = 2 * 3600   # seconds an expired claim stays in the file, to tell its holder; pruned when the file is written
 
 
@@ -68,11 +74,36 @@ def session_agent(session_id):
 
 
 def parse_ttl(text):
+    """The idle window a text names, in seconds: 90s, 30m, 2h, or `never` (None)."""
+    if (text or '').strip().lower() == 'never':
+        return None
     m = re.fullmatch(r'(\d+)\s*([smh]?)', (text or '').strip())
     if not m:
-        raise ClaimError(f'--ttl "{text}": write it like 90s, 30m or 2h')
+        raise ClaimError(f'--ttl "{text}": write it like 90s, 30m, 2h or never')
     n, unit = int(m.group(1)), m.group(2) or 'm'
     return n * {'s': 1, 'm': 60, 'h': 3600}[unit]
+
+
+IDLE_LINE = re.compile(r'^idle\s+(\S+)$', re.I)
+
+
+def idle_setting(text):
+    """(ok, seconds or None) for the value of a `Claims:` line: `idle 30m`, `idle 2h`, `idle never`."""
+    m = IDLE_LINE.match((text or '').strip())
+    if m:
+        try:
+            return True, parse_ttl(m.group(1))
+        except ClaimError:
+            pass
+    return False, DEFAULT_TTL
+
+
+def project_idle(project):
+    """The idle window the root file sets with `Claims: idle 30m` (seconds, None for never); DEFAULT_TTL when it says nothing or says
+    something `sor check` reports."""
+    root = project.root_part()
+    text = root.header.get('Claims', '').strip() if root else ''
+    return idle_setting(text)[1] if text else DEFAULT_TTL
 
 
 def path(project):
@@ -236,9 +267,15 @@ def lifetime(seconds):
 
 
 def describe(c, now=None):
+    """Who holds what, since when, when it last did something and when the claim ends if nothing more happens (a claim made by a tool from
+    before `idle` has no record of activity and shows only when it ends)."""
     now = time.time() if now is None else now
     mins = max(0, int((now - c['since']) // 60))
-    return f"{c['agent']}: {', '.join(c['asked'])} (since {mins} min, until {when(c['until'])})"
+    if 'idle' not in c:
+        return f"{c['agent']}: {', '.join(c['asked'])} (since {mins} min, until {when(c['until'])})"
+    active = max(0, int((now - c.get('last', c['since'])) // 60))
+    ends = 'no idle limit' if c['idle'] is None else f"ends at {when(c['until'])} if idle"
+    return f"{c['agent']}: {', '.join(c['asked'])} (since {mins} min, last active {active} min ago, {ends})"
 
 
 def covers(ident, other):
@@ -260,7 +297,7 @@ def lapse_text(cs):
 
 def claim_again():
     """What to do about an expired claim, in the words the commands end their note with."""
-    return f'claims last {lifetime(DEFAULT_TTL)} by default: claim again, `--ttl 2h` for longer'
+    return f'claims end after {lifetime(DEFAULT_TTL)} idle by default: claim again, `--ttl 2h` for a longer window'
 
 
 def lost(project, agent, in_force=(), session=None, now=None):
@@ -316,7 +353,7 @@ def _one(project, scan, universe, ident):
 
 
 def claim(project, scan, universe, ids, agent, ttl=DEFAULT_TTL, session=None):
-    """(ok, result). On success result has `keys`, `shared` (ids pulled in) and `until`; on refusal `holders`, the
+    """(ok, result). `ttl`: the idle window in seconds, None for none. On success result has `keys`, `shared` (ids pulled in) and `until`; on refusal `holders`, the
     claims in the way, and `blocked`, the asked ids they are in the way of: a refused claim takes none of its ids,
     the free ones too. `blocked` is worked out after the mutex is let go: it does not need the claims file."""
     ok, res = _claim(project, scan, universe, ids, agent, ttl, session)
@@ -360,8 +397,8 @@ def _claim(project, scan, universe, ids, agent, ttl, session):
         # `session` is who made the claim as far as the edit hook can tell: it sees a session id, never a
         # name given with --as. Several agents of one session (its subagents) share it.
         record = {'agent': agent, 'asked': sorted(ids), 'keys': sorted(keys), 'since': now,
-                  'until': now + ttl, 'regions': [[f, list(ks)] for f, ks in sorted(regions)],
-                  'session': session}
+                  'until': NEVER if ttl is None else now + ttl, 'idle': ttl, 'last': now,
+                  'regions': [[f, list(ks)] for f, ks in sorted(regions)], 'session': session}
         if mine:
             record['since'] = mine[0]['since']
         # what this claim covers is no news any more: the agent's own expired claims on it go, other agents' stay
@@ -369,6 +406,47 @@ def _claim(project, scan, universe, ids, agent, ttl, session):
                  and all(any(covers(i, a) for i in ids) for a in c['asked'])]
         _write(project, [c for c in held if c not in mine and c not in spent] + [record])
     return True, {'keys': sorted(keys), 'shared': shared, 'until': record['until']}
+
+
+def renew(project, session='', agent='', now=None):
+    """Records that the holder is at work: the claims of this Claude Code session (`session`), or, for a person at a terminal who names
+    themselves, of this `agent` with no session, get `last` = now and `until` = now + their idle window. Only a claim in force is renewed:
+    one that ran out may be someone else's now, and its holder is told through the lapse notice. A claim with no `idle` (made by a tool from
+    before) keeps its fixed end. Cheap, as the hooks call it on every read and edit: nothing happens without a claims file, the file is read
+    without the mutex, and it is rewritten (under the mutex, re-read) only for a claim whose last activity is older than half its window, or
+    RENEW_FLOOR seconds for a claim with no window. Returns the number of claims renewed."""
+    if not (session or agent):
+        return 0
+    now = time.time() if now is None else now
+
+    def due(c):
+        if 'idle' not in c or c['until'] <= now:
+            return False
+        mine = c.get('session') == session if session else (not c.get('session') and c['agent'] == agent)
+        step = RENEW_FLOOR if c['idle'] is None else c['idle'] / 2
+        return mine and now - c.get('last', c['since']) >= step
+
+    if not any(due(c) for c in read(project)):
+        return 0
+    with _Mutex(project):
+        held = read(project)
+        count = 0
+        for c in held:
+            if due(c):
+                c['last'] = now
+                c['until'] = NEVER if c['idle'] is None else now + c['idle']
+                count += 1
+        if count:
+            _write(project, held)
+    return count
+
+
+def release_session(project, session):
+    """Frees every claim made in a Claude Code session, as the session ends (`sor hook session-end`). The number released."""
+    if not session or not any(c.get('session') == session for c in read(project)):
+        return 0
+    gone, _ = release(project, [], '', everything=True, session=session)
+    return len(gone)
 
 
 def release(project, ids, agent, everything=False, force=False, session=None):

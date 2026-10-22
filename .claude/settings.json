@@ -34,6 +34,17 @@
           }
         ]
       }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"$CLAUDE_PROJECT_DIR\"; [ -f \"$d/tools/sor.py\" ] || { d=\"$PWD\"; while [ \"$d\" != / ] && [ ! -f \"$d/tools/sor.py\" ]; do d=$(dirname \"$d\"); done; }; [ -f \"$d/tools/sor.py\" ] || exit 0; python3 \"$d/tools/sor.py\" hook session-end || exit 1",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   }
 }

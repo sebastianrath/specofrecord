@@ -5,6 +5,7 @@
     sor hook post-read   PostToolUse on Read: adds the clauses behind the regions just read
     sor hook session-start   SessionStart: a note saying this project has a spec, when it has, a short index of its parts, and what is pending
     sor hook pre-bash    PreToolUse on Bash: asks the user before a `sor lock` that carries --allow-behind runs
+    sor hook session-end   SessionEnd: frees the claims the ending session made
 
 They read the hook's JSON on stdin. Files outside a project, or outside its code, pass.
 """
@@ -139,6 +140,17 @@ def is_skeleton(root, rel, path):
     return data == views.skeleton('' if name == PART_FILE_NAME else name, root, None if why == views.WHY else why).encode('utf8')
 
 
+def renew_claims(root, payload):
+    """An edit by a session is a sign of life of its claims (`claims.renew`). It reads the claims file and nothing else, so the project is not
+    parsed for it, and a failure never costs the edit its check."""
+    session = payload.get('session_id') or ''
+    if session and os.path.isfile(os.path.join(root, SPEC_DIR, CLAIMS_FILE)):
+        try:
+            claims.renew(Project(root), session)
+        except (Exception, SystemExit):
+            pass
+
+
 def pre_edit(payload):
     tool, inp = payload.get('tool_name', ''), payload.get('tool_input') or {}
     path = inp.get('file_path') or ''
@@ -146,6 +158,7 @@ def pre_edit(payload):
     if not root:
         return None
     rel = os.path.relpath(os.path.abspath(path), root).replace(os.sep, '/')
+    renew_claims(root, payload)
     if rel in (f'{SPEC_DIR}/{LOCK_FILE}', f'{SPEC_DIR}/{LEGACY_LOCK_FILE}'):
         return deny(f'{LOCK_FILE} is written only by `sor lock`, which checks clauses, code and '
                     f'test results first. Run `{CMD} lock` instead of editing it.')
@@ -326,6 +339,15 @@ def lock_allowances(command, depth=0):
     return found
 
 
+def session_end(payload):
+    """Frees the claims made in the session that is ending, so a closed chat does not hold clauses until its idle window runs out. A crash skips
+    this hook, and the idle window covers that. The project of the session's folder only."""
+    root = find_root(os.path.join(payload.get('cwd') or os.getcwd(), 'x'))
+    if root:
+        claims.release_session(Project(root), payload.get('session_id') or '')
+    return None
+
+
 def pre_bash(payload):
     """Asks the user before a `sor lock --allow-behind` runs: the flag lets a language stay behind a clause, or lack code for it, and that is the
     user's call. A command that merely mentions the flag (a grep, a document) passes. This guards Claude Code only; a person's terminal is not
@@ -356,6 +378,7 @@ def post_read(payload):
     if not root:
         return None
     project = Project(root)
+    claims.renew(project, payload.get('session_id') or '')
     scan = Scan(project)
     SPEC_DIR = project.spec_name
     rel = scan.rel(path)
@@ -491,7 +514,7 @@ def session_start(payload):
     return {'hookSpecificOutput': {'hookEventName': 'SessionStart', 'additionalContext': ctx}}
 
 
-HOOKS = {'pre-edit': pre_edit, 'post-read': post_read, 'session-start': session_start, 'pre-bash': pre_bash}
+HOOKS = {'pre-edit': pre_edit, 'post-read': post_read, 'session-start': session_start, 'pre-bash': pre_bash, 'session-end': session_end}
 
 
 def run(which):

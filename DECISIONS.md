@@ -973,6 +973,27 @@ Decided by the owner on 2026-10-22: a new session is told about changes an earli
 - **Cost.** One scan and one status, about 70 ms on the solar-system example; the plugin's timeout for the hook is 10 s.
 - **The skill** says in its routine to tell the user once what is pending that the agent did not start (an existing line, edited in place).
 
+## A claim ends with its session or after an idle time (2026-10-22)
+Decided by the owner on 2026-10-22: no fixed lifetime in an agentic workflow. A timer from the moment of the claim ended work that was still going on.
+- **Two values per claim.** `idle` is the window in seconds (null for none) and `last` the time of the last activity; `until` stays and is `last + idle`
+  (2100-01-01 for none, a date every tool reads, not null and not year 9999). Everything that compares a claim with the clock still reads `until`, so a tool from
+  before `idle` reads the same file, keeps the fields it does not know when it rewrites it (it writes the dicts it read), and gives a claim made by the new
+  tool the fixed end of its last renewal. The claims file has no version.
+- **`--ttl` is now the idle window,** same syntax, plus `never`. Without it, the root file's `Claims: idle 30m` (`idle 2h`, `idle never`), else 30 minutes. The
+  line is a header like `Targets:`, so a change to it marks the root file as changed. `sor check` reports a line it does not understand, and one outside the root.
+- **What renews.** A claim is renewed by its session: every hook call that carries the session id (an edit, a read) and every `sor` command run with
+  `CLAUDE_CODE_SESSION_ID`. A person at a terminal who names themselves renews by name at `sor lock --as NAME`. This is narrower than "every `sor` call"
+  on purpose: the editor extension runs `status --json` on every refresh with no session, and if that renewed claims it would keep a dead chat's claim alive
+  for ever and the idle window would never fire. A claim that already ran out is never renewed (someone else may hold the clause now; its holder is told
+  at the next lock or release, as before), and a claim of an older tool has no `idle` and keeps its fixed end.
+- **Cheap.** Nothing happens without a claims file, the file is read without the mutex, and it is rewritten under the mutex, re-read, only for a claim whose
+  last activity is more than half its window old (every 5 minutes for a claim with no window). A command that renews nothing never makes the file.
+- **A session end frees its claims** (`sor hook session-end`, a `SessionEnd` hook with a 5 second timeout; the default budget of that event is 1.5 s). It
+  releases the claims whose session is the one in the payload, for any reason, in the project of the session's folder. A crash skips the hook, and the idle
+  window covers that. A claim with no window is cleared only by release, `--force`, or its session ending.
+- **The messages** say what ends a claim: "claims end after 30 min idle by default", and a claim is described with its last activity and when it ends if
+  nothing more happens.
+
 ## Still open
 - The tool is not under Spec of Record. Its hashing, marker and lock rules could be clauses with `Targets: py, js`, so that a change to a clause
   leaves the other language behind and a lock refuses until both follow (`proposals/multi-target.md`). Until then the vectors and the

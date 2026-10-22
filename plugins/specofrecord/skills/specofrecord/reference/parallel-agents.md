@@ -6,8 +6,8 @@ stop) are in `SKILL.md`, under "Claims" and "Locking".
 
 ## What a claim is
 A claim says which clauses you work on. The tool records it, `sor status` shows it in the `claims` group, and `sor lock`
-respects it. It is advice: an agent that never claims is not stopped. Claims expire (30 minutes unless you pass `--ttl`),
-so an agent that crashed does not block the project for good.
+respects it. It is advice: an agent that never claims is not stopped. Claims end after 30 minutes without activity (`--ttl`, or
+`Claims:` in the root file, changes it) and when their session ends, so an agent that crashed does not block the project for good.
 
 ## Who you are
 The tool knows who you are from your Claude Code session, so you do not have to say. Pass `--as <name>` (or set
@@ -41,7 +41,7 @@ Subagents share your session, so the tool cannot tell them apart from you by its
 A claim that expired protects nothing, and another agent may have claimed the clause since. The tool tells you when you
 come back to `sor lock` or `sor release`:
 - `sor lock` with no ids, when all your claims expired, is refused with "your claims on X, Y expired at 00:31; claims
-  last 30 min by default: claim again, `--ttl 2h` for longer".
+  end after 30 min idle by default: claim again, `--ttl 2h` for a longer window".
 - A `sor lock` with no ids that still covers live claims prints a `warning:` for the expired ones, which are not in that lock.
 - `sor release` says "nothing to release: your claims on X expired at ...", or adds the same as a `note:`.
 

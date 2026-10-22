@@ -124,9 +124,14 @@ class TestExpiredClaims(Session):
 
     def test_claim_says_how_long_it_lasts(self):
         out = self.run_sor('claim', 'greet/hello', '--as', 'a1')[1]
-        self.assertEqual(out.strip(), f'claimed greet/hello until {claims.when(self.claims_file()[0]["until"])} (30 min)')
-        self.assertIn('(2 h)', self.run_sor('claim', 'greet/bye', '--as', 'a1', '--ttl', '2h')[1])
-        self.assertIn('(90 s)', self.run_sor('claim', 'greet/bye', '--as', 'a1', '--ttl', '90s')[1])
+        ends = claims.when(self.claims_file()[0]['until'])
+        self.assertEqual(out.strip(), f'claimed greet/hello, held while you work: it ends at {ends} if you do nothing for 30 min')
+        self.assertIn('if you do nothing for 2 h', self.run_sor('claim', 'greet/bye', '--as', 'a1', '--ttl', '2h')[1])
+        self.assertIn('if you do nothing for 90 s', self.run_sor('claim', 'greet/bye', '--as', 'a1', '--ttl', '90s')[1])
+        out = self.run_sor('claim', 'greet/bye', '--as', 'a1', '--ttl', 'never')[1]
+        self.assertEqual(out.strip(), 'claimed greet/bye, held while you work: no idle limit')
+        (never,) = [c for c in self.claims_file() if c['asked'] == ['greet/bye']]
+        self.assertEqual((never['idle'], never['until']), (None, claims.NEVER))
 
     def test_a_lock_after_the_claims_expired_says_which_and_when(self):
         self.run_sor('claim', 'greet/hello', 'greet/bye', '--as', 'a1')
@@ -135,7 +140,7 @@ class TestExpiredClaims(Session):
         self.assertEqual(code, 2)
         self.assertTrue(out.startswith('lock refused:\n'), out)
         self.assertIn(f'your claims on greet/bye, greet/hello expired at {self.expired_at("a1")}', out)
-        self.assertIn('claims last 30 min by default: claim again, `--ttl 2h` for longer', out)
+        self.assertIn('claims end after 30 min idle by default: claim again, `--ttl 2h` for a longer window', out)
         self.assertNotIn('locking what you claimed', out)
 
     def test_the_note_names_each_time_when_claims_ran_out_at_different_minutes(self):
@@ -148,7 +153,7 @@ class TestExpiredClaims(Session):
         write(self.dir, 'sor/.sor-claims.json', json.dumps(data))
         out = self.run_sor('lock', '--as', 'a1')[1]
         first, second = (claims.when(c['until']) for c in data['claims'])
-        self.assertIn(f'your claims on greet/hello expired at {first}, on greet/bye at {second}; claims last', out)
+        self.assertIn(f'your claims on greet/hello expired at {first}, on greet/bye at {second}; claims end after', out)
 
     def test_an_agent_is_told_only_about_its_own_expired_claims(self):
         self.run_sor('claim', 'greet/hello', '--as', 'a1')
@@ -210,7 +215,7 @@ class TestExpiredClaims(Session):
         code, out, _ = self.run_sor('release', '--all', '--as', 'a1')
         self.assertEqual(code, 0)
         self.assertEqual(out.strip(), f'nothing to release: your claims on greet/hello expired at {expired} '
-                         '(claims last 30 min by default, `--ttl 2h` for longer)')
+                         '(claims end after 30 min idle by default: claim again, `--ttl 2h` for a longer window)')
         self.assertEqual(self.claims_file(), [])   # nothing is left in the project
         self.assertEqual(self.run_sor('release', '--all', '--as', 'a1')[1].strip(), 'nothing to release')
 

@@ -18,7 +18,7 @@
     sor release [IDS|--all]       give them up again
     sor markers [ID | FILE:LINE] [--json]  where a clause's code is, or which clauses a line serves
     sor show PART|ITEM            the clauses with their code underneath: one view to read
-    sor hook pre-edit|post-read|session-start|pre-bash   Claude Code hooks (JSON on stdin; the session-start note lists the parts), see sorlib/hook.py
+    sor hook pre-edit|post-read|session-start|pre-bash|session-end   Claude Code hooks (JSON on stdin; the session-start note lists the parts), see sorlib/hook.py
 
 Run from a project folder (the one holding sor/), or pass -C <folder>.
 Exit codes: 0 clean · 1 work pending (status), or an environment not proven (verify) · 2 problems or drift, or lock refused · 3 claim refused.
@@ -44,6 +44,7 @@ from .model import Project, part_id, split_lines
 
 def load(args):
     project = Project(args.root)
+    claims.renew(project, claims.current_session())   # a command run from a Claude Code session is a sign of life of its claims
     return project, Scan(project)
 
 
@@ -169,7 +170,7 @@ def cmd_status(args):
             print()
         held = claims.active(project)
         if held:
-            print(f'claims ({len(held)}) — who is working on what (advisory; they expire)')
+            print(f'claims ({len(held)}) — who is working on what (advisory; a claim ends after an idle time or with its session)')
             for c in held:
                 print('  ' + claims.describe(c))
             print()
@@ -309,6 +310,8 @@ def cmd_rehash(args, project, scan):
 
 def cmd_lock(args):
     project, scan = load(args)
+    if args.agent:
+        claims.renew(project, claims.current_session(), args.agent)   # a person at a terminal who names themselves is at work too
     old = lockfile.read(project)
     try:
         lockfile.check_writable(project)
@@ -466,7 +469,7 @@ def cmd_claim(args):
     project, scan = load(args)
     agent = claims.agent_name(args.agent)
     try:
-        ttl = claims.parse_ttl(args.ttl)
+        ttl = claims.parse_ttl(args.ttl) if args.ttl else claims.project_idle(project)   # --ttl, else `Claims:` in the root file, else 30 min
         ok, res = claims.claim(project, scan, set(lockfile.snapshot(project, scan)), args.ids, agent, ttl)
     except claims.ClaimError as e:
         print(f'claim: {e}', file=sys.stderr)
@@ -481,7 +484,8 @@ def cmd_claim(args):
             print(f'  nothing was claimed: {", ".join(free)} {"is" if len(free) == 1 else "are"} free, but a claim takes all its '
                   'ids or none. Claim them on their own, or ask for them again once the others are released')
         return 3
-    print(f'claimed {", ".join(args.ids)} until {claims.when(res["until"])} ({claims.lifetime(ttl)})')
+    print(f'claimed {", ".join(args.ids)}, held while you work: ' + ('no idle limit' if ttl is None else
+          f'it ends at {claims.when(res["until"])} if you do nothing for {claims.lifetime(ttl)}'))
     if res['shared']:
         print('  its code regions are shared with ' + ', '.join(res['shared'])
               + ': nobody else can claim those regions meanwhile')
@@ -507,7 +511,7 @@ def cmd_release(args):
         print('NOT released (held by someone else; --force overrides): ' + claims.describe(c))
     if ran_out:
         print(('note: ' if len(ran_out) < len(gone) else 'nothing to release: ') + f'your {claims.lapse_text(ran_out)} '
-              f'(claims last {claims.lifetime(claims.DEFAULT_TTL)} by default, `--ttl 2h` for longer)')
+              f'({claims.claim_again()})')
     elif not gone and not refused:
         print('nothing to release')
     return 3 if refused else 0
@@ -883,10 +887,10 @@ def build_parser():
     s.add_argument('--rehash', action='store_true',
                    help='rewrite the code hashes made with an older rule (no change is accepted, nothing else is rewritten)')
     s.set_defaults(fn=cmd_lock)
-    s = sub.add_parser('claim', help='say you are working on these clauses or parts (advisory, expires)')
+    s = sub.add_parser('claim', help='say you are working on these clauses or parts (advisory; it ends when you are idle or your session ends)')
     s.add_argument('ids', nargs='+', help='clauses, rows or parts; to add a clause, claim its part')
     s.add_argument('--as', dest='agent', help='who you are (or set SOR_AGENT)')
-    s.add_argument('--ttl', default='30m', help='how long it holds: 90s, 30m, 2h (default 30m)')
+    s.add_argument('--ttl', default=None, help='how long it holds without activity: 90s, 30m, 2h or never (default: `Claims: idle …` in the root file, else 30m)')
     s.set_defaults(fn=cmd_claim)
     s = sub.add_parser('release', help='give up claims')
     s.add_argument('ids', nargs='*')
@@ -923,7 +927,7 @@ def build_parser():
                    help='machine-readable; without a target: every item, reference and region')
     s.set_defaults(fn=cmd_markers)
     s = sub.add_parser('hook', help='Claude Code hooks; reads the hook JSON on stdin')
-    s.add_argument('which', choices=['pre-edit', 'post-read', 'session-start', 'pre-bash'])
+    s.add_argument('which', choices=['pre-edit', 'post-read', 'session-start', 'pre-bash', 'session-end'])
     s.set_defaults(fn=lambda a: hook.run(a.which))
     s = sub.add_parser('show')
     s.add_argument('target', help='a part id (camera, render/culling, ROOT for the root) or an item id')

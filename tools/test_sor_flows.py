@@ -667,7 +667,7 @@ class TestClaimCommands(Flow):
     def test_a_claim_is_recorded_and_status_shows_it(self):
         code, out, _ = self.sor('claim', 'greet/hello', '--as', 'alice')
         self.assertEqual(code, 0)
-        self.assertIn('claimed greet/hello until', out)
+        self.assertIn('claimed greet/hello, held while you work', out)
         (held,) = self.claims_file()
         self.assertEqual((held['agent'], held['asked']), ('alice', ['greet/hello']))
         self.assertIn('greet/hello', held['keys'])

@@ -58,6 +58,10 @@ placeholders that `sor check` reports until they are filled in. Or create the fi
   check. It guards Claude Code only: your own terminal, other agents and a script that Claude writes and runs are not covered, and how Claude
   Code's bypass-permissions mode treats an `ask` is not verified. The same flag is the way out of `sor lock` refusing a language
   that is behind or has no code, so the answer to the question is yours.
+- **A claim ends with its session or when it is idle.** It is renewed by every `sor` command and every edit or read that carries the session id, and a
+  `SessionEnd` hook frees the claims of the chat that ends. A chat that crashed skips the hook, and its claims end after 30 minutes without activity.
+  `--ttl 2h` sets that window for one claim, `--ttl never` removes it, and `Claims: idle 2h` (or `idle never`) in `SPECOFRECORD.md` sets it for the
+  project (a change to that line shows as a change of the root file). The editor extension has no session id, so its refreshes keep nothing alive.
 - **Claims.** `sor claim` records who works on which clauses and `sor lock` respects it. The edit hook also
   refuses edits to a clause someone else holds (it says who and until when, and the agent decides what to do).
   An agent that never claims is not stopped. This relies on the session id a hook receives being the one

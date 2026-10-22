@@ -12,8 +12,8 @@ VDEF = re.compile(r'\{([A-Za-z][\w-]*):\s*([^{}]+)\}')
 REF = re.compile(r'\{([^{}:\s][^{}:]*)\}')
 BAD_VDEF = re.compile(r'\{[^{}\s]+:[^\s][^{}]*\}')
 CODE = re.compile(r'`[^`]*`')
-HEADER = re.compile(r'^(Why|Owner|Source|Run|Code|Design|Targets):\s*(.*)$')
-SETTING = re.compile(r'(?:^|\.\s+|\s+·\s+)(Why|Owner|Source|Run|Code|Design|Targets):\s*')
+HEADER = re.compile(r'^(Why|Owner|Source|Run|Code|Design|Targets|Claims):\s*(.*)$')
+SETTING = re.compile(r'(?:^|\.\s+|\s+·\s+)(Why|Owner|Source|Run|Code|Design|Targets|Claims):\s*')
 SECTION = re.compile(r'^## (.+?)\s*$')
 SECTIONS = ('Rules', 'Approach', 'Contract', 'Tests')
 # Headings a person may write, and the section each one means (SPEC §15, the plain format). A heading the
@@ -830,7 +830,7 @@ class Project:
                     problems.append(Problem('collision', p.rel, self.collision(k, keys[k], (what, p.rel))))
                 keys[k] = (what, p.rel)
         from . import lint   # lint imports this module, so it is loaded only when needed
-        return problems + self.target_problems() + lint.placeholders(self)
+        return problems + self.target_problems() + self.claims_problems() + lint.placeholders(self)
 
     @staticmethod
     def collision(key, first, second):
@@ -951,6 +951,20 @@ class Project:
                 elif size == best and name not in names:
                     names.append(name)
         return names[0] if len(names) == 1 else None
+
+    def claims_problems(self):
+        """Problems with a `Claims:` line (SPEC §16): it is read in the root file only, and says `idle 30m`, `idle 2h` or `idle never`."""
+        from .claims import idle_setting   # claims imports this module, so it is loaded only when needed
+        out = []
+        for p in self.parts.values():
+            text = p.header.get('Claims', '').strip()
+            if not text:
+                continue
+            if p.id:
+                out.append(Problem('claims', p.rel, '`Claims:` is read in the root file only (SPECOFRECORD.md)'))
+            elif not idle_setting(text)[0]:
+                out.append(Problem('claims', p.rel, f'`Claims: {text}` is not understood: write `idle 30m`, `idle 2h` or `idle never`'))
+        return out
 
     def target_problems(self):
         """Problems with how targets share the code (SPEC §9): a name a lock key could start with, a path two targets both name,

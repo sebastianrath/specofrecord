@@ -175,9 +175,9 @@ class TestNumbersInTheDocuments(unittest.TestCase):
 
     def test_the_claim_lifetime_the_skill_documents_give_is_the_one_in_the_code(self):
         minutes = claims.DEFAULT_TTL // 60
-        for doc, pattern in ((SKILL, r'It lasts (\d+) minutes'),
+        for doc, pattern in ((SKILL, r'It ends after (\d+) minutes without activity'),
                              (os.path.join(os.path.dirname(SKILL), 'reference', 'parallel-agents.md'),
-                              r'Claims expire \((\d+) minutes|last (\d+) min by default')):
+                              r'Claims end after (\d+) minutes without activity|end after (\d+) min idle by default')):
             found = [int(n) for m in re.findall(pattern, flat(read(doc))) for n in (m if isinstance(m, tuple) else (m,)) if n]
             self.assertTrue(found, f'{doc} no longer says how long a claim lasts')
             self.assertEqual(set(found), {minutes}, doc)

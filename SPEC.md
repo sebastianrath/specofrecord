@@ -487,7 +487,7 @@ with `-C <folder>`:
 | `sor test --strength [id …]` | test strength (§8): reruns each passing test with every value it refers to changed; lists weak tests and the value that did not matter, and the passing tests it could not vary (`IDLE`) |
 | `sor lock [--run-tests \| --results F] [--confirm test …] [--allow-incomplete]` | writes the lock; refuses on problems, drift, or tests that did not pass. What a scoped lock waits for is in §16. With both `--run-tests` and `--results F`, F gives the results of the EXTERNAL tests only (§8). The refusal for tests without a result says `N test(s) did not pass (F failed, M not run)`, lists the first ten and the way out: with no web target a `manual:` line for a test nobody can run yet, or `--results F` for a test in the project's own framework; with a web target `sor lock --run-tests`, adding `--results F` for a test marked `@clause test <id>`; and `--allow-incomplete` in both |
 | `sor lock [<id …> \| --all] [--allow-behind TARGETS]` | accepts the named clauses only, none of the child parts under them unless named (§11); with no ids, what you claimed, and the child parts under a claimed part that have a change of their own (new, changed or removed; parts made after the claim too): it prints `locking the parts under them too: …`, and leaves out a child part that another agent's claim overlaps, naming it (`not locking audio/mixer, which is claimed: …`); `ROOT` is not expanded; `--all` the whole project (§16). Refused while someone else claims them. With no ids and every claim of the agent expired, it is refused and says so; when only some expired, it warns (§16) |
-| `sor claim <id …> [--as NAME] [--ttl 30m]` | says you are working on these clauses and for how long: `claimed audio until 00:31 (30 min)`; exit 3 and who holds them when someone else is: the refusal names the ids in the way, and says when the others asked for were free but not claimed either, for a claim takes all its ids or none (§16) |
+| `sor claim <id …> [--as NAME] [--ttl 30m]` | says you are working on these clauses, and how long it holds without activity: `claimed audio, held while you work: it ends at 00:31 if you do nothing for 30 min` (`--ttl never`: `no idle limit`; without `--ttl`, the root file's `Claims: idle …`, else 30 minutes); exit 3 and who holds them when someone else is: the refusal names the ids in the way, and says when the others asked for were free but not claimed either, for a claim takes all its ids or none (§16) |
 | `sor release [id … \| --all] [--as NAME] [--force]` | gives claims up again. A caller that names itself (`--as NAME` or `SOR_AGENT`) frees only that agent's claims; releasing another agent's claim by id prints `NOT released (held by someone else; --force overrides)` and exits 3. A caller that gives no name (the parent, or the only agent) frees every claim made in its session (§16). `--force` overrides. Claims that had expired are named: `nothing to release: your claims on X expired at 00:31`, or the same as a `note:` beside what was released |
 | `sor markers [id \| file:line]` | where an item's code is, or which clauses a line of code serves; `--json` gives every region with the `targetName` of the target its file belongs to (null when it belongs to none) |
 | `sor show <part \| item>` | the clauses with their code underneath, and under an item every test that proves it: one view for people and agents |
@@ -495,7 +495,7 @@ with `-C <folder>`:
 | `sor needs [part] [--json]` | what a part needs, derived from the `{references}` in its items to items of other parts (words of its parent files, its own child parts and design tokens do not count, so the root needs nothing), each marked `gives` or not. A `needs` bullet (§7) stays allowed and is optional |
 | `sor changes [--json]` | the changes pending since the last lock, grouped: **Added**, **Changed**, **Removed**, **Fixes** (new or changed tests with `bug:`), and every item retired with `retired:` |
 | `sor new <part> [--why TEXT]` · `sor new --root [--why TEXT]` | writes a skeleton part (the four sections) or the root file (Rules and Approach), with hint comments at the start of a line and `<fill in: …>` placeholders, which `sor check` reports until they are filled in. Never overwrites a file. The edit hook lets one Write fill in a skeleton that is still exactly as written, whatever sentence it was given for `--why` (see the hooks below). Refuses (writing nothing): a `-C` folder that does not exist; an id that is already an item (parts and items share one set of ids, §3; the message says where the item is, `the rule **mixer** in audio.md`, and the two ways out: another part name, or rename that item first); an id whose folder already holds parts; a `--why` with a `Word:` setting inside the sentence (`Owner:`, `Run:`, …), which the reader would take for a setting of the part |
-| `sor hook pre-edit \| post-read \| session-start \| pre-bash` | Claude Code hooks, registered in `.claude/settings.json` (below); `pre-bash` asks the user before a `sor lock --allow-behind` runs |
+| `sor hook pre-edit \| post-read \| session-start \| pre-bash \| session-end` | Claude Code hooks, registered in `.claude/settings.json` (below); `pre-bash` asks the user before a `sor lock --allow-behind` runs, `session-end` frees the claims of the ending session |
 
 Drift lines name who last changed their lines when the environment can tell (today from `git blame`):
 `(changed by NAME in 1a2b3c4 (2026-10-17))`, or `(not committed yet)`; without git nothing is added.
@@ -712,8 +712,12 @@ What the tool does about it:
   clauses (a part holds its items, an item its rows, values and own test) and the code regions
   marked with them. Two agents conflict when their claims overlap in either: the same clause, a
   part and its item, or two clauses marked on one region. A clause that shares *another* region
-  is not held: claiming the moon does not lock out the light. Claims expire (default 30 minutes, `--ttl` changes it)
-  so a crashed agent does not block the project; `sor claim` prints the lifetime (`claimed audio until 00:31 (30 min)`).
+  is not held: claiming the moon does not lock out the light. A claim is held while its holder is active: it ends after a window with no
+  activity (default 30 minutes idle; `--ttl` changes it for one claim, and `Claims: idle 2h` or `Claims: idle never` in the root file for the project)
+  and when its Claude Code session ends (`sor hook session-end`), so a closed or crashed chat does not block the project. Activity is a `sor` command or a
+  hook call that carries the holder's session id, so the extension's refreshes, which carry none, keep nothing alive; a person at a terminal renews by
+  naming themselves (`--as`) at `sor lock`. `sor claim` says when the claim ends if nothing more happens (`claimed audio, held while you work: it ends at
+  00:31 if you do nothing for 30 min`), and `sor status` and a refusal show the last activity of each claim.
   To add a clause, claim the part that will hold it. A claim on a part holds its own items; it does not hold the child
   parts under it, so another agent may claim `audio/mixer` while `audio` is claimed (the plain `sor lock`, below, is what
   covers the child parts). A claim of several ids takes all of them or none.
@@ -764,7 +768,7 @@ What the tool does about it:
   It cannot tell who edits without a `session_id` and then allows. Without the variable it is off, as it
   must be wherever the hook's `session_id` is not the id the CLI finds in `CLAUDE_CODE_SESSION_ID`: if they
   differed, an agent would be refused by its own claim.
-- **The claims file** (`sor/.sor-claims.json`, `{"claims": [{agent, asked, keys, regions, session, since, until}]}`) is
+- **The claims file** (`sor/.sor-claims.json`, `{"claims": [{agent, asked, keys, regions, session, since, last, idle, until}]}`) is
   written whole through a temp file and a rename, under a short mutex (`sor/.sor-claims.lock`, an `O_EXCL` file broken
   when older than 10 s); temp files older than 5 minutes are removed. A claim that expired is kept for 2 hours as a
   tombstone (`claims.TOMBSTONE`), only so that its holder can be told (next point); every write of the file prunes the
@@ -772,7 +776,7 @@ What the tool does about it:
   claim and no tombstone is left, so a project where everyone has released has nothing left in it.
 - **Expired claims tell their holder.** A claim that expires while its holder works does not stop it, so the holder is
   told at its next lock or release. `sor lock` with no ids, when all its claims expired, is refused with "your claims on
-  X, Y expired at 00:31; claims last 30 min by default: claim again, `--ttl 2h` for longer". A no-ids lock that covers
+  X, Y expired at 00:31; claims end after 30 min idle by default: claim again, `--ttl 2h` for a longer window". A no-ids lock that covers
   live claims prints a `warning:` for the expired ones, which are not in that lock. `sor release` says "nothing to
   release: your claims on X expired at 00:31", or adds it as a `note:`. Once the agent claims the same clauses again,
   the tombstone is no news and goes.

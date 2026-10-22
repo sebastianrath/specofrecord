@@ -87,7 +87,7 @@ and the changed parts under a claimed part; `sor lock <ids>` locks only the ids 
 ## Claims
 Claims say who works on which clauses. They are advisory, so make them a habit even when you seem to be alone.
 - Before you edit a clause or its code: `sor claim <id> ...`. To add a clause, claim the part that will hold it. A claim
-  also holds the code regions marked with the clause. It lasts 30 minutes (`--ttl 2h` for longer).
+  also holds the code regions marked with the clause. It ends after 30 minutes without activity (`--ttl 2h` for longer) or with your session.
 - If it prints REFUSED (exit 3), do not edit that clause or its code, and do not look for a way around it (never delete
   `sor/.sor-claims*`). A refused claim takes none of its ids, free ones included. Say who holds it; take another clause,
   wait and retry, or ask the user.
