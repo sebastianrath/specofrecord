@@ -57,7 +57,16 @@ class Region {
     this.ids = ids;
     this.end = null;
     this.lines = [];
+    this.keys = [];   // lock keys after checking: item, row and part ids, test ids, or glue:<file>
     this.cache = new Map();
+  }
+
+  get where() {
+    return this.end ? `${this.file}:${this.start}-${this.end}` : `${this.file}:${this.start}`;
+  }
+
+  contains(n) {
+    return this.start <= n && n <= (this.end || this.start);
   }
 
   /** This region's code as the lock sees it under a style, worked out once. The lines do not change once the scan is made. */

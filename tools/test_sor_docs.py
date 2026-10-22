@@ -109,7 +109,8 @@ class TestNamesInTheDocuments(unittest.TestCase):
 
     def test_every_environment_variable_a_document_names_is_read_by_the_tool(self):
         source = ''
-        for path in glob.glob(os.path.join(HERE, 'sorlib', '*.py')):
+        # `test_sor.py` is here for SOR_COMPARE_JS, which makes the test suite compare the two tools (tools/js/README.md); no program reads it
+        for path in glob.glob(os.path.join(HERE, 'sorlib', '*.py')) + [os.path.join(HERE, 'test_sor.py')]:
             with open(path, encoding='utf8') as fh:
                 source += fh.read()
         known = set(re.findall(r'\bSOR_[A-Z_]+\b', source)) | {'SOR_' + n for n in re.findall(r"getenv\('([A-Z_]+)'\)", source)}

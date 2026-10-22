@@ -4,12 +4,13 @@
 //
 //   node tools/js/test/crosscheck.js jobs.json   prints the answers as JSON on one line
 //
-// A job file is {normalize: [{lines, style}], marker: [{path, line, starters}], scan: [{path, text, starters}], render: [{entries, fmt}]},
-// and the answers come in the same shape: a SHA-256 (12 hex digits) of each normalized text, the marker as [code, words] or null, the
-// regions, problems and unmarked lines of a scan, and the text of a lock or "error".
+// A job file is {normalize: [{lines, style}], marker: [{path, line, starters}], scan: [{path, text, starters}], render: [{entries, fmt}],
+// anchor: [{path, text, names}]}, and the answers come in the same shape: a SHA-256 (12 hex digits) of each normalized text, the marker as
+// [code, words] or null, the regions, problems and unmarked lines of a scan, the text of a lock or "error", and for each of the names of an
+// anchor job its first and last line or null.
 const crypto = require('crypto');
 const fs = require('fs');
-const { markers, lock } = require('../sorlib');
+const { markers, lock, anchors } = require('../sorlib');
 
 const sha = (text) => crypto.createHash('sha256').update(text, 'utf8').digest('hex').slice(0, 12);
 const jobs = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
@@ -28,6 +29,7 @@ const answers = {
       unmarked,
     };
   }),
+  anchor: (jobs.anchor || []).map((j) => j.names.map((name) => anchors.find(j.text, j.path, name))),
   render: (jobs.render || []).map((j) => {
     try {
       return lock.render(j.entries, j.fmt);

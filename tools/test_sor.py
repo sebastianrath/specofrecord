@@ -77,10 +77,23 @@ def run_process(project, *args):
     return done.returncode, done.stdout, done.stderr
 
 
+def same_in_javascript(project, args, when):
+    """With SOR_COMPARE_JS set: the project through the JavaScript tool and the Python tool (`test_sor_js`), before and after every command
+    a test runs, so that the reader in tools/js meets every state this suite makes. Fails the test that made a state they read differently."""
+    if not os.path.isdir(os.path.join(project, 'sor')):
+        return
+    import test_sor_js
+    found = test_sor_js.compare_with_javascript(project, fresh=True)
+    if found:
+        raise AssertionError(f'the JavaScript tool reads {project} otherwise {when} `sor {" ".join(args)}`:\n' + '\n'.join(found))
+
+
 def run_sor(project, *args):
     """The same command through sorlib.cli.main in this process (argument parsing, dispatch and exit code
     included, only the start-up of a new Python left out): (exit code, stdout, stderr). A program started
     for every call costs 80 ms, and this suite makes a hundred."""
+    if os.environ.get('SOR_COMPARE_JS'):
+        same_in_javascript(project, args, 'before')
     out, err = io.StringIO(), io.StringIO()
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
         try:
@@ -89,6 +102,8 @@ def run_sor(project, *args):
             code = e.code if isinstance(e.code, int) else 1
             if isinstance(e.code, str):
                 print(e.code, file=sys.stderr)
+    if os.environ.get('SOR_COMPARE_JS'):
+        same_in_javascript(project, args, 'after')
     return code, out.getvalue(), err.getvalue()
 
 
