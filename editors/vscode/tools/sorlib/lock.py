@@ -128,10 +128,8 @@ def conform(now, lock, scan):
                 a['targets'] = {t: {'code': code} for t, code in per_target[key].items()}
                 a['code'] = digest(a['targets'])
         elif a.get('targets') and not b.get('targets'):
-            joined = scan.code_hashes().get(key)
             del a['targets']
-            if joined is not None:
-                a['code'] = joined
+            a['code'] = scan.code_hashes()[key]     # the same regions as the per-target hashes, so the key is there
     return now
 
 

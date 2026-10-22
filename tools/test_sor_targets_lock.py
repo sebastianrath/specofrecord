@@ -425,16 +425,6 @@ class TestCodeThatIsSharedOrGone(Targeted):
         found = self.findings()
         self.assertEqual([(f['status'], f['key'], f['where']) for f in found], [('drift', 'greet/hello', 'code removed')], found)
 
-    def test_a_snapshot_without_a_joined_hash_for_a_clause_keeps_the_code_it_had(self):
-        class Scanned:
-            def code_hashes(self, legacy=False):
-                return {}
-        now = {'a/b': {'kind': 'item', 'text': 't', 'code': 'x', 'targets': {'py': {'code': 'y'}}}}
-        old = {'a/b': {'kind': 'item', 'text': 't', 'code': 'z'}}
-        lockfile.conform(now, old, Scanned())
-        self.assertNotIn('targets', now['a/b'])       # compared as the lock wrote it: one joined hash, none to compare
-        self.assertEqual(now['a/b']['code'], 'x')
-
 
 class TestTheGuardInATargetedProject(Targeted):
     def test_it_works_out_which_clauses_a_spec_edit_touches(self):

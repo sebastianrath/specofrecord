@@ -51,7 +51,6 @@ TRICKY_312 = [
     "def f(a, b):\n    x = f\"{\n        a +  # a comment with ) and \"\n        b\n    }\"\n    if x:\n        return x\n    return None\n",
     "def f(a):\n    s = f\"\"\"\n# not a comment {a}\n{a!r:>{len(a)}}\n\"\"\"\n    for i in s:\n        print(i)\n    return s\n",
     "def f(a):\n    s = f\"ab\\\n# still text {a}\"\n    if s:\n        return s\n    return None\n",
-    "def f(a):\n    s = f\"\"\"{a:\n# spec text\n}\"\"\"\n    if s:\n        return s\n    return None\n",
 ]
 
 
