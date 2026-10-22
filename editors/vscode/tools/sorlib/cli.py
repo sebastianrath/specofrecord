@@ -718,7 +718,8 @@ def print_coverage(summary, detail):
 
 def cmd_test_list(args, project, scan, provides):
     """`sor test --list`: the tests a run would run and the ones it would leave to CI, without running anything (so it needs no
-    web target). Each test with its environments, whether a framework of your own runs it and its fingerprint."""
+    web target). Each test with its environments, whether a framework of your own runs it and its fingerprint, and for a test with test code in
+    some languages the fingerprint of each (`fingerprints`, which the evidence of a job is made for)."""
     fps = evidence.fingerprints(project, scan)
     rows = []
     for item in project.all_items():
@@ -726,9 +727,13 @@ def cmd_test_list(args, project, scan, provides):
             continue
         manual = lockfile.is_manual(item)
         why = None if manual else testrun.deferral(item, args.ids, provides, args.all)
-        rows.append({'id': item.id, 'runs_on': [list(e) for e in item.runs_on()], 'manual': manual,
-                     'external': not manual and testrun.external(item, scan),   # as `sor test` decides
-                     'selected': not manual and why is None, 'fingerprint': fps[item.id]})
+        row = {'id': item.id, 'runs_on': [list(e) for e in item.runs_on()], 'manual': manual,
+               'external': not manual and testrun.external(item, scan),   # as `sor test` decides
+               'selected': not manual and why is None, 'fingerprint': fps[item.id]}
+        per_language = {k.partition('@')[2]: v for k, v in fps.items() if k.startswith(item.id + '@')}
+        if per_language:   # only a test with test code in a language: a project that keeps its code in one place has none
+            row['fingerprints'] = per_language
+        rows.append(row)
     if args.json:
         print(json.dumps({'tests': rows}, indent=2))
         return 0

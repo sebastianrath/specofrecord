@@ -134,6 +134,30 @@ class TestTheFingerprintOfALanguage(PerLanguage):
             self.assertNotEqual(after[key], before[key], key)
 
 
+class TestTheListGivesTheFingerprintOfEachLanguage(PerLanguage):
+    def rows(self, *args):
+        code, out, _ = self.sor('test', '--list', '--json', *args)
+        self.assertEqual(code, 0, out)
+        return {r['id']: r for r in json.loads(out)['tests']}
+
+    def test_a_test_with_test_code_in_two_languages_has_the_fingerprint_of_each_and_the_one_it_had(self):
+        row = self.rows()[TEST]
+        fps = self.fingerprints()
+        self.assertEqual(row['fingerprints'], {'py': fps[f'{TEST}@py'], 'ts': fps[f'{TEST}@ts']})
+        self.assertEqual(row['fingerprint'], fps[TEST])
+
+    def test_a_test_with_no_test_code_per_language_has_only_the_one(self):
+        os.remove(os.path.join(self.dir, 'src_py', 'test_greet.py'))
+        os.remove(os.path.join(self.dir, 'src_ts', 'greet.test.ts'))
+        self.assertNotIn('fingerprints', self.rows()[TEST])
+
+    def test_the_fingerprint_of_a_language_in_the_list_is_the_one_the_evidence_is_made_for(self):
+        self.assertEqual(self.job('linux-ci', 'linux', {f'{TEST}@py': 'pass'})[0], 0)
+        with open(os.path.join(self.dir, 'evidence', 'linux-ci.json'), encoding='utf8') as fh:
+            written = json.load(fh)['results'][f'{TEST}@py']['fingerprint']
+        self.assertEqual(self.rows()[TEST]['fingerprints']['py'], written)
+
+
 class TestWritingEvidenceForALanguage(PerLanguage):
     def test_a_result_for_each_language_is_written_under_its_key_with_its_fingerprint(self):
         code, text = self.job('linux-ci', 'linux', {f'{TEST}@py': 'pass', f'{TEST}@ts': 'pass'})
