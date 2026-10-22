@@ -2,9 +2,22 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="robots" content="noindex">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Spec of Record (SoR)</title>
-<meta name="description" content="A development philosophy and toolchain for AI-built software, aimed at mid-sized to large projects. Plain-language specs are the source code, and an AI agent acts like a compiler. The spec is split into parts with responsibilities, so engineering, QA and UX can each focus on their own area of expertise while the whole team works from one source. You can jump from any part of the spec to its generated code, and back. The AI changes the spec first, then the code. If you change the code yourself, it updates the spec to match.">
+<title>Spec of Record (SoR) | Spec-driven development with AI</title>
+<meta name="description" content="Spec of Record keeps AI-built software understandable. One plain-language spec stays in sync with the code, so the whole team can review and change it.">
+<meta name="author" content="Sebastian Rath">
+<link rel="canonical" href="https://specofrecord.org/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Spec of Record">
+<meta property="og:title" content="Spec of Record (SoR) | Spec-driven development with AI">
+<meta property="og:description" content="Spec of Record keeps AI-built software understandable. One plain-language spec stays in sync with the code, so the whole team can review and change it.">
+<meta property="og:url" content="https://specofrecord.org/">
+<meta property="og:image" content="https://specofrecord.org/social/banner.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Spec of Record banner showing one spec clause linked to the two pieces of code built from it">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Caveat:wght@600&display=swap" rel="stylesheet">
@@ -287,6 +300,73 @@
   .fe-inline-code pre + pre { border-top: 1px dashed var(--line); }
   .path { font-family: var(--mono); font-weight: 400; margin-left: 6px; }
 /* full-example css end */
+
+  /* Two agents claiming, changing, locking and releasing clauses. The spec is on the left, its code blocks on the right: one clause can own blocks that are not next to each other. */
+  .cl { margin: 0 0 1em; --ca: #da7758; --cb: #3f7fdc; --t-k: #cf222e; --t-s: #0a3069; --t-f: #8250df; --t-m: #0047b3; --cl-no: #b3261e; --t-n: #0550ae; --chip: #e6eefb; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .cl { --cb: #6ea4ff; --t-k: #ff7b72; --t-s: #a5d6ff; --t-f: #d2a8ff; --t-m: #8cb4ff; --cl-no: #ff8a80; --t-n: #79c0ff; --chip: #26324a; } }
+  :root[data-theme="dark"] .cl { --t-n: #79c0ff; --chip: #26324a; --cb: #6ea4ff; --t-k: #ff7b72; --t-s: #a5d6ff; --t-f: #d2a8ff; --t-m: #8cb4ff; --cl-no: #ff8a80; }
+  .cl-stage { position: relative; }
+  .cl-box { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--soft); }
+  .cl-head, .cl-grid { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); }
+  .cl-head .fe-file { position: static; z-index: auto; height: 36px; }
+  .cl-spec, .cl-code { position: relative; min-width: 0; border-top: 1px solid var(--line); --c: var(--muted); transition: background-color .35s, box-shadow .35s; }
+  .cl-spec { grid-column: 1; padding: 10px 76px 10px 16px; border-right: 1px solid var(--line); font-size: .92rem; line-height: 1.5; }
+  .cl-code { grid-column: 2; }
+  .cl-spec p { margin: 0; }
+  .cl-id { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; font-family: var(--mono); font-size: .76rem; line-height: 1.4; font-weight: 600; color: var(--muted); }
+  .cl-code pre { margin: 0; border: 0; background: none; padding: 10px 76px 10px 14px; font-size: 12px; line-height: 1.55; overflow: hidden; }
+  /* whoever holds a clause shuts all its cells: tinted, hatched and framed. The encircled padlock is open while claimed and closed once locked. */
+  .cl [data-by="a"] { --c: var(--ca); }
+  .cl [data-by="b"] { --c: var(--cb); }
+  .cl-spec[data-st], .cl-code[data-st] { background-color: color-mix(in srgb, var(--c) 14%, var(--soft)); background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 24%, transparent) 0 1.5px, transparent 1.5px 8px); box-shadow: inset 0 0 0 2px var(--c); }
+  .cl-bd { display: none; flex: none; width: 20px; height: 20px; padding: 4px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px var(--soft); }
+  .cl-bd-code { position: absolute; right: 10px; top: 8px; width: 28px; height: 28px; padding: 6px; }
+  .cl [data-st] > .cl-bd, .cl [data-st] > .cl-id > .cl-bd { display: block; animation: cl-pop .35s ease-out; }
+  .cl-bd .sh-c { display: none; }
+  .cl [data-st="locked"] .cl-bd .sh-c { display: inline; }
+  .cl [data-st="locked"] .cl-bd .sh-o { display: none; }
+  @keyframes cl-pop { from { transform: scale(.3); } 60% { transform: scale(1.2); } to { transform: scale(1); } }
+  .cl-id::after { margin-left: auto; font-weight: 400; color: var(--c); }
+  .cl-spec[data-st="claimed"] .cl-id::after { content: "claimed"; }
+  .cl-spec[data-st="locked"] .cl-id::after { content: "locked"; font-weight: 600; }
+  .cl-spec[data-refused] .cl-id::after { content: none; }
+  .cl-no { margin-left: auto; display: none; color: var(--cl-no); font-weight: 600; }
+  .cl-spec[data-refused] .cl-no { display: inline; }
+  .cl [data-edit] { background-image: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--c) 32%, transparent) 50%, transparent 70%), repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 24%, transparent) 0 1.5px, transparent 1.5px 8px) !important; background-size: 260% 100%, auto !important; animation: cl-sweep 1.3s linear infinite; }
+  @keyframes cl-sweep { from { background-position: 130% 0, 0 0; } to { background-position: -30% 0, 0 0; } }
+  /* a changed value stays yellow for about two seconds, then fades out as the next step begins */
+  .cl .chg { border-radius: 3px; animation: cl-chg 2.6s ease-out forwards; }
+  @keyframes cl-chg { 0%, 78% { background-color: #ffd84d; box-shadow: 0 0 0 3px #ffd84d; color: #111; } 100% { background-color: transparent; box-shadow: 0 0 0 3px transparent; } }
+  .cl-agents { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+  .clawd { position: absolute; left: 0; top: 0; width: 36px; height: 24px; opacity: 0; will-change: transform; }
+  .cl.on .clawd { opacity: 1; }
+  /* the three looks are 128 px drawings of the same size, shown at 0.3 (a 12 x 8 pixel body at 3 px a pixel); each stands on its own feet line */
+  .clawd img { display: none; position: absolute; left: -1.2px; width: 38.4px; height: 38.4px; max-width: none; image-rendering: pixelated; }
+  .clawd .m-idle, .clawd .m-waiting { top: -7.2px; }
+  .clawd .m-working { top: -10.2px; }
+  .clawd[data-mode="idle"] .m-idle, .clawd[data-mode="waiting"] .m-waiting, .clawd[data-mode="working"] .m-working { display: block; }
+  .clawd.b img { filter: hue-rotate(190deg); }
+  /* a thin grey timeline of the steps. A round thumb glides along it as the steps pass, and can be dragged: it follows the pointer smoothly, then slides back to the start of the step it is in. */
+  .cl-tl { position: relative; display: flex; align-items: center; gap: 3px; margin: 2px 0 0; padding: 8px 0; color: var(--muted); cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .cl-tl b { position: relative; flex: 1; height: 4px; border-radius: 2px; overflow: hidden; background: var(--line); }
+  .cl-tl b i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: currentColor; opacity: .55; }
+  .cl-thumb { position: absolute; left: 0; top: 50%; z-index: 1; width: 14px; height: 14px; margin: -7px 0 0 -7px; padding: 0; border-radius: 50%; background: var(--muted); border: 2px solid var(--bg); box-shadow: 0 0 0 1px var(--muted); cursor: grab; will-change: transform; }
+  .cl-tl.drag, .cl-tl.drag .cl-thumb { cursor: grabbing; }
+  .cl-thumb:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+  .cl-tl u { flex: none; margin-left: 5px; font-size: .85rem; line-height: 1; text-decoration: none; opacity: .55; }
+  .cl-tl u.again { animation: cl-again 1.2s ease-out; }
+  @keyframes cl-again { 0% { opacity: 1; transform: rotate(-200deg); } 100% { opacity: .55; transform: none; } }
+  .cl-cap { display: flex; align-items: baseline; gap: 12px; margin: 8px 0 0; font-size: .92rem; line-height: 1.5; color: var(--muted); min-height: 3em; }
+  .cl-cap span { flex: 1; }
+  .cl-pause { flex: none; font: inherit; font-size: .8rem; cursor: pointer; background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 1px 10px; }
+  .cl-pause:hover, .cl-pause:focus-visible { border-color: var(--link); color: var(--link); }
+  @media (max-width: 679px) {
+    .cl-grid { grid-template-columns: minmax(0, 1fr); }
+    .cl-spec, .cl-code { grid-column: 1; grid-row: auto !important; }
+    .cl-spec { border-right: 0; border-bottom: 1px dashed var(--line); }
+    .cl-gap { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .cl *, .cl-spec, .cl-code { animation: none !important; transition: none !important; } }
 </style>
 <script>
     !function(t,e){var o,n,p,r;e.__SV||(window.posthog && window.posthog.__loaded)||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}p||((p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",p.onerror=function(){p=null},(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r));var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],Object.defineProperty(u,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e}}),Object.defineProperty(u.people,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(){return u.toString(1)+".people (stub)"}}),o="vu pu gu mu init Gu Qu Hu Wu Xu il Vu Yu ju oc ac lc uc cc hc capture getExtension Zu hu gc calculateEventProperties vc register register_once register_for_session unregister unregister_for_session zu mc getFeatureFlag getFeatureFlagPayload getFeatureFlagResult getAllFeatureFlags isFeatureEnabled reloadFeatureFlags updateFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSurveysLoaded onSessionId getSurveys getActiveMatchingSurveys onActiveMatchingSurveysChanged renderSurvey displaySurvey cancelPendingSurvey canRenderSurvey canRenderSurveyAsync wc identify setPersonProperties unsetPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset kc shutdown setIdentity clearIdentity get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException addExceptionStep captureLog startExceptionAutocapture stopExceptionAutocapture loadToolbar get_property getSessionProperty yc nc createPersonProfile setInternalOrTestUser bc xu ku opt_in_capturing opt_out_capturing Su has_opted_in_capturing has_opted_out_capturing get_explicit_consent_status is_capturing clear_opt_in_out_capturing tc debug nl Os getPageViewId captureTraceFeedback captureTraceMetric Du".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
@@ -304,7 +384,7 @@
 
 <h1>Spec of Record <span style="font-weight:400;opacity:.6">(SoR)</span></h1>
 <ul class="authors"><li><a href="https://sebastianrath.io" target="_blank" rel="noreferrer">Sebastian Rath</a><a class="gh" href="https://github.com/sebastianrath/specofrecord" target="_blank" rel="noreferrer" aria-label="Spec of Record source code" title="Source code"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M5.5 4 1.5 8l4 4M10.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Source</span></a><a class="lic" href="https://creativecommons.org/licenses/by/4.0/deed.en" target="_blank" rel="license noreferrer" data-tip="License for the spec itself" aria-label="CC BY 4.0, the license for the spec itself">CC BY 4.0</a><a class="lic" href="https://opensource.org/license/mit" target="_blank" rel="license noreferrer" data-tip="License for the toolset" aria-label="MIT, the license for the toolset">MIT</a></li></ul>
-<p class="sub">A development philosophy and toolchain for AI-built software, aimed at mid-sized to large projects. Plain-language specs are the source code, and an AI agent acts like a compiler. The spec is split into parts with responsibilities, so engineering, QA and UX can each focus on their own area of expertise while the whole team works from one source. You can jump from any part of the spec to its generated code, and back. The AI changes the spec first, then the code. If you change the code yourself, it updates the spec to match.</p>
+<p class="sub">Spec of Record is a development philosophy and toolchain for AI-built software, aimed at mid-sized to large projects. It turns the spec into a centralized design document that always stays in sync with the code, so team members with different areas of expertise can understand, review and change the software together. You write what your software should do in plain language, an AI agent turns it into code, and each piece of code stays linked to the statements of the spec and to its test results.</p>
 <div class="meta">Version 0.1 · October 2026</div>
 
 <div class="steps" id="steps">
@@ -327,8 +407,8 @@
   <div class="step">
     <span class="num" aria-hidden="true">2.1</span>
     <div class="install">
-      <div class="install-head"><span>New project</span></div>
-      <p class="install-note">In an empty folder, tell Claude Code what to build. For example:</p>
+      <div class="install-head"><span>New project <span class="opt">Recommended</span></span></div>
+      <p class="install-note">Starting from scratch? In an empty folder, tell Claude Code what you want to build. For example:</p>
       <div class="cmd prompt-row">
         <div class="cmd-lines prompt"><code>I want to build a game engine. Write the first specs following Spec of Record for a game engine that...</code></div>
       </div>
@@ -338,7 +418,7 @@
     <span class="num" aria-hidden="true">2.2</span>
     <div class="install">
       <div class="install-head"><span>Existing project</span></div>
-      <p class="install-note">In your project, name the one thing you are about to change. Only that goes under a spec. For example:</p>
+      <p class="install-note">Already have code? Name the one thing you are about to change. Only that part goes under a spec, and the rest stays as it is. For example:</p>
       <div class="cmd prompt-row">
         <div class="cmd-lines prompt"><code>I am about to change the checkout. Put just that under Spec of Record first, then make my change.</code></div>
       </div>
@@ -365,52 +445,59 @@
 
 <nav class="toc" aria-label="Contents">
   <ol>
-    <li><a href="#goal">The goal</a></li>
-    <li><a href="#sdd">Spec-driven development</a></li>
-    <li><a href="#what">What is Spec of Record?</a></li>
-    <li><a href="#problem">The problem</a></li>
-    <li><a href="#editor">Editor toolset</a></li>
-    <li><a href="#tooling">Tooling</a></li>
+    <li><a href="#goal">Why use SoR?</a></li>
+    <li><a href="#sdd">Where it fits in spec-driven development</a></li>
+    <li><a href="#problem">Where spec-driven development goes wrong</a></li>
+    <li><a href="#what">How it works</a></li>
+    <li><a href="#editor">In your editor</a></li>
+    <li><a href="#tooling">What you get</a></li>
     <li><a href="#record">The build record</a></li>
-    <li><a href="#faq">Questions</a></li>
-    <li><a href="#see-also">See also</a></li>
+    <li><a href="#faq">Common questions</a></li>
+    <li><a href="#see-also">Related projects</a></li>
     <li><a href="#about">About</a></li>
     <li><a href="#license">License</a></li>
   </ol>
 </nav>
 
-<h2 id="goal">The goal</h2>
-<p>AI can write code quickly and loves to rebuild the entire source base because it feels like it. The reason a code line exists lives in tickets and commit history, not in the
-  code itself. That makes AI-written code hard to understand and future changes hard to justify with confidence, for people and for the
-  AI that has to work on it. Reviews grow, and developers end up reading through code that is either thrown back to the AI to review or waved through with an LGTM.</p>
-<p>Spec of Record aims to bring back what that constant rewriting takes away.</p>
+<h2 id="goal">Why use SoR?</h2>
+<p>The reason a code line exists usually lives in a verbose commit message, a Jira ticket or a Slack message, not in the code itself. AI can write code quickly and loves to rewrite larger parts of the source code because it feels like it. AI agents mostly find context with a keyword search like grep, so when someone makes a change, they either miss things they should address or change too much.</p>
+<p>Over time, the team loses track of how their software actually works. In a review, you face hundreds of new lines that nobody can meaningfully trace, and you send them back to the AI with "fix this" or wave them through with an LGTM. The AI needs help too. Round after round of fixes, it keeps changing things until the code has moved away from its original purpose and nobody knows what it is changing anymore. It is a quality and liability risk.</p>
+<p>Here is what Spec of Record changes, for people and AI:</p>
 <ul>
-  <li><strong>One source folder.</strong> The specs of the whole project live in one folder, in parts and clauses you can read. You decide what the software does, and you stay its author.</li>
-  <li><strong>Small changes.</strong> Change a clause and only its code blocks change. Reviewers read what changed in the spec, not hundreds of new files where no one knows where half of them come from.</li>
-  <li><strong>No digging.</strong> Every line of code names the clause it came from, and every finished build keeps its test results. Why a line exists, and whether it was tested, is a lookup, not a hunt through tickets and commit history.</li>
+  <li>The <code>sor/</code> folder is the new <code>src/</code>, hierarchically structured like source folders used to be, only more compact. It holds up-to-date spec files, each covering one responsibility. There is no stack of old versions, so everyone knows what the software does now and how.</li>
+  <li>Engineering, QA and UX each work in their own field of expertise while sharing a common design document. You decide what the software does and stay its author.</li>
+  <li>A change to one clause in a spec file changes only the necessary code and reduces drift. It gives AI tremendous guard rails for attention and context.</li>
+  <li>Several agents can work in parallel, because each claims its spec clauses before touching anything, and a clause someone else holds is refused.</li>
+  <li>Every line of code names its origin in the spec and every finished build keeps its test results. "Why is this here?" and "Was it tested?" become easy lookups.</li>
 </ul>
 
-<h2 id="sdd">Spec-driven development</h2>
-<p>Spec-driven development has become an overloaded term. The basic idea is to write down what the software should do,
-  then let an AI write the code. Birgitta Böckeler of Unblocked describes three levels:<sup><a href="#note-1" aria-label="Note 1">1</a></sup></p>
+<h2 id="sdd">Where it fits in spec-driven development</h2>
+<p>Spec-driven development means writing down what the software should do and letting an AI write the code. The term is overloaded, so it helps to be clear about its meaning. The difference is what happens to the spec after the code exists. Birgitta Böckeler of Unblocked describes three levels:<sup><a href="#note-1" aria-label="Note 1">1</a></sup></p>
 <div class="tw">
 <table>
   <thead><tr><th>Level</th><th>What happens to the spec</th></tr></thead>
   <tbody>
-    <tr><td>Spec-first</td><td>Written for one task, then ignored once the code is done.</td></tr>
+    <tr><td>Spec-first</td><td>Written to get one task done, then left behind.</td></tr>
     <tr><td>Spec-anchored</td><td>Kept after the task and updated as the feature changes.</td></tr>
-    <tr><td>Spec-as-source</td><td>People edit only the spec. Code is rebuilt whenever the spec changes.</td></tr>
+    <tr><td>Spec-as-source</td><td>The only thing people edit. Nobody touches the code.</td></tr>
     <tr class="proposal"><td>Spec-of-record</td><td>This proposal.</td></tr>
   </tbody>
 </table>
 </div>
 
-<h2 id="what">What is Spec of Record?</h2>
-<p>Spec of Record is a development philosophy and a set of tools that extends the principles of spec-as-source (see <a href="#sdd">above</a>).</p>
-<p>Think of the specs as your new <code>src/</code> folder. They have a familiar structure, but they are written in plain language
-  instead of code. You change the specs. The AI changes the code to match (and vice versa).</p>
-<p>The specs are made of <strong>clauses</strong>. A clause is a rule, a number or a table row. Below is one clause
-  and the code built from it.</p>
+
+<h2 id="problem">Where spec-driven development goes wrong</h2>
+<p>A design document is only useful when it's up to date. Spec drift is what happens when the spec says one thing, the code does another, and nobody can tell which is right. It creeps in one small change at a time.</p>
+<p>Most spec-driven development is spec-first, which makes it a good place to look at the potential traps. The spec is written for one task and then put away. The code keeps changing, and the spec stays as it was.</p>
+<p>Take a game. Its spec says the player needs 3 keys to open the exit, and the designer asks for 5. The AI changes the code, and nobody updates the spec, because nobody asked or the AI forgot. Now the spec says 3, the game asks for 5, and no one knows what should be true.</p>
+<p>Spec-first has a second trap, and it catches the teams that avoid the first one. To keep the spec up to date, they write a follow-up spec for every change, so you end up with <code>SPEC.md</code>, then <code>SPEC-2026-01-08.md</code>, then another one. To learn what the software does today, you read them all in the right order. They become incredibly verbose and eventually no one reads them anymore.</p>
+<p>In spec-as-source, people edit only the spec and the code is generated from it. You can't fix the code by hand, so every fix goes through the spec, and because an AI does not generate the same code twice,<sup><a href="#note-1" aria-label="Note 1">1</a></sup> the result can come back different each time.</p>
+<p>Spec of Record extends spec-as-source and allows hand edits on purpose. You can change either side, the spec or the code, and the other one is updated to match. Finished code is kept, so a change to a clause rewrites only that clause's code, and the clause's tests check the result. The bundled command line interface (CLI) of SoR enforces this. It checks that spec and code agree, blocks AI edits that skip the clause, and flags any mismatch until it is fixed.</p>
+
+<h2 id="what">How it works</h2>
+<p>The specs are written in plain language. You edit the spec and the AI edits the code to match. If you edit the code, the AI edits the spec to match.</p>
+<p>The spec is split into parts, one Markdown file for each area of the software, such as a game's logic or its multiplayer networking. Each part says why it exists and lists its rules, its approach, what it needs from and gives to other parts, and its tests.</p>
+<p>The unit is a <strong>clause</strong>, which is one rule, one number or one table row. Every clause comes with a marker, a short comment above its code that names the clause. Below is a clause and the code built from it, so you can see each side point at the other.</p>
 <div class="pair">
   <svg class="pair-arrow" aria-hidden="true" focusable="false"><path class="ring"/><path class="line"/><path class="head"/><path class="line"/><path class="head"/><text class="label">marker</text></svg>
   <div>
@@ -437,13 +524,50 @@ export <span class="t-k">function</span> <span class="t-f">moveMonsters</span>(g
 <!-- full-example-button:start -->
 <p class="more" id="example-more" hidden><button type="button" class="open-example" id="open-example">Expand example</button></p>
 <!-- full-example-button:end -->
-<p>The marker is a comment that names the clause, so spec and code point at each other. The link works both ways and
-  for everyone. A person can trace it in the editor, from a clause to its code and from a line of code back to its clause. An
-  AI or a script can trace it with a command that returns the same answer as text or JSON. A clause can also trace back
-  further, to its source outside the code, such as a Figma design.</p>
-<p>You keep your language, framework, editor, tools and coding agent. Change one sentence in the spec, say the player
-  moves only every second key press, and the associated code blocks are updated. If you change the code yourself, the AI updates the spec to match.</p>
-<p>The spec is the source code. The AI acts like a compiler.</p>
+<p>With that association in place, a change is guaranteed to stay local. Say you want the player to move only on every second key press. You change that one sentence, and the AI updates just the code blocks marked with that clause.</p>
+<p>If you know how a compiler works, you can apply that concept to Spec of Record, with the AI playing the compiler.</p>
+<p>Several agents can work on one project at once. Each sub-agent can claim a spec clause together with its code blocks, change the clause first and then the code, lock the result and release the claim. A claim on a clause that someone else holds is refused.</p>
+<div class="cl" id="claims" role="group" aria-label="Animation of two agents working in parallel: each claims a clause, changes it and its code, locks it and releases it, and a claim on a clause the other holds is refused.">
+    <div class="cl-stage">
+    <div class="cl-box">
+      <div class="cl-head"><div class="fe-file"><span class="tab"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg><span class="tab-name">sor/</span></span></div><div class="fe-file"><span class="tab"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg><span class="tab-name">src/</span></span></div></div>
+      <div class="cl-grid">
+        <div class="cl-spec" data-cl="movement" style="grid-row:1"><div class="cl-id"><svg class="cl-bd" viewBox="0 0 16 16" aria-hidden="true"><path class="sh-o" d="M5 7V5a3 3 0 0 1 5.8-1" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><path class="sh-c" d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><rect x="3" y="7" width="10" height="7" rx="1.5" fill="#fff"/></svg>player/movement<span class="cl-no">refused</span></div><p>One key press moves the player <span class="val" data-v="step">20 px</span>, and the player cannot leave the <span class="val" data-v="room">500 px</span> room.</p></div>
+        <div class="cl-code" data-cl="movement" data-i="0" style="grid-row:1"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"><path class="sh-o" d="M5 7V5a3 3 0 0 1 5.8-1" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><path class="sh-c" d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><rect x="3" y="7" width="10" height="7" rx="1.5" fill="#fff"/></svg><pre><span class="t-m">// @clause player/movement</span>
+<span class="t-k">const</span> STEP = <span class="t-n" data-k="step">20</span>;
+export <span class="t-k">function</span> <span class="t-f">move</span>(player, dx, dy) {
+  ...
+}
+<span class="t-m">// @clause end</span></pre></div>
+        <div class="cl-spec" data-cl="lives" style="grid-row:2"><div class="cl-id"><svg class="cl-bd" viewBox="0 0 16 16" aria-hidden="true"><path class="sh-o" d="M5 7V5a3 3 0 0 1 5.8-1" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><path class="sh-c" d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><rect x="3" y="7" width="10" height="7" rx="1.5" fill="#fff"/></svg>player/lives<span class="cl-no">refused</span></div><p>A new player has <span class="val" data-v="lives">3 lives</span>.</p></div>
+        <div class="cl-code" data-cl="lives" data-i="1" style="grid-row:2"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"><path class="sh-o" d="M5 7V5a3 3 0 0 1 5.8-1" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><path class="sh-c" d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><rect x="3" y="7" width="10" height="7" rx="1.5" fill="#fff"/></svg><pre><span class="t-m">// @clause player/lives</span>
+<span class="t-k">const</span> START_LIVES = <span class="t-n" data-k="lives">3</span>;
+export <span class="t-k">function</span> <span class="t-f">withLives</span>(player) {
+  ...
+}
+<span class="t-m">// @clause end</span></pre></div>
+        <div class="cl-spec cl-gap" aria-hidden="true" style="grid-row:3"></div>
+        <div class="cl-code" data-cl="movement" data-i="2" style="grid-row:3"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"><path class="sh-o" d="M5 7V5a3 3 0 0 1 5.8-1" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><path class="sh-c" d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><rect x="3" y="7" width="10" height="7" rx="1.5" fill="#fff"/></svg><pre><span class="t-m">// @clause player/movement</span>
+<span class="t-k">const</span> ROOM = <span class="t-n" data-k="room">500</span>;
+export <span class="t-k">function</span> <span class="t-f">keepInRoom</span>(player) {
+  ...
+}
+<span class="t-m">// @clause end</span></pre></div>
+        <div class="cl-spec" data-cl="chase" style="grid-row:4"><div class="cl-id"><svg class="cl-bd" viewBox="0 0 16 16" aria-hidden="true"><path class="sh-o" d="M5 7V5a3 3 0 0 1 5.8-1" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><path class="sh-c" d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><rect x="3" y="7" width="10" height="7" rx="1.5" fill="#fff"/></svg>monsters/chase<span class="cl-no">refused</span></div><p>Every turn a monster steps <span class="val">20 px</span> toward the player.</p></div>
+        <div class="cl-code" data-cl="chase movement" data-i="3" style="grid-row:4"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"><path class="sh-o" d="M5 7V5a3 3 0 0 1 5.8-1" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><path class="sh-c" d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><rect x="3" y="7" width="10" height="7" rx="1.5" fill="#fff"/></svg><pre><span class="t-m">// @clause monsters/chase player/movement</span>
+<span class="t-k">const</span> MONSTER_STEP = <span class="t-n">20</span>;
+export <span class="t-k">function</span> <span class="t-f">chase</span>(monster, player) {
+  ...
+}
+<span class="t-m">// @clause end</span></pre></div>
+      </div>
+    </div>
+    <div class="cl-agents" aria-hidden="true"><div class="clawd a" data-mode="idle"><img class="m-idle" src="static/clawd_idle.png" alt="" width="128" height="128"><img class="m-waiting" src="static/clawd_sleeping.png" alt="" width="128" height="128"><img class="m-working" src="static/clawd_detective.gif" alt="" width="128" height="128"></div><div class="clawd b" data-mode="idle"><img class="m-idle" src="static/clawd_idle.png" alt="" width="128" height="128"><img class="m-waiting" src="static/clawd_sleeping.png" alt="" width="128" height="128"><img class="m-working" src="static/clawd_detective.gif" alt="" width="128" height="128"></div></div>
+  </div>
+  <div class="cl-tl"></div>
+  <p class="cl-cap"><span class="cl-text">An agent claims a clause with <code>sor claim</code> before it touches anything.</span><button type="button" class="cl-pause" hidden>Pause</button></p>
+</div>
+
 <div class="tw">
 <table>
   <thead><tr><th>Legacy development</th><th>Spec of Record</th></tr></thead>
@@ -455,82 +579,64 @@ export <span class="t-k">function</span> <span class="t-f">moveMonsters</span>(g
   </tbody>
 </table>
 </div>
-<p>One difference. An AI does not write the same code twice. So finished code is kept, never regenerated from
-  scratch, and every clause should have a test.</p>
-<p>Spec of Record keeps one set of spec files that describe your project and always match the code. The <a href="#tooling">tools</a> below keep it that way.</p>
+<p>A real compiler gives the same output every time, so it can throw that output away and start over. An AI cannot, so Spec of Record keeps finished code.</p>
+<p>Tools can follow the marker links too. An editor extension jumps from a spec to its code and back, and the <code>sor</code> CLI gives an AI or a script the same answer as text or JSON. A clause can also reach further back, to a source outside the code such as a Figma design.</p>
 
-<h2 id="problem">The problem</h2>
-<p>Spec drift is when the spec says one thing, the code does another, and nobody can tell which is right.
-  It builds up one change at a time.</p>
-<p>Take a game. The spec says the player must collect 3 keys to open the exit, and the game designer wants 5. The AI changes the
-  code to 5, but the spec stays at 3, because nobody asked for an update or the AI forgot. Now the spec says 3 and the code says 5. A new teammate reads the spec and
-  believes it.</p>
-<p>It usually gets worse. Most spec-driven development is <a href="#sdd">spec-first</a>. The spec is written for one task, then set aside, and each change gets a new spec, like
-  <code>SPEC.md</code>, then <code>SPEC-2026-01-08.md</code>, then another. To know what the software does now, you have
-  to read them all in the correct order. Soon people stop reading the specs and sometimes leave it to the AI to change
-  the code directly. That is where many projects hit a limit.</p>
-<p>Tools that go further and regenerate code from the spec run into the opposite problem. An AI does not
-  write the same code twice, so regenerating a whole file can change parts nobody asked to change.</p>
-
-<h2 id="editor">Editor toolset</h2>
-<p>This VS Code plugin is one implementation of the idea. It lets you visualize and navigate the links between specs and code, shown here on a sample project.</p>
-<img class="shot" src="editor.png" alt="VS Code with a spec file on the left and the code on the right. The fit clause is selected in the spec and its code region is highlighted in the code.">
+<h2 id="editor">In your editor</h2>
+<p>The VS Code extension shows these links on a sample project. You do not need it to use Spec of Record, but it is a handy way to see them.</p>
+<img class="shot" src="static/editor.png" width="2032" height="1057" loading="lazy" decoding="async" alt="VS Code with a spec file on the left and the code on the right. The fit clause is selected in the spec and its code region is highlighted in the code.">
 <ul>
-  <li>In specs, clauses show their code regions and link to them.</li>
-  <li>In code, regions show the clauses they come from and whether they are in sync.</li></ul>
+  <li>Open a spec and each clause shows the code regions built from it, with links to them.</li>
+  <li>Open the code and each region shows its clause and whether the two still agree.</li></ul>
 
-<h2 id="tooling">Tooling</h2>
-<p>Spec of Record is a collection of tools, including a command line, <code>sor</code>, that returns what the spec says, which code a clause generated and what changed, in a form that people, scripts and AI can all read.</p>
+<h2 id="tooling">What you get</h2>
+<p>Beyond the editor extension, Spec of Record comes with a CLI, <code>sor</code>, and an edit guard for your AI agent. Here is what they do:</p>
 <ul>
-  <li><strong>Change list.</strong> Shows what changed since the last build, and what to rebuild.</li>
-  <li><strong>Edit guard.</strong> Stops the AI from changing code before its clause. A change you make yourself is flagged, and the AI updates the spec to match.</li>
-  <li><strong>Test runner.</strong> Runs each clause's tests and shows how many clauses pass.</li>
-  <li><strong>Build record.</strong> Saves each finished build. A build only counts if its tests pass.</li>
-  <li><strong>Editor extension.</strong> For people: jump from a clause to its code, and from any line of code to its clause.</li>
-  <li><strong>Command line.</strong> For AI, scripts and CI: the same answers come from the <code>sor</code> command, as text or JSON. <code>sor markers</code> says which clause a line of code came from and which code a clause generated, for one clause or the whole project. <code>sor show</code> prints a clause with its code underneath, <code>sor status</code> and <code>sor changes</code> list what changed and what to rebuild, and <code>sor parts</code> and <code>sor needs</code> map the spec.</li>
+  <li>The change list shows what changed since the last build and which code needs rebuilding.</li>
+  <li>The edit guard stops the AI from changing code before its clause.</li>
+  <li>The test runner runs each clause's tests and tells you how many clauses pass.</li>
+  <li>The build record remembers, for every clause, whether its tests passed, so you can look up later what was tested.</li>
+  <li>For AI, scripts and CI, the CLI answers directly. For example, <code>sor markers</code> says which clause a line came from, or which code a clause produced. Other commands show a clause with its code and map the spec.</li>
 </ul>
-<p>The toolset is language, framework and AI agnostic. Code written by hand is covered the same way: its clauses and tests check it from outside.</p>
 
 <h2 id="record">The build record</h2>
-<p><strong>Tracing</strong> shows how spec and code are linked. <strong>Auditing</strong> shows what changed,
-  and whether it was checked. Every finished build is saved in the build record, so you can always answer these questions.</p>
+<p>If you manage a team or answer to auditors, this is the section for you.</p>
+<p>The build record is a checkpoint. Each time a piece of work is finished and the specs, the code and the tests agree, the tool saves one, together with the test results. Later it compares the project with that checkpoint to see what changed, and you can look up what was tested. It is a plain file in your repository, so version control keeps every earlier checkpoint.</p>
 <div class="tw">
 <table>
   <thead><tr><th>Question</th><th>Answer</th></tr></thead>
   <tbody>
-    <tr><td>Why does this line of code exist?</td><td>Its marker names its clause.</td></tr>
+    <tr><td>Why does this line of code exist?</td><td>Its marker names the clause it serves.</td></tr>
     <tr><td>What code does this clause make?</td><td>The clause points to all of it.</td></tr>
     <tr><td>What did this change affect?</td><td>The change list shows it.</td></tr>
     <tr><td>Who changed it, and when?</td><td>Version control shows it. Code changed without its clause is flagged, with author and date if you use git.</td></tr>
-    <tr><td>Was it tested?</td><td>The lock file records the results. Version control keeps the history.</td></tr>
-    <tr><td>Was anything checked by hand, instead of by a test?</td><td>Yes, if a person signed it off. The AI can't.</td></tr>
+    <tr><td>Was it tested?</td><td>The build record stores the results, and version control keeps the history.</td></tr>
+    <tr><td>Does every result come from an automated test?</td><td>Yes, except for checks a person signed off by hand. An AI cannot sign off.</td></tr>
   </tbody>
 </table>
 </div>
-<p>Useful wherever changes must be explained later, such as reviews, handovers and regulated work.</p>
+<p>That helps with reviews, handovers and compliance checks, anywhere a change has to be explained later.</p>
 
-<h2 id="faq">Questions</h2>
+<h2 id="faq">Common questions</h2>
 <h3>Is this more documentation to maintain?</h3>
-<p>No. The spec replaces the old spec documents. A change edits a clause, and a new feature adds its clauses, or a new part, to the same set of files.</p>
+<p>No, it replaces the documents you would otherwise write. The spec is what you edit. A change edits a clause, and a new feature adds clauses, or a new part, to the same set of files. There is no second copy buried in Confluence or Slack.</p>
 <h3>Do I have to convert my existing project?</h3>
-<p>No. Name the one thing you are about to change, and only that goes under a spec. The rest of the code stays as it is.</p>
-<h3>What if I change the code myself?</h3>
-<p>Your change stays. It is flagged as changed without its clause, with its author and date if you use git, and the AI updates
-  the clause to match.</p>
-<h3>What if the AI builds something wrong?</h3>
-<p>The clause's tests fail. The code is fixed until they pass. Clauses without a passing test are listed.</p>
-<h3>Can several people or agents work at once?</h3>
-<p>Agents working in the same project claim the clauses they work on, and a second claim on the same clause is refused.
-  People on separate machines coordinate through version control, as usual.</p>
-<h3>Which languages and tools work?</h3>
-<p>Any language, framework or editor, and an AI is optional: people can write the code too. Tests run for you on web projects.
-  On other projects, your own test runner reports the results. Today the workflow comes as a Claude Code plugin.</p>
+<p>No. Start with the one thing you are about to change, as in the install steps at the top. The rest of the code stays as it is.</p>
 <h3>Where do the specs live?</h3>
-<p>In a <code>sor/</code> folder next to your code, as plain Markdown files that you commit with it. Spec of Record needs no service or account of its own.</p>
+<p>In a <code>sor/</code> folder next to your code, as plain Markdown files you commit with it. There is no service to run and no account to create.</p>
+<h3>Will building my entire project with SoR create a dependency?</h3>
+<p>No, there is zero dependency. The code is plain source with marker comments in it, so you can delete the specs and carry on from the source, or switch to another engineering approach.</p>
+<h3>Which languages and tools work?</h3>
+<p>It is agnostic to language, framework and editor. Today the workflow ships as a Claude Code plugin, and other agents and editors are open for contributions.</p>
+<h3>What if I change the code myself?</h3>
+<p>Go ahead. Your change stays. The tool flags it as code changed without its clause (with author and date if you use git), and the AI rewrites the clause to match what you did.</p>
+<h3>What if the AI builds something wrong?</h3>
+<p>The clause's tests fail, and the code is fixed until they pass. Clauses with no passing test are listed, so a gap is visible instead of hidden.</p>
+<h3>Can several people or agents work at once?</h3>
+<p>Yes. Agents in the same project claim the clauses they are working on, and a second claim on the same clause is refused. People on different machines coordinate through version control, the way they do now.</p>
 
-<h2 id="see-also">See also</h2>
-<p>Other spec-driven tools cover different parts of the workflow, some have gone quiet or are paused, and some are tied to one
-  editor, agent or service. Spec of Record borrows the most promising of these ideas and adds a new angle.</p>
+<h2 id="see-also">Related projects</h2>
+<p>Spec-driven tooling is a crowded field. The projects below cover different parts of the workflow. Some have gone quiet or are paused, and some are tied to one editor, agent or service. Spec of Record borrows ideas from several of them and adds its own.</p>
 <div class="fold" id="see-also-fold">
 <div class="tw">
 <table>
@@ -554,13 +660,10 @@ export <span class="t-k">function</span> <span class="t-f">moveMonsters</span>(g
 <p class="steps-more" id="see-also-more" hidden><button type="button" class="steps-toggle" id="see-also-toggle" aria-expanded="false" aria-controls="see-also-fold">Expand</button></p>
 
 <h2 id="about">About</h2>
-<p>Spec of Record and its toolchain are authored by
-  <a href="https://sebastianrath.io">Sebastian Rath</a>.</p>
+<p>Spec of Record and its tools are written by <a href="https://sebastianrath.io">Sebastian Rath</a>. The source is on <a href="https://github.com/sebastianrath/specofrecord">GitHub</a>, and contributions are welcome.</p>
 
 <h2 id="license">License</h2>
-<p>This document is licensed under the
-  <a href="https://creativecommons.org/licenses/by/4.0/deed.en" rel="license">Creative Commons Attribution 4.0 International License</a> (CC BY 4.0).
-  You may share and adapt it, including commercially, if you credit the author, link the license and say what you changed.</p>
+<p>This document is licensed under <a href="https://creativecommons.org/licenses/by/4.0/deed.en" rel="license">Creative Commons Attribution 4.0</a> (CC BY 4.0). You can share and adapt it, even commercially, as long as you credit the author, link the license and say what you changed.</p>
 <p>The tools are published under the <a href="https://opensource.org/license/mit" rel="license">MIT License</a>.</p>
 
 <footer>
@@ -1429,6 +1532,208 @@ export <span class="t-k">function</span> <span class="t-f">moveMonsters</span>(g
         }).then(function () { setTimeout(function () { b.textContent = 'Copy'; }, 1500); });
       });
     });
+  })();
+
+  (function () {
+    /* The claims demo. Each step is the whole picture: where each Clawd stands, who holds which clause, how each looks.
+       A position is 's:<clause>' (that clause's spec), 'c:<n>' (the n-th code block) or 'p' (parked in the tab bar). */
+    var root = document.getElementById('claims');
+    if (!root) return;
+    var stage = root.querySelector('.cl-stage'), heads = stage.querySelectorAll('.cl-head .fe-file');
+    var text = root.querySelector('.cl-text'), pause = root.querySelector('.cl-pause');
+    var cells = Array.prototype.slice.call(stage.querySelectorAll('.cl-spec[data-cl], .cl-code[data-cl]'));
+    var who = { a: stage.querySelector('.clawd.a'), b: stage.querySelector('.clawd.b') };
+    var W = 36, H = 24, GAP = 22, EVERY = 2600, DWELL = 1500;   /* GAP: room left of the cell edge for the Clawd's hat, magnifier and Z */
+    var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var P = 'p';
+    /* ed: edits that happen in a step, [v: a value in the spec | k: a constant in the code, which one, the new text] */
+    var steps = [
+      { a: 's:movement', b: P,          cl: { movement: 'a.claimed' },                      m: { a: 'working', b: 'idle' },    ed: [['v', 'step', '40 px'], ['v', 'room', '600 px']], cap: 'An agent claims a clause with <code>sor claim</code> and changes the clause first.' },
+      { a: 'c:0',        b: P,          cl: { movement: 'a.claimed' },                      m: { a: 'working', b: 'idle' },    ed: [['k', 'step', '40']],                              cap: 'Then it changes the code blocks that carry its marker.' },
+      { a: 'c:2',        b: P,          cl: { movement: 'a.claimed' },                      m: { a: 'working', b: 'idle' },    ed: [['k', 'room', '600']],                             cap: 'The last block names two clauses, so it is shut too, while the clause in between stays free.' },
+      { a: 'c:2',        b: 's:movement', cl: { movement: 'a.claimed' },                    m: { a: 'working', b: 'waiting' }, ed: [],                                                  cap: 'A second agent that claims the same clause is refused, and waits.' },
+      { a: 'c:2',        b: 's:movement', cl: { movement: 'a.locked' },                     m: { a: 'idle', b: 'waiting' },    ed: [],                                                  cap: '<code>sor lock</code> saves the clause with its code blocks and test results. All of them are now locked.' },
+      { a: 's:lives',    b: 's:movement', cl: { movement: 'b.claimed', lives: 'a.claimed' }, m: { a: 'working', b: 'working' }, ed: [['v', 'lives', '5 lives'], ['v', 'room', '400 px']], cap: 'The claim is released. The waiting agent takes the clause, and the first one another.' },
+      { a: 'c:1',        b: 'c:2',       cl: { movement: 'b.claimed', lives: 'a.claimed' }, m: { a: 'working', b: 'working' }, ed: [['k', 'lives', '5'], ['k', 'room', '400']],     cap: 'Each changes the code of its own clause.' },
+      { a: 'c:1',        b: 'c:2',       cl: { movement: 'b.locked', lives: 'a.locked' },   m: { a: 'idle', b: 'idle' },       ed: [],                                                  cap: 'Each locks only what it claimed. <code>monsters/chase</code> is free, but its code block belongs to <code>player/movement</code> too.' },
+      { a: P,            b: P,           cl: {},                                           m: { a: 'idle', b: 'idle' },       ed: [],                                                  cap: 'Released. Nothing is held any more.' }
+    ];
+    var rest = { a: P, b: P, cl: {}, m: { a: 'idle', b: 'idle' }, ed: [], cap: steps[0].cap };   /* before the first step: both Clawds sit in the tab bar, nothing is claimed */
+    var origin = [];   /* the spec values and code constants as they start, to go back to when the loop starts again */
+    Array.prototype.forEach.call(stage.querySelectorAll('[data-v], [data-k]'), function (e) { origin.push([e, e.textContent]); });
+    function setValues(i, flash) {
+      origin.forEach(function (o) { o[0].textContent = o[1]; o[0].classList.remove('chg'); });
+      for (var j = 0; j <= i; j++) steps[j].ed.forEach(function (d) {
+        var e = stage.querySelector('[data-' + d[0] + '="' + d[1] + '"]');
+        e.textContent = d[2];
+        if (flash && j === i) { void e.offsetWidth; e.classList.add('chg'); }
+      });
+    }
+    var tl = root.querySelector('.cl-tl'), segs = [], again, thumb, geo = [], N = steps.length;   /* the timeline: one bar for each step, a thumb, and the loop arrow */
+    steps.forEach(function () { var b = document.createElement('b'); b.appendChild(document.createElement('i')); b.setAttribute('aria-hidden', 'true'); tl.appendChild(b); segs.push(b); });
+    again = document.createElement('u'); again.textContent = '\u21BB'; again.setAttribute('aria-hidden', 'true'); tl.appendChild(again);
+    thumb = document.createElement('button'); thumb.type = 'button'; thumb.className = 'cl-thumb'; thumb.setAttribute('role', 'slider');
+    thumb.setAttribute('aria-label', 'Step of the demonstration'); thumb.setAttribute('aria-valuemin', 1); thumb.setAttribute('aria-valuemax', N);
+    tl.appendChild(thumb);
+    var refusing = null, dragging = false, stepAnim = null, fillAnim = null, remaining = EVERY, thumbX = 0, at = { a: null, b: null }, now = 0, timer = null, paused = false, seen = false;
+
+    function cellOf(p) {
+      var k = p.split(':');
+      return k[0] === 's' ? stage.querySelector('.cl-spec[data-cl="' + k[1] + '"]') : stage.querySelector('.cl-code[data-i="' + k[1] + '"]');
+    }
+    function spot(p, name) {                         /* where a Clawd stands: the right end of a cell, or of its tab bar */
+      var cell = p === P ? heads[name === 'a' ? 0 : 1] : cellOf(p);
+      var c = cell.getBoundingClientRect(), s = stage.getBoundingClientRect();
+      return { x: Math.round(c.right - s.left - W - (p === P ? 10 : GAP)), y: Math.round(c.top - s.top + (c.height - H) / 2) };
+    }
+    function put(name, p, hop) {
+      var el = who[name], to = spot(p, name), from = at[name] && at[name].xy;
+      at[name] = { p: p, xy: to };
+      var end = 'translate(' + to.x + 'px,' + to.y + 'px)';
+      if (hop && from && el.animate && !reduce && (from.x !== to.x || from.y !== to.y)) {
+        var up = Math.min(from.y, to.y) - 26;
+        el.animate([{ transform: 'translate(' + from.x + 'px,' + from.y + 'px)' },
+                    { transform: 'translate(' + Math.round((from.x + to.x) / 2) + 'px,' + up + 'px)', offset: 0.5 },
+                    { transform: end }], { duration: 650, easing: 'ease-in-out' });
+      }
+      el.style.transform = end;
+    }
+    function show(i, hop) {
+      var s = i < 0 ? rest : steps[i];
+      now = i;
+      setValues(i, hop);
+      ['a', 'b'].forEach(function (n) { put(n, s[n], hop); });
+      cells.forEach(function (c) {
+        ['by', 'st', 'edit'].forEach(function (k) { c.removeAttribute('data-' + k); });
+        var held = c.getAttribute('data-cl').split(' ').filter(function (k) { return s.cl[k]; })[0];
+        var v = (held ? s.cl[held] : '').split('.');
+        if (v[0]) { c.setAttribute('data-by', v[0]); c.setAttribute('data-st', v[1]); }
+      });
+      ['a', 'b'].forEach(function (n) {              /* an agent at work on its own clause: that cell is being edited */
+        var c = s[n] === P ? null : cellOf(s[n]);
+        if (c && s.m[n] === 'working' && c.getAttribute('data-by') === n && c.getAttribute('data-st') === 'claimed') c.setAttribute('data-edit', '');
+      });
+      /* "refused" shows while a Clawd waits on the spec of a clause, from the moment it has landed there */
+      clearTimeout(refusing);
+      var waitCell = null;
+      ['a', 'b'].forEach(function (n) { if (s.m[n] === 'waiting' && s[n].charAt(0) === 's') waitCell = cellOf(s[n]); });
+      cells.forEach(function (c) {
+        if (c !== waitCell) c.removeAttribute('data-refused');
+        else if (!c.hasAttribute('data-refused')) {
+          if (hop) refusing = setTimeout(function () { c.setAttribute('data-refused', ''); }, 550);
+          else c.setAttribute('data-refused', '');
+        }
+      });
+      ['a', 'b'].forEach(function (n) {
+        var mode = s.m[n];
+        if (reduce && mode === 'working') mode = 'idle';   /* the GIF moves: with reduced motion the still body stands in */
+        who[n].setAttribute('data-mode', mode);
+      });
+      text.innerHTML = s.cap;
+      thumb.setAttribute('aria-valuenow', Math.max(i, 0) + 1);
+      thumb.setAttribute('aria-valuetext', 'Step ' + (Math.max(i, 0) + 1) + ' of ' + N + ': ' + s.cap.replace(/<[^>]+>/g, ''));
+      again.classList.remove('again');
+      if (hop && i === 0) { void again.offsetWidth; again.classList.add('again'); }
+    }
+    /* the thumb and the fill follow one clock. t counts steps: 2.5 is half way through the third bar. */
+    function measure() {
+      var base = tl.getBoundingClientRect();
+      geo = segs.map(function (b) { var r = b.getBoundingClientRect(); return { l: r.left - base.left, w: r.width }; });
+    }
+    function pos(t) { var k = Math.max(0, Math.min(N - 1, Math.floor(t))); return geo[k].l + Math.max(0, Math.min(1, t - k)) * geo[k].w; }
+    function place(t) { thumbX = pos(t); thumb.style.transform = 'translateX(' + thumbX + 'px)'; }
+    function fill(t) {                              /* bars before the thumb are full, the one it is on is full as far as the thumb */
+      segs.forEach(function (b, k) { b.firstChild.style.width = (k < Math.floor(t) ? 100 : (k === Math.floor(t) ? (t - k) * 100 : 0)) + '%'; });
+    }
+    function cancelAnims() { [stepAnim, fillAnim].forEach(function (a) { if (a) a.cancel(); }); stepAnim = fillAnim = null; }
+    function launch(i) {                            /* step i begins: the thumb glides to the start of the next one */
+      cancelAnims(); place(i); fill(i);
+      var from = pos(i), to = pos(i + 1), opts = { duration: EVERY, easing: 'linear', fill: 'forwards' };
+      thumb.style.transform = 'translateX(' + to + 'px)'; thumbX = to;
+      if (thumb.animate) {
+        stepAnim = thumb.animate([{ transform: 'translateX(' + from + 'px)' }, { transform: 'translateX(' + to + 'px)' }], opts);
+        fillAnim = segs[i].firstChild.animate([{ width: '0%' }, { width: '100%' }], opts);
+      }
+      remaining = EVERY;
+      clearTimeout(timer); timer = setTimeout(tick, EVERY);
+    }
+    function tick() {
+      timer = null;
+      if (paused || !seen || document.hidden || dragging) return;
+      var n = (now + 1) % N;
+      show(n, true);
+      launch(n);
+    }
+    function start() {                              /* the first step comes 1.5 s after the demo is in view; after a pause, the rest of the step */
+      if (timer || paused || !seen || document.hidden || dragging) return;
+      if (stepAnim && stepAnim.playState === 'paused') { stepAnim.play(); fillAnim.play(); timer = setTimeout(tick, remaining); }
+      else timer = setTimeout(tick, DWELL);
+    }
+    function stop() {
+      clearTimeout(timer); timer = null;
+      if (stepAnim && stepAnim.playState === 'running') { remaining = Math.max(0, EVERY - stepAnim.currentTime); stepAnim.pause(); fillAnim.pause(); }
+    }
+    function playing() { return !reduce && !paused && seen && !document.hidden; }
+    function jump(s) {                              /* straight to step s, as from the keyboard */
+      stop(); cancelAnims(); show(s, false); place(s); fill(s);
+      if (playing()) launch(s);
+    }
+
+    root.classList.add('on');
+    show(reduce ? 4 : -1, false);                    /* at first both Clawds rest in the tab bar; with reduced motion: one still picture, a locked clause and an agent waiting */
+    measure(); place(Math.max(now, 0)); fill(Math.max(now, 0));
+    window.addEventListener('resize', function () {
+      var was = stepAnim && stepAnim.playState === 'running';
+      measure(); show(now, false); place(Math.max(now, 0)); fill(Math.max(now, 0));
+      if (was) { stop(); cancelAnims(); launch(now); }
+    });
+
+    /* dragging: the thumb follows the pointer smoothly; the step shown is the bar it is over; letting go slides it back to the start of that bar */
+    function over(e) {
+      var r = tl.getBoundingClientRect(), x = Math.max(geo[0].l, Math.min(geo[N - 1].l + geo[N - 1].w, e.clientX - r.left));
+      var k = 0; for (var j = 0; j < N; j++) if (x >= geo[j].l) k = j;
+      var t = k + Math.max(0, Math.min(1, (x - geo[k].l) / geo[k].w));
+      thumbX = x; thumb.style.transform = 'translateX(' + x + 'px)';
+      fill(t);
+      if (k !== now) show(k, false);
+    }
+    tl.addEventListener('pointerdown', function (e) {
+      if (e.button) return;
+      dragging = true; stop(); cancelAnims(); tl.classList.add('drag');
+      try { tl.setPointerCapture(e.pointerId); } catch (err) { /* some previews block it */ }
+      over(e); e.preventDefault();
+    });
+    tl.addEventListener('pointermove', function (e) { if (dragging) over(e); });
+    function release() {
+      if (!dragging) return;
+      dragging = false; tl.classList.remove('drag');
+      var s = Math.max(now, 0), to = pos(s), from = thumbX;
+      fill(s); thumb.style.transform = 'translateX(' + to + 'px)'; thumbX = to;
+      var done = function () { place(s); if (playing()) launch(s); };
+      if (thumb.animate && !reduce && from !== to) {
+        var a = thumb.animate([{ transform: 'translateX(' + from + 'px)' }, { transform: 'translateX(' + to + 'px)' }], { duration: 300, easing: 'ease-out' });
+        a.onfinish = done; a.oncancel = done;
+      } else done();
+    }
+    tl.addEventListener('pointerup', release);
+    tl.addEventListener('pointercancel', release);
+    thumb.addEventListener('keydown', function (e) {
+      var k = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 }[e.key], s = Math.max(now, 0);
+      if (k) s = Math.max(0, Math.min(N - 1, s + k)); else if (e.key === 'Home') s = 0; else if (e.key === 'End') s = N - 1; else return;
+      e.preventDefault(); jump(s);
+    });
+    if (reduce) return;
+    pause.hidden = false;
+    pause.addEventListener('click', function () {
+      paused = !paused;
+      pause.textContent = paused ? 'Play' : 'Pause';
+      if (paused) stop(); else start();
+    });
+    document.addEventListener('visibilitychange', function () { if (document.hidden) stop(); else start(); });
+    setInterval(start, 1000);                        /* picks the loop up again if it stopped while the page was hidden (start does nothing while a step is running) */
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) { seen = es[0].isIntersecting; if (seen) start(); else stop(); }, { threshold: 0.3 }).observe(stage);
+    } else { seen = true; start(); }
   })();
 </script>
 </body>
