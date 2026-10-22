@@ -147,11 +147,9 @@ def notes(project, scan=None):
 
 def no_code_for_target(project, scan):
     """One note for each target that has no code for clauses another target has code for: `N clauses have code in py but none in
-    ts`. It says nothing for a project with fewer than two targets, and nothing for a clause with no code at all (a rule such as
-    `out-of-scope` has none anywhere)."""
+    ts`. It says nothing for a clause with no code at all (a rule such as `out-of-scope` has none anywhere), and nothing in a project
+    with one target, where every clause that has code has it there. Code in no target is not counted for any."""
     names = project.target_names()
-    if len(names) < 2:
-        return []
     where = {}   # clause key -> the targets that have code for it
     for r in scan.regions:
         target = project.target_of(r.file)

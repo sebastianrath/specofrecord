@@ -402,6 +402,48 @@ class TestStatusAndKeys(Targeted):
         self.assertNotEqual(fingerprint(), changed)
 
 
+class TestCodeThatIsSharedOrGone(Targeted):
+    SHARED_PY = '# @clause greet/hello greet/bye\nHELLO = "Hello"\n# @clause end\n'
+    SHARED_TS = '// @clause greet/hello greet/bye\nexport const HELLO = "Hello";\n// @clause end\n'
+
+    def test_a_clause_that_shares_the_code_and_whose_lines_would_not_change_is_not_dragged_into_the_lock(self):
+        write(self.dir, 'src_py/greet.py', self.SHARED_PY)
+        write(self.dir, 'src_ts/greet.ts', self.SHARED_TS)
+        self.lock_all()
+        kept = {k: v for k, v in self.raw().items() if k.startswith('greet/bye')}
+        self.assertIn('greet/bye@py', kept)
+        self.change_clause()                       # the words of hello only: the code both clauses share stays as it is
+        code, out, _ = self.sor('lock', 'greet/hello', '--allow-behind', 'py,ts')
+        self.assertEqual(code, 0, out)
+        self.assertNotIn('locking with them', out)
+        self.assertEqual({k: v for k, v in self.raw().items() if k.startswith('greet/bye')}, kept)
+
+    def test_a_clause_whose_code_is_gone_from_every_language_is_drift(self):
+        self.lock_all()
+        os.remove(self.py)
+        os.remove(self.ts)
+        found = self.findings()
+        self.assertEqual([(f['status'], f['key'], f['where']) for f in found], [('drift', 'greet/hello', 'code removed')], found)
+
+    def test_a_snapshot_without_a_joined_hash_for_a_clause_keeps_the_code_it_had(self):
+        class Scanned:
+            def code_hashes(self, legacy=False):
+                return {}
+        now = {'a/b': {'kind': 'item', 'text': 't', 'code': 'x', 'targets': {'py': {'code': 'y'}}}}
+        old = {'a/b': {'kind': 'item', 'text': 't', 'code': 'z'}}
+        lockfile.conform(now, old, Scanned())
+        self.assertNotIn('targets', now['a/b'])       # compared as the lock wrote it: one joined hash, none to compare
+        self.assertEqual(now['a/b']['code'], 'x')
+
+
+class TestTheGuardInATargetedProject(Targeted):
+    def test_it_works_out_which_clauses_a_spec_edit_touches(self):
+        # a failure here is swallowed (None: the edit is not blocked), so a claim would stop holding in a targeted project
+        project = Project(self.dir)
+        new = read(self.spec_file).replace('The greeting is "Hello".', 'The greeting is "Hi".')
+        self.assertEqual(hook.spec_keys_touched(project, self.spec_file, new), {'greet/hello'})
+
+
 class TestTheRealProjectsDoNotChange(unittest.TestCase):
     def test_their_locks_are_what_this_tool_would_write(self):
         for rel in ('examples/solar-system', 'editors/vscode'):

@@ -181,6 +181,14 @@ class TestAStarterATargetDeclares(base.Case):
                 found = [p for p in Project(self.dir).check() if p.kind == 'target' and 'is not a comment starter' in p.text]
                 self.assertEqual(len(found), 1, bad)
 
+    def test_a_declaration_that_names_no_starter_is_a_problem(self):
+        for empty in (' ', ',', ' , '):
+            with self.subTest(repr(empty)):
+                self.project({'targets/odd': self.TARGET.replace('{comment: %, ||}', f'{{comment: {empty}}}'),
+                              'bodies': doc('Bodies', 'The sky.', rules=['- **sun** - Size {size: 28}.'])})
+                found = [p for p in Project(self.dir).check() if p.kind == 'target']
+                self.assertEqual([p.text for p in found], ['`comment:` names no starter'])
+
     def test_a_good_declaration_is_no_problem(self):
         self.assertEqual([p for p in Project(self.dir).check() if p.kind == 'target'], [])
 

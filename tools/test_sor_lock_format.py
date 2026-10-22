@@ -127,6 +127,24 @@ class TestAFormatThisToolDoesNotRead(Locked):
             lockfile.write(Project(self.dir), {}, fmt=lockfile.FORMAT + 1)
 
 
+class TestWhatTheWriterRefuses(unittest.TestCase):
+    """Code per target is format 2, and a line `clause@target` is the lock's own: nothing else may be called that."""
+    ENTRY = {'kind': 'item', 'text': 'abc', 'targets': {'py': {'code': 'aaa', 'built': 'abc'}}}
+
+    def test_entries_with_code_per_target_cannot_be_written_as_format_1(self):
+        self.assertTrue(lockfile.render({'a/b': self.ENTRY}).startswith('{\n"*format": 2,\n'))
+        self.assertTrue(lockfile.render({'a/b': self.ENTRY}, lockfile.FORMAT).startswith('{\n"*format": 2,\n'))
+        with self.assertRaises(ValueError) as caught:
+            lockfile.render({'a/b': self.ENTRY}, 1)
+        self.assertIn('need lock format 2, not 1', str(caught.exception))
+
+    def test_a_clause_named_like_the_line_for_the_code_of_another_is_refused_at_the_write(self):
+        entries = {'a/b': self.ENTRY, 'a/b@py': {'kind': 'item', 'text': 'x'}}
+        with self.assertRaises(lockfile.LockWriteError) as caught:
+            lockfile.render(entries)
+        self.assertIn('a/b@py is a clause of its own', str(caught.exception))
+
+
 class TestALaterFormatRoundTrip(Locked):
     """A later tool, made here by moving FORMAT one up: it writes its marker first, and a tool with the real FORMAT refuses it."""
     LATER = lockfile.FORMAT + 1

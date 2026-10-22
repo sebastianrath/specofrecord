@@ -220,6 +220,17 @@ class TestTheNoteThatATargetLacksCode(TwoTargets):
         self.build(targets={'targets/py': target('py', 'src_py/')})
         write(self.dir, 'src_py/bye.py', '# @clause greet/bye\nBYE = "Bye"\n# @clause end\n')
         self.assertEqual(self.notes(), [])
+        from sorlib import lint
+        project = self.project_()
+        self.assertEqual(lint.no_code_for_target(project, Scan(project)), [])   # not by the caller's guard alone
+
+    def test_code_in_no_target_is_not_counted_for_any(self):
+        self.build(extra={'tools': doc('Tools', 'Hand written.', header=['Source: code at tools/'])})
+        write(self.dir, 'tools/bye.py', '# @clause greet/bye\nBYE = "Bye"\n# @clause end\n')   # code, but in neither target
+        scan = Scan(self.project_())
+        self.assertEqual([r.file for r in scan.regions if 'greet/bye' in r.keys], ['tools/bye.py'])
+        self.assertIsNone(self.project_().target_of('tools/bye.py'))
+        self.assertEqual(self.notes(), [])
 
 
 class TestTheLockDoesNotChange(TwoTargets):

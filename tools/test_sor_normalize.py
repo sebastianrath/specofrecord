@@ -271,6 +271,27 @@ class TestPythonFStrings(unittest.TestCase):
             with self.subTest(first):
                 self.assertEqual(self.levels([first, 'if x:', '    pass']), f'0:{first}\n0:if x:\n1:pass')
 
+    def test_a_backslash_at_the_end_of_the_text_of_an_f_string_goes_on_to_the_next_line(self):
+        # the next line is still the string: its first `#` is text, not a comment line to leave out
+        lines = ['x = f"ab\\', '# still text {y}"', 'z = 1']
+        self.assertEqual(self.levels(lines), '0:x = f"ab\\\n# still text {y}"\n0:z = 1')
+
+    def test_a_backslash_before_a_brace_does_not_hide_the_field(self):
+        # not raw: the backslash is text and the brace opens a field, whose string may be the quote of the f-string
+        lines = ['x = f"\\{d["("]}"', 'if x:', '    pass']
+        self.assertEqual(self.levels(lines), '0:x = f"\\{d["("]}"\n0:if x:\n1:pass')
+
+    def test_a_format_spec_may_go_on_over_lines_in_a_triple_quoted_f_string(self):
+        lines = ['x = f"""{y:', '# spec text', '}"""', 'z = 1']
+        self.assertEqual(self.levels(lines), '0:x = f"""{y:\n# spec text\n}"""\n0:z = 1')
+
+    def test_a_string_with_no_closing_quote_ends_with_its_line_and_hides_nothing_after_it(self):
+        # not Python, but a file is read mid-edit: the lines after it are still code
+        for first in ('x = "abc', 'x = f"abc'):
+            with self.subTest(first):
+                lines = [first, '# a note', 'y = 1']
+                self.assertNotIn('# a note', self.levels(lines))
+
     def test_a_dict_or_a_lambda_in_a_field_does_not_end_it_early(self):
         lines = ['x = f"{ {"a": 1}["a"] } {(lambda y: y)(2)}"', 'if x:', '    pass']
         self.assertEqual(self.levels(lines), '0:x = f"{ {"a": 1}["a"] } {(lambda y: y)(2)}"\n0:if x:\n1:pass')

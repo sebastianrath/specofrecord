@@ -916,18 +916,13 @@ class Project:
         if not self.targeted():
             return []
         pid = part.id if part is not None else ''
-        while True:
+        while pid:
             p = self.parts.get(pid)
             text = p.header.get('Targets', '').strip() if p else ''
             if text:
                 return [n.strip() for n in text.split(',') if n.strip()]
-            if not pid:
-                return []
             pid = pid.rpartition('/')[0]
-
-    def applicable_targets(self, key, owners):
-        """The targets a lock key applies to; `owners` maps a lock key to the part it lives in."""
-        return self.targets_of_part(owners.get(key))
+        return [n.strip() for n in self.root_part().header['Targets'].split(',') if n.strip()]   # targeted(): the root has them
 
     def target_of(self, rel):
         """The target a file belongs to: the one whose path is the longest prefix of this project-relative path. None for a file
@@ -972,11 +967,11 @@ class Project:
             if p.id.startswith('targets/'):
                 for it in p.items.values():
                     if it.section == 'Rules' and 'comment' in it.values:
-                        bad = starters_in(it.values['comment'])[1]
+                        good, bad = starters_in(it.values['comment'])
                         for token in bad:
                             out.append(Problem('target', p.rel, f'`comment: {token}` is not a comment starter: one to three characters, '
                                                                 'none a letter, a digit, a space, a quote, `@`, `{` or `}`'))
-                        if not it.values['comment'].strip():
+                        if not good and not bad:
                             out.append(Problem('target', p.rel, '`comment:` names no starter'))
         known = set(names)
         for p in self.parts.values():

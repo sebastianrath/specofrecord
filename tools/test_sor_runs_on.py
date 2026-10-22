@@ -419,6 +419,16 @@ class TestTheEvidenceFormat(Gate):
                 self.assertEqual(self.verify()[0], 2, name)
                 os.remove(path)
 
+    def test_a_file_that_is_not_a_json_object_is_refused(self):
+        for text in ('[]', '"linux-ci"', '7', 'null'):
+            with self.subTest(text):
+                path = self.by_hand('linux-ci')
+                write(self.dir, 'evidence/linux-ci.json', text)
+                code, out = self.verify()
+                self.assertEqual(code, 2, out)
+                self.assertIn('an evidence file has exactly the keys job, provides and results', out)
+                os.remove(path)
+
     def test_format_1_may_say_so_and_is_read_the_same(self):
         self.by_hand('linux-ci', format=1)
         self.assertEqual(self.verify()[0], 1)    # linux proven, windows still missing: the file itself is fine
