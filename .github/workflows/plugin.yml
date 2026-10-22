@@ -3,7 +3,8 @@
 # Every push and pull request: the unit tests, then `plugins/build-plugin.py`, which checks that the bundled copy of
 # tools/ is current, zips the plugin, unpacks the zip into a folder with a space in its name and runs it from unrelated
 # folders (the launcher, a symlink to it, the commands that start a project, and the hook commands from hooks.json).
-# The tool needs Python 3.9 and nothing else, so one job runs in the python:3.9 image and the others on a current Python.
+# The tool needs Python 3.9 and nothing else, so one job runs in the python:3.9 image and the others on a current Python. The JavaScript tool in tools/js
+# (the VS Code extension runs it) is tested against the Python tool too, on Node 16 in the first job and on the current Node in the others.
 #
 # Release: push a tag `plugin-v<version>` where <version> is the one in plugins/specofrecord/.claude-plugin/plugin.json,
 #   git tag plugin-v0.3.1 && git push origin plugin-v0.3.1
@@ -35,8 +36,16 @@ jobs:
     container: python:3.9
     steps:
       - uses: actions/checkout@v4
-      - name: Python version
-        run: python3 --version
+      # The tests of the JavaScript tool (tools/js, which the VS Code extension runs) need node and skip themselves without it. Node 16 is the oldest it
+      # supports (the Node of VS Code 1.80), so this job, which is also the oldest Python, runs them on it.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 16
+      - name: Python and Node versions
+        run: |
+          python3 --version
+          node --version
+          git --version
       - name: Compile every file
         run: python3 -m compileall -q tools plugins
       - name: Unit tests
@@ -66,6 +75,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - uses: actions/setup-node@v4   # the tests of the JavaScript tool run on the current Node here, on Node 16 in the python39 job
+        with:
+          node-version: 'lts/*'
       - name: Unit tests
         run: python3 -m unittest discover -s tools -p 'test_*.py'
       - name: Build the plugin and smoke test the zip

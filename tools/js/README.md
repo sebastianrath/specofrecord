@@ -24,8 +24,8 @@ code points, as the Python tool counts them). Three things differ on purpose:
 
 Everything else (`check`, `lock`, `claim`, `test`, `verify`, the edit guard) is the Python tool's.
 
-It is plain JavaScript (CommonJS) with no dependencies, for Node 16 or later, the Node of VS Code 1.80; a CI job runs it and its tests on Node 16
-(`.github/workflows/vscode.yml`). A lock in a format newer than 3 is
+It is plain JavaScript (CommonJS) with no dependencies, for Node 16 or later, the Node of VS Code 1.80; CI runs it and its tests on Node 16
+(the python:3.9 job in `.github/workflows/plugin.yml`, and `oldest-node` in `vscode.yml`). A lock in a format newer than 3 is
 refused with the Python tool's message, and the exit code is 2.
 
 ## What is in here

@@ -1244,8 +1244,10 @@ no such test: the tests of the behaviour they must keep stay green.
   regular expressions for every spec line and looked through all regions for every item. Dead code was taken out of `status.js`.
 - **The test of the extension named Python by a regular expression over every argument,** so a project folder with `python` in its path failed it. The check
   that every program started is the editor's Node on `tools/sor.js` already says more, and the expression is gone. That change is not run in a real VS Code yet.
-- **Node 16** was promised and never run: a CI job runs the vectors, the bundle test and the comparison with the Python tool on Node 16, and a release needs it.
-  It has not run yet either: no Node 16 is installed here, and none was downloaded.
+- **Node 16** was promised and never run. It has been now: Node 16.20.2 (the last of 16; VS Code 1.80 has 16.17) runs the vectors, the bundle test, the
+  comparison tests, and the whole suite with Python 3.9 (1,290 tests), all passing. Homebrew has no `node@16` and `node@18` is disabled, so `brew install fnm`
+  and `fnm install 16` fetched it into fnm's own folder, with no change to the PATH. CI runs the same: the python:3.9 job of `plugin.yml` has Node 16, the
+  others the current Node, and `oldest-node` in `vscode.yml` runs the tool's tests on Node 16 and gates a release. Those jobs have not run on GitHub yet.
 - **Not changed:** the JavaScript tool's lock `2.0` difference and the grammar errors it does not see stay as written above. The finding that spec and
   code were edited with scripts and not with Edit is a note on how to work: the clauses were changed first, and the next edits use Edit.
 
