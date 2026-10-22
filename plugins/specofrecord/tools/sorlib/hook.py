@@ -3,7 +3,7 @@
     sor hook pre-edit    PreToolUse on Edit|Write|MultiEdit: refuses an edit that changes the
                           code of a clause that has not changed since the last lock
     sor hook post-read   PostToolUse on Read: adds the clauses behind the regions just read
-    sor hook session-start   SessionStart: a note saying this project has a spec, when it has, and a short index of its parts
+    sor hook session-start   SessionStart: a note saying this project has a spec, when it has, a short index of its parts, and what is pending
     sor hook pre-bash    PreToolUse on Bash: asks the user before a `sor lock` that carries --allow-behind runs
 
 They read the hook's JSON on stdin. Files outside a project, or outside its code, pass.
@@ -28,6 +28,7 @@ from .model import LEGACY_LOCK_FILE, LOCK_FILE, PART_FILE_NAME, SPEC_DIR, Projec
 PENDING = ('new', 'changed', 'stale', 'removed', 'behind')
 MAX_CONTEXT = 6000
 INDEX_MAX = 1200   # characters of the parts index at session start (SPEC §15)
+PENDING_MAX = 900  # characters of the line about pending changes at session start, its end included
 
 
 def find_root(path):
@@ -401,6 +402,39 @@ def post_read(payload):
     return {'hookSpecificOutput': {'hookEventName': 'PostToolUse', 'additionalContext': ctx}}
 
 
+def pending_note(project):
+    """Lines of facts about what a session finds when it starts, from a project with a lock: what changed since the last lock (the clauses to
+    build, a language behind, drift) and the claims in force. Nobody can say which session left it, so it says "since the last lock". Empty when
+    nothing is pending, when there is no lock yet (every clause would be new), and, by the caller, when anything fails."""
+    old = lockfile.read(project)
+    if not old:
+        return ''
+    findings, _ = lockfile.status(project, Scan(project), old)
+    rows = [f for f in findings if f.status in PENDING or f.status == 'drift']
+    lines = []
+    if rows:
+        items = []
+        for f in rows:
+            detail = ' '.join((f.detail or '').split())
+            items.append(f'{f.key} {f.status}' + (f' ({detail if len(detail) <= 60 else detail[:59].rstrip() + "…"})' if detail else ''))
+
+        def line(shown):   # the first `shown` items, and a count of the rest
+            text = 'Pending since the last lock: ' + '; '.join(items[:shown])
+            if shown < len(items):
+                text += ('; ' if shown else '') + f'... and {len(items) - shown} more'
+            return text + f' (`{CMD} status` has the detail).'
+
+        shown = len(items)
+        while shown and len(line(shown)) > PENDING_MAX:
+            shown -= 1
+        lines.append(line(shown))
+    held = claims.active(project)
+    if held:
+        shown = [claims.describe(c) for c in held[:3]]
+        lines.append('Claims in force: ' + '; '.join(shown) + (f'; ... and {len(held) - 3} more' if len(held) > 3 else '') + '.')
+    return '\n'.join(lines)
+
+
 def session_start(payload):
     """One short note when the session starts in a project that has a spec, so an agent knows the
     workflow exists before it edits anything. Stated as facts, not orders (Claude Code's advice).
@@ -434,6 +468,12 @@ def session_start(payload):
             ctx += '\n' + index
     except (Exception, SystemExit):
         pass   # the note above is enough
+    try:
+        pending = pending_note(Project(root))
+        if pending:
+            ctx += '\n' + pending
+    except (Exception, SystemExit):
+        pass   # a lock this copy cannot read, a broken part: the note above is enough
     return {'hookSpecificOutput': {'hookEventName': 'SessionStart', 'additionalContext': ctx}}
 
 

@@ -571,7 +571,9 @@ the plugin at `plugins/specofrecord/`, DECISIONS.md):
 - *At session start* in a project that has a spec, one short note says so, so an agent knows the
   workflow exists before it edits anything. The note ends with a compact index of the parts (`sor parts`: each
   part's `Why:`, at most 1200 characters; a project with more parts gets the first ones and "and N more"). If the
-  index cannot be built, the note comes without it.
+  index cannot be built, the note comes without it. In a project that has a lock it also says, in facts and in a line of at most 900 characters, what is pending since the
+  last lock (clauses changed, a language behind, drift; the rest as "and N more") and which claims are in force, so a session that did not start that work
+  still knows of it. It says nothing for a project in agreement or with no lock yet, and it is left out whole if working it out fails.
 - Not covered: code changed through the shell (`sed`, scripts). That still shows as drift in
   `sor status`, and `sor lock` refuses it.
 

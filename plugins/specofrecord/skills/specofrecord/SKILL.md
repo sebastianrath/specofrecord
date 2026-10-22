@@ -46,7 +46,7 @@ only when asked, or when the project is tiny like hello world.
 ## Your routine
 The user says what to build or change, in their own words, and mentions Spec of Record once. They never run or ask for
 `sor` commands: that is your job, every time.
-- Start with `sor status`: drift that was already there is a person's change to the code (see "Code a person changed").
+- Start with `sor status`: drift that was already there is a person's change to the code (see "Code a person changed"). Say once what is pending that you did not start.
 - Finish each unit of work with `sor check` (fix every problem), `sor test` when the project has a test runner, `sor lock`
   for what you claimed, and `sor release --all` (a sub-agent: see "Claims").
 - Then tell the user in plain words what you wrote or changed: the clauses, the code, the test results and anything left

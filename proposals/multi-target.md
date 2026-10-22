@@ -1,6 +1,6 @@
 # Proposal: more than one code target
 
-Status: Phases 0, 1, 2 and the first slice of 3 are built and merged. Stage 1 of the rest (the note respects `Targets:`, `sor status` prints it) and stage 2 (a lock asks for code in every language that applies) are built, and so is the hook that asks before `--allow-behind` (stage 3). Per-target results and claims are open. The decisions for the owner were made on 2026-10-21 (see the end), and nothing else is built. Written the same day after reading the tool and checking the points marked "shown" in a temporary project.
+Status: Phases 0, 1, 2 and the first slice of 3 are built and merged. Stage 1 of the rest (the note respects `Targets:`, `sor status` prints it) and stage 2 (a lock asks for code in every language that applies) are built, and so are the hook that asks before `--allow-behind` (stage 3) and the pending line of the session-start note (stage 4a). Per-target results and claims are open. The decisions for the owner were made on 2026-10-21 (see the end), and nothing else is built. Written the same day after reading the tool and checking the points marked "shown" in a temporary project.
 
 ## The goal
 One spec, code in more than one place: `src_py/` and `src_ts/`, or `src/py/` and `src/ts/`. Tests, environments and the evidence gate have to work with that. A first use is the tool itself, in Python and in TypeScript, so a VS Code user needs no Python.

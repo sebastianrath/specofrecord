@@ -162,7 +162,8 @@ class TestNumbersInTheDocuments(unittest.TestCase):
                 ('a claim lasts (minutes)', claims.DEFAULT_TTL // 60, r'default (\d+) minutes'),
                 ('an expired claim is kept to tell its holder (hours)', claims.TOMBSTONE // 3600, r'kept for (\d+) hours'),
                 ('a leftover mutex is broken after (seconds)', claims.STALE_LOCK, r'older than (\d+) s\b'),
-                ('the parts index at session start (characters)', hook.INDEX_MAX, r'at most (\d+) characters')):
+                ('the parts index at session start (characters)', hook.INDEX_MAX, r'`Why:`, at most (\d+) characters'),
+                ('the line about what is pending at session start (characters)', hook.PENDING_MAX, r'in a line of at most (\d+) characters')):
             found = [int(n) for n in re.findall(pattern, spec)]
             self.assertTrue(found, f'SPEC.md no longer says {what}')
             self.assertEqual(set(found), {value}, what)
