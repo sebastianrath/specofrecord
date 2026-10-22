@@ -1,6 +1,6 @@
 # Proposal: more than one code target
 
-Status: Phases 0, 1, 2 and the first slice of 3 are built (0 and 1 are merged). Per-target results and claims are open. The decisions for the owner were made on 2026-10-21 (see the end), and nothing else is built. Written the same day after reading the tool and checking the points marked "shown" in a temporary project.
+Status: Phases 0, 1, 2 and the first slice of 3 are built and merged. Stage 1 of the rest (the note respects `Targets:`, `sor status` prints it) is built. Per-target results and claims are open. The decisions for the owner were made on 2026-10-21 (see the end), and nothing else is built. Written the same day after reading the tool and checking the points marked "shown" in a temporary project.
 
 ## The goal
 One spec, code in more than one place: `src_py/` and `src_ts/`, or `src/py/` and `src/ts/`. Tests, environments and the evidence gate have to work with that. A first use is the tool itself, in Python and in TypeScript, so a VS Code user needs no Python.
@@ -95,6 +95,19 @@ Phase 1 built that (`DECISIONS.md`, "The lock has a format number"). Format 1 ha
 
 ## For the Python and TypeScript tool
 The risk is that the two copies disagree on a hash. So the hashing and normalization rules should be clauses with tables of test vectors (input, expected hash), and both implementations should run against the same rows. The rows are built (`vectors/hashing.json`, `DECISIONS.md`); a first slice of the second copy is built, in JavaScript and not TypeScript (`tools/js`, `DECISIONS.md`): the hashing, marker and lock text rules, run against the same rows and compared with the Python tool by a test. It is written by hand, since the tool has no spec of its own to build it from.
+
+## Decisions (made on 2026-10-22)
+1. **A clause that applies to a language but has no code there refuses at lock,** unless `--allow-behind` allows it. Only clauses being locked now are
+   concerned, so adding a second language does not flood the locked ones.
+2. **A claim ends when its session ends, or after an idle time.** A `SessionEnd` hook releases it, and every `sor` call or edit by the holder renews it.
+   The fallback is a project setting and may be "never".
+3. **A new session is told about changes an earlier session left pending,** in the session-start note.
+4. **Test results are per target** where the test has test code, and each stage gets one commit.
+5. **The tool offers mechanisms and never decides by who calls it.** Whether one agent or several work on a clause is the developer's instruction to the agents.
+
+Still open, asked of the owner: whether a one-language lock may ever rewrite the clause's text line (recommended: no), whether `--already-fits <language>` is
+added to `sor lock` and recorded on the language's line in lock format 3, which further guards `--allow-behind` gets, and whether `Targets:` may be written
+on a single clause.
 
 ## Decisions (made on 2026-10-21)
 1. **Lock shape:** separate lines per (clause, target), each with `built`. Not a dict inside one entry.

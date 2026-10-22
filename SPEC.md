@@ -332,7 +332,8 @@ targets both name (no file belongs to either), a target named `glue`, `test` or 
 name starts with `*`. With two targets or more it also reports a `Source: code at` area in no target's path, and a `runs on:` environment
 named like a target (it would defer a test that runs here). With one target the two checks that need two targets are skipped. A note, not a problem, says
 `N clause(s) have code in py but none in ts` for each target that lacks code another target has; a clause with no code anywhere, glue and
-test code are not counted.
+test code are not counted, and neither is a target that does not apply to the clause (`Targets:` on its part, below). `sor status` prints the same
+note as a line of text after its groups: it is not a pending change, changes no exit code and adds nothing to `--json`.
 
 **`Targets:`** in the root file (`Targets: py, ts`) says which targets the clauses apply to, and the lock then keeps a clause's code per
 target (§11). A part may say `Targets: py` to override it, and the parts inside it follow; a part has nothing to override until the root

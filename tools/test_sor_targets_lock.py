@@ -214,7 +214,10 @@ class TestTheHandEditCase(Targeted):
         self.assertEqual(code, 2, out)
         self.assertIn('behind  greet/hello  its code in ts', out)
         self.assertNotIn('code in py', out)
-        self.assertIn('--allow-behind ts', out)
+        self.assertIn('rebuild it (change that code)', out)
+        self.assertIn('Only when the user has said that ts is rebuilt later', out)
+        self.assertIn('--allow-behind <language>', out)
+        self.assertNotIn('--allow-behind ts', out)                            # no flag ready to copy: it is the user's call
         self.assertEqual(flows.lock_bytes(self.dir), before)                  # a refusal writes nothing
 
     def test_allowing_it_locks_the_clause_and_the_language_stays_listed_as_behind(self):
@@ -336,6 +339,24 @@ class TestWhichTargetsApply(Targeted):
         write(self.dir, 'src_py/greet.py', self.PY.replace('Hello', 'Hi'))
         self.assertEqual(self.sor('lock', 'greet/hello')[0], 0)    # ts does not apply, so it is not behind
         self.assertEqual(self.findings('behind'), [])
+
+    def test_a_part_for_one_target_is_left_out_by_the_note_the_status_line_and_behind_alike(self):
+        # The note about missing code was written before a part could limit its targets, and no test joined the two: it blamed a
+        # Python-only clause for having no TypeScript. Everything that asks "which targets apply" has to answer the same.
+        bye_py = '# @clause greet/bye\nBYE = "Bye"\n# @clause end\n'
+        for part_targets, reported in (('py', False), (None, True)):
+            with self.subTest(part_targets=part_targets):
+                self.build(part_targets=part_targets)
+                write(self.dir, 'src_py/greet.py', self.PY + bye_py)
+                write(self.dir, 'src_ts/greet.ts', self.TS)
+                self.lock_all()
+                code, status, _ = self.sor('status')
+                self.assertEqual(code, 0, status)
+                code, check, _ = self.sor('check')
+                self.assertEqual(code, 0, check)
+                for out in (status, check):
+                    self.assertEqual('greet/bye' in out and 'none in ts' in out, reported, out)
+                self.assertEqual(self.findings('behind'), [])
 
     def test_problems_with_a_targets_line(self):
         cases = {

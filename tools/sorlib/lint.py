@@ -147,19 +147,15 @@ def notes(project, scan=None):
 
 def no_code_for_target(project, scan):
     """One note for each target that has no code for clauses another target has code for: `N clauses have code in py but none in
-    ts`. It says nothing for a clause with no code at all (a rule such as `out-of-scope` has none anywhere), and nothing in a project
-    with one target, where every clause that has code has it there. Code in no target is not counted for any."""
+    ts`. It says nothing for a clause with no code at all (a rule such as `out-of-scope` has none anywhere), nothing in a project with
+    one target, where every clause that has code has it there, and nothing about a target that does not apply to the clause (`Targets:`
+    on its part). Code in no target is not counted for any."""
     names = project.target_names()
-    where = {}   # clause key -> the targets that have code for it
-    for r in scan.regions:
-        target = project.target_of(r.file)
-        if target:
-            for k in r.keys:
-                if not k.startswith('glue:') and r.kind != 'test':
-                    where.setdefault(k, set()).add(target)
+    where = scan.targets_with_code()   # clause key -> the targets that have code for it
+    applies = {k: set(project.targets_applying_to(k)) for k in where}
     out = []
     for name in names:
-        lacking = sorted(k for k, have in where.items() if name not in have)
+        lacking = sorted(k for k, have in where.items() if name not in have and name in applies[k])
         if lacking:
             part = next(p for n, _, p in project.target_paths() if n == name)
             others = sorted({t for k in lacking for t in where[k]})

@@ -746,6 +746,18 @@ class Scan:
             self._hashes['targets'] = {k: {t: code_hash(rs) for t, rs in by_target.items()} for k, by_target in by_key.items()}
         return {k: dict(v) for k, v in self._hashes['targets'].items()}
 
+    def targets_with_code(self):
+        """key -> the set of targets that have code marked with it. Glue, test code and code in no target's path are left out, so a key
+        is here when some language really has code for the clause."""
+        out = {}
+        for r in self.regions:
+            target = self.project.target_of(r.file)
+            if target:
+                for k in r.keys:
+                    if not k.startswith('glue:') and r.kind != 'test':
+                        out.setdefault(k, set()).add(target)
+        return out
+
     def at(self, file, line):
         file = file.replace('\\', '/')
         return [r for r in self.regions if r.file == file and r.contains(line)]

@@ -189,6 +189,9 @@ def cmd_status(args):
             print(f'{len(not_passed)} test(s) had not passed at the last lock')
         if not findings and not found:
             print('clauses, code and lock agree' + (' (but not every test passed)' if not_passed else ''))
+        if len(project.target_names()) >= 2:
+            for note in lint.no_code_for_target(project, scan):
+                print(f'note: {note.text} (not a pending change; `sor check` lists them)')
     if found or any(f.status == 'drift' for f in findings):
         return 2
     return 1 if findings else 0

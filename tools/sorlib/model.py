@@ -924,6 +924,21 @@ class Project:
             pid = pid.rpartition('/')[0]
         return [n.strip() for n in self.root_part().header['Targets'].split(',') if n.strip()]   # targeted(): the root has them
 
+    def owner_part_id(self, key):
+        """The id of the part a lock key belongs to: the part itself, or the nearest part above an item, row or value (also one that left
+        the spec). '' for the root and for keys that belong to no part."""
+        pid = key if key in self.parts else key.rpartition('/')[0]
+        while pid and pid not in self.parts:
+            pid = pid.rpartition('/')[0]
+        return pid
+
+    def targets_applying_to(self, key):
+        """The targets the clause behind a lock key applies to (`Targets:` of its part, else of the parts around it, else of the root). All
+        the targets when the root file says nothing: then no clause is told apart from another."""
+        if not self.targeted():
+            return self.target_names()
+        return self.targets_of_part(self.parts.get(self.owner_part_id(key)))
+
     def target_of(self, rel):
         """The target a file belongs to: the one whose path is the longest prefix of this project-relative path. None for a file
         in no target's path, and for a path two targets both name (`sor check` reports that)."""

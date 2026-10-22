@@ -292,10 +292,7 @@ def child_parts(project, ids, pending):
 def owner_part(project, key):
     """The part a lock key belongs to: the part itself, or the nearest part above an item, row or value (also
     one that left the spec). '' for the root and for keys that belong to no part."""
-    pid = key if key in project.parts else key.rpartition('/')[0]
-    while pid and pid not in project.parts:
-        pid = pid.rpartition('/')[0]
-    return pid
+    return project.owner_part_id(key)
 
 
 def unheld(project, scan, universe, pids, agent, session=None):

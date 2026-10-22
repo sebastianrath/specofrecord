@@ -590,7 +590,8 @@ def accept(project, scan, results, allow_incomplete, findings=(), old=None, conf
                 owners[r.id] = p
     for key, late in behind_after(project, entries, entries if scope is None else scope, owners, set(allow_behind)):
         reasons.append(f'behind  {key}  its code in {", ".join(late)} was accepted for an older text of the clause: rebuild it '
-                       f'(change that code), or lock the clause with it as it is: --allow-behind {",".join(late)}')
+                       f'(change that code). Only when the user has said that {", ".join(late)} is rebuilt later, lock again with '
+                       '--allow-behind <language>; it then stays listed as behind')
     still = checked_manual(project, scan, old or {})
     for key in confirm:
         if scope is not None and key not in scope:

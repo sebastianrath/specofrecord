@@ -908,6 +908,24 @@ The proposal ends with a copy of the tool that an editor can run without Python.
   digits that Unicode added after the older of the two versions that Python and Node carry can be word characters in one and not the other. The
   JavaScript is not measured for coverage, since that needs a package from npm. Paths are read with `/` as the separator.
 
+## The note about missing code respects `Targets:` (2026-10-22)
+Found by trying the case "a clause that only concerns Python" on a throwaway project: a part with `Targets: py` locked and reported nothing behind for
+`ts`, but `sor check` still said `1 clause(s) have code in py but none in ts` for its clause.
+- **Why no test caught it.** The note was written in Phase 2, before a part could limit its targets. Phase 3 connected `Targets:` to the lock only
+  (`lagging_targets`), and no test put the note and an override in one project. Earlier the same day `Project.applicable_targets` was deleted as dead
+  code; it being unused was a sign that nothing but the lock asked which targets apply, and nobody asked who else should.
+- **The fix.** The note counts only the targets that apply to the clause. A project whose root says nothing keeps the old note for every target.
+  The pieces are shared so the next change does not write them a third time: `Project.owner_part_id` (the climb that `claims.owner_part` had),
+  `Project.targets_applying_to(key)` and `Scan.targets_with_code()`.
+- **`sor status` prints the note too,** as a `note:` line after the groups and the "agree" line. It is not a pending change, it changes no exit code and
+  adds nothing to `--json`, because the extension reads that JSON.
+- **The refusal for `behind` no longer prints a ready-to-copy flag.** It says to rebuild the code and names `--allow-behind <language>` only for the
+  case where the user has said the language is rebuilt later. The flag is the user's call, and a message that hands it over invites its use.
+- **Audit of the other readers.** `lagging_targets`, the `changed … code not updated yet` detail and `--allow-behind` follow `Targets:`. The lock still
+  writes a line for code in a target that does not apply to its clause, and nothing reports it. Left as it is.
+- **Next.** A lock of a clause that applies to a language but has no code there refuses unless `--allow-behind` allows it (decided by the owner), built
+  on `targets_applying_to` and `targets_with_code`.
+
 ## Still open
 - The tool is not under Spec of Record. Its hashing, marker and lock rules could be clauses with `Targets: py, js`, so that a change to a clause
   leaves the other language behind and a lock refuses until both follow (`proposals/multi-target.md`). Until then the vectors and the

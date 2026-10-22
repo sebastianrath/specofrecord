@@ -224,6 +224,24 @@ class TestTheNoteThatATargetLacksCode(TwoTargets):
         project = self.project_()
         self.assertEqual(lint.no_code_for_target(project, Scan(project)), [])   # not by the caller's guard alone
 
+    def test_status_says_it_too_as_a_note_that_is_neither_pending_nor_in_the_json(self):
+        write(self.dir, 'src_py/bye.py', '# @clause greet/bye\nBYE = "Bye"\n# @clause end\n')
+        self.assertEqual(self.sor('lock', '--all', '--allow-incomplete')[0], 0)
+        code, out, _ = self.sor('status')
+        self.assertEqual(code, 0, out)
+        self.assertIn('clauses, code and lock agree', out)
+        self.assertIn('note: 1 clause(s) have code in py but none in ts: greet/bye (not a pending change; `sor check` lists them)', out)
+        code, out, _ = self.sor('status', '--json')
+        self.assertEqual(sorted(json.loads(out)), ['claims', 'findings', 'locked', 'problems', 'tests_deferred', 'tests_not_passed', 'tests_pending'])
+        write(self.dir, 'src_ts/bye.ts', '// @clause greet/bye\nexport const BYE = "Bye";\n// @clause end\n')
+        self.assertNotIn('note:', self.sor('status')[1])
+
+    def test_status_says_nothing_of_it_for_a_project_with_one_target(self):
+        self.build(targets={'targets/py': target('py', 'src_py/')})
+        write(self.dir, 'src_py/bye.py', '# @clause greet/bye\nBYE = "Bye"\n# @clause end\n')
+        self.assertEqual(self.sor('lock', '--all', '--allow-incomplete')[0], 0)
+        self.assertNotIn('note:', self.sor('status')[1])
+
     def test_code_in_no_target_is_not_counted_for_any(self):
         self.build(extra={'tools': doc('Tools', 'Hand written.', header=['Source: code at tools/'])})
         write(self.dir, 'tools/bye.py', '# @clause greet/bye\nBYE = "Bye"\n# @clause end\n')   # code, but in neither target
