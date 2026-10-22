@@ -327,6 +327,24 @@ class TestTestsPerLanguage(Tested):
         self.assertEqual(code, 2, out)
         self.assertIn(f'{TEST} has test code in py, ts: give a result for each', out)
 
+    def test_a_plain_result_is_the_result_of_the_only_language_with_test_code(self):
+        self.clause_changed_and_both_languages_rebuilt()
+        os.remove(os.path.join(self.dir, 'src_ts', 'greet.test.ts'))
+        code, out, _ = self.sor('lock', 'greet/hello@py', '--results', self.results(**{TEST: 'pass'}))
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.line_of('py')['result'], 'pass')
+
+    def test_a_test_with_test_code_that_is_named_after_no_clause_is_locked_like_any_other(self):
+        self.build(tests=OWN + ['- **extra** - another check.', '  proves: {hello}', '  expect: ok'])
+        self.rebuild('py', word='Hello')
+        self.rebuild('ts', word='Hello')
+        write(self.dir, 'src_py/test_extra.py', '# @clause test greet/extra\ndef test_extra():\n    assert HELLO\n# @clause end\n')
+        write(self.dir, 'src_py/test_greet.py', test_code('py'))
+        write(self.dir, 'src_ts/greet.test.ts', test_code('ts'))
+        code, out, _ = self.sor('lock', '--all', '--allow-behind', 'ts', '--results',
+                                self.results(**{f'{TEST}@py': 'pass', f'{TEST}@ts': 'pass', 'greet/test:extra': 'pass'}))
+        self.assertEqual(code, 0, out)
+
     def test_the_result_of_the_other_language_is_not_asked_for(self):
         self.clause_changed_and_both_languages_rebuilt()
         ts_line = self.line_of('ts')

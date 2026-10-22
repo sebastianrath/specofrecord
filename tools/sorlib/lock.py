@@ -745,9 +745,7 @@ def accept(project, scan, results, allow_incomplete, findings=(), old=None, conf
         them. The code of that language is not rebuilt yet, so a result now would be for the old code; the lock of the language asks for it."""
         part, _, name = k.rpartition('/')
         clause = f'{part}/{name[5:]}' if part else name[5:]
-        late = set(lagging_targets(project, k, entries[k], owners, basis))
-        if name.startswith('test:') and clause in entries:
-            late |= set(lagging_targets(project, clause, entries[clause], owners, basis))
+        late = set(lagging_targets(project, k, entries[k], owners, basis)) | set(lagging_targets(project, clause, entries.get(clause) or {}, owners, basis))
         return late & set(allow_behind)
 
     def open_lines(k):
@@ -843,10 +841,10 @@ def accept_language(project, scan, results, allow_incomplete, findings, old, wan
         langs = sorted(x for x, l in entries[key]['targets'].items() if 'result' in l)
         got = results.get(f'{key}@{t}')
         if got is None and key in results:
-            language, why = result_language(key, langs)
+            language, why = result_language(key, langs)   # the line of t is among langs, so a plain result is t's when it is nobody else's
             if why:
                 reasons.append(why)
-            elif language == t:
+            else:
                 got = results[key]
         line['result'] = got if got in ('pass', 'fail') else 'none'
         lines[(key, t)] = line
