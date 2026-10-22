@@ -354,7 +354,7 @@ note as a line of text after its groups: it is not a pending change, changes no 
 `{results: out/results-py.json}` the file that command writes `{"part/test:name": "pass"}` to (the format `sor test --out` writes: the tool reads no pytest or jest
 output), and `{lcov: out/lcov-py.info}` the coverage it writes in the lcov format, which coverage.py, c8, nyc and istanbul all produce (§8). Each is the value of a
 Rules item of the part (or of a part inside it) and is named once. `sor test --targets py` runs the command from the project root, split into words, with no shell,
-and `sor lock --run-tests --targets py` locks with its results. **A command runs only when the call names its target**: it is text in a spec file, so what a
+and `sor lock --run-tests --targets py` locks with its results; the coverage it reports is in §8. **A command runs only when the call names its target**: it is text in a spec file, so what a
 call runs is written in the call, and a plain `sor test` says which targets could run (`sor test --targets ts`) and runs none. The run is stopped when it takes too
 long, and its results file counts only if the run wrote it: a file that is as it was before the run is never read. A plain id in the file stands for the language of
 that run (`part/test:name` is `part/test:name@py` for a test with test code in several languages), an id with another language is ignored and said, and a test with
@@ -569,6 +569,12 @@ others is proven when all of them are (§5). A test that measures clause coverag
 itself. *Line coverage* is Chrome's block coverage of the page's own script, merged over all test
 pages and mapped onto marked regions: `sor test --coverage` lists it per clause, with the clauses no
 passing test proves. Other `measure:` metrics (benchmarks) are not run yet.
+
+**Coverage of a target.** `sor test --targets py` (§9) also reports, for each target it ran, *clause coverage*: the share of the Rules and `gives` items that
+apply to the target (`Targets:`, and not what the part of another target says about itself) that a passing test of its run proves, refinements followed as
+above. When the rules of the target give an `lcov:` file that the run wrote, it reports *line coverage* too, counted as the web run counts it: the lines inside a
+marked region and the line of a line marker, those the lcov file has a `DA:` record for, in the files of that target. `--coverage` lists what is unproven and the
+lines per clause for each target. The built-in metrics `clause-coverage` and `line-coverage` keep their meaning: the web run's.
 
 **Test strength.** `sor test --strength` first runs the tests, then reruns every passing test
 once per change of each `{value}` its `do:` and `expect:` lines refer to, each on a fresh page.

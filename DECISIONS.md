@@ -1149,6 +1149,11 @@ frameworks and hand in a results file. The owner chose when a command written in
 - **A plain id stands for the language of the run** (`result_language(..., bare=)`, the one rule of the lock, the language lock and the evidence). Another language in
   the file is ignored and said, a test with test code in that language that the file leaves out is `skipped`, a test that says `runs on:` is `deferred` as for the web
   tests, and the result of a run replaces the EXTERNAL row of its test.
+- **Coverage per target (item 1)** comes with it. Clause coverage of a target is the share of the Rules and `gives` items that apply to it (`targets_applying_to`, and
+  not what the part of another target says about itself, or a Python-only part would drag TypeScript down) that a passing test of its own run proves, refinements
+  followed (`testrun.with_refinements`, now shared with the web run). Line coverage reads **lcov only**, which coverage.py, c8, nyc and istanbul all produce, from the
+  `{lcov: …}` file a run wrote (same freshness rule as the results), and counts like the web run: the lines inside a region and the line of a line marker, those with a
+  `DA:` record, in the files of that target. A `SF:` path is made relative to the project and one outside it is left out.
 - **Not changed.** `measure: clause-coverage` and `line-coverage` keep their meaning (the web run): the example's `quality` test sits at 90.5% against a bar of 90.
 - **Still not run by the tool.** The test strength (`--strength`) and the other `measure:` metrics: web only.
 

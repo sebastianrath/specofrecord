@@ -704,16 +704,10 @@ def strength(project, only=None, timeout=90, provides=None, everything=False):
     return results, dict(sorted(weak.items())), len(mutants), dict(sorted(idle.items()))
 
 
-def coverage(project, target, tests, results, lines, exclude):
-    """Clause coverage (SPEC §8: share of Rules and `gives` items proven by a passing test) and line
-    coverage (share of marked code lines that ran), overall and per clause."""
-    universe = sorted(i.id for i in project.all_items() if i.section == 'Rules' or i.kind == 'gives')
-    proven = set()
-    for tid, r in results.items():
-        passed = r['status'] == 'pass' or (r['status'] == 'manual' and r.get('checked'))
-        if passed and tid in tests and tid not in exclude:
-            proven |= tests[tid].proves()
-    # SPEC §5: following refinements down to tested rules is how a goal is proven
+def with_refinements(project, proven):
+    """`proven` and every item that is `Refined by` others that are all proven: SPEC §5, following refinements down to tested rules is how a
+    goal is proven."""
+    proven = set(proven)
     refined = {}
     for item in project.all_items():
         for n, t in item.lines:
@@ -728,6 +722,19 @@ def coverage(project, target, tests, results, lines, exclude):
             if iid not in proven and parts and all(p in proven for p in parts):
                 proven.add(iid)
                 grew = True
+    return proven
+
+
+def coverage(project, target, tests, results, lines, exclude):
+    """Clause coverage (SPEC §8: share of Rules and `gives` items proven by a passing test) and line
+    coverage (share of marked code lines that ran), overall and per clause."""
+    universe = sorted(i.id for i in project.all_items() if i.section == 'Rules' or i.kind == 'gives')
+    proven = set()
+    for tid, r in results.items():
+        passed = r['status'] == 'pass' or (r['status'] == 'manual' and r.get('checked'))
+        if passed and tid in tests and tid not in exclude:
+            proven |= tests[tid].proves()
+    proven = with_refinements(project, proven)
     by_clause, ran, total = {}, 0, 0
     rel = os.path.relpath(target.page, project.root).replace(os.sep, '/')
     for r in Scan(project).regions:

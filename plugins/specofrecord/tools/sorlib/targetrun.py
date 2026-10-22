@@ -9,6 +9,7 @@ text in a spec file, so what a call runs is written in the call. A results file 
 """
 import json
 import os
+import posixpath
 import shlex
 import subprocess
 
@@ -58,12 +59,14 @@ def tail(text, lines=12):
 
 
 def run_command(project, name, say=print, timeout=TIMEOUT):
-    """Runs the command of a target. Returns (the results file, what the command printed, its exit code); raises TargetError when it could not
-    start, ran out of time, or left the results file as it was."""
+    """Runs the command of a target. Returns (the results file, the coverage file or None, what the command printed, its exit code, a note or
+    None); raises TargetError when it could not start, ran out of time, or left the results file as it was. The coverage file is read only if the
+    run wrote it: when it is as it was, it is not used and the note says so."""
     kinds = project.target_commands()[name]
     argv = shlex.split(kinds['run'])
     results = os.path.join(project.root, kinds['results'])
-    before = stamp(results)
+    lcov = os.path.join(project.root, kinds['lcov']) if 'lcov' in kinds else None
+    before, before_lcov = stamp(results), lcov and stamp(lcov)
     say(f'running {name}: {kinds["run"]}')
     try:
         done = subprocess.run(argv, cwd=project.root, capture_output=True, text=True, errors='replace', timeout=timeout)   # no shell
@@ -78,7 +81,70 @@ def run_command(project, name, say=print, timeout=TIMEOUT):
         said = f'{kinds["results"]} is as it was before the run' if before else f'{kinds["results"]} was not written'
         raise TargetError(f'{name}: the command exited with {done.returncode}, and {said}; a results file the run did not write is never read'
                           + (f'. Its last lines:\n{tail(output)}' if output.strip() else ''))
-    return results, output, done.returncode
+    note = None
+    if lcov and stamp(lcov) in (None, before_lcov):
+        note = f'{name}: {kinds["lcov"]} {"is as it was before the run" if before_lcov else "was not written"}: no line coverage'
+        lcov = None
+    return results, lcov, output, done.returncode, note
+
+
+def read_lcov(path, root):
+    """{project-relative file: {line: hits}} from an lcov file: `SF:` names a file, `DA:line,hits` a line that can run. A file outside the project
+    is left out."""
+    out, current = {}, None
+    with open(path, encoding='utf8', errors='replace') as fh:
+        for raw in fh:
+            record = raw.strip()
+            if record.startswith('SF:'):
+                name = record[3:].strip().replace('\\', '/')
+                if os.path.isabs(name) or (len(name) > 1 and name[0].isalpha() and name[1] == ':'):
+                    name = os.path.relpath(name, root).replace(os.sep, '/')
+                name = posixpath.normpath(name)
+                current = out.setdefault(name, {}) if not name.startswith('..') else None
+            elif record.startswith('DA:') and current is not None:
+                fields = record[3:].split(',')
+                if len(fields) >= 2 and fields[0].isdigit() and fields[1].lstrip('-').isdigit():
+                    current[int(fields[0])] = max(current.get(int(fields[0]), 0), int(fields[1]))
+            elif record == 'end_of_record':
+                current = None
+    return out
+
+
+def line_coverage(project, scan, name, records):
+    """(ran, total, {key: [ran, total]}) for the marked code of one target: the lines of its files that the coverage file has a record for, counted
+    as the web run counts them (the lines inside a region, or the line of a line marker)."""
+    by_key, ran, total = {}, 0, 0
+    for r in scan.regions:
+        if project.target_of(r.file) != name or r.file not in records:
+            continue
+        for n in ([r.start] if r.kind == 'line' else range(r.start + 1, (r.end or r.start))):
+            if n not in records[r.file]:
+                continue
+            total += 1
+            ran += records[r.file][n] > 0
+            for k in r.keys:
+                c = by_key.setdefault(k, [0, 0])
+                c[0] += records[r.file][n] > 0
+                c[1] += 1
+    return ran, total, dict(sorted(by_key.items()))
+
+
+def clause_coverage(project, name, results):
+    """(percent or None, [the Rules and `gives` items that apply to the target and no passing test of its run proves]): SPEC §8 for one target. What
+    the part of another target says about itself does not apply to this one."""
+    def of_another(item):
+        pieces = item.part.id.split('/')
+        return pieces[0] == 'targets' and len(pieces) > 1 and pieces[1] != name
+    universe = sorted(i.id for i in project.all_items()
+                      if (i.section == 'Rules' or i.kind == 'gives') and name in project.targets_applying_to(i.id) and not of_another(i))
+    proven = set()
+    for key, row in results.items():
+        item = project.items.get(key.partition('@')[0])
+        if row.get('target') == name and row['status'] == 'pass' and isinstance(item, Item):
+            proven |= project.proves(item)
+    proven = testrun.with_refinements(project, proven)
+    unproven = [i for i in universe if i not in proven]
+    return (100 * (len(universe) - len(unproven)) / len(universe) if universe else None), unproven
 
 
 def read_results(path, name):
@@ -94,13 +160,17 @@ def read_results(path, name):
 
 
 def run(project, names, only=None, provides=None, everything=False, say=print, timeout=TIMEOUT):
-    """({key: {'status', 'message', 'target'}}, [notes]) for the tests of the named targets. A key is the test, or `test@language` for a test with
+    """({key: {'status', 'message', 'target'}}, [notes], {target: coverage}) for the tests of the named targets; the coverage of a target is its clause
+    coverage and, when its rules give an `lcov:` file that the run wrote, its line coverage per clause. A key is the test, or `test@language` for a test with
     test code in some languages (a plain id in the file of a run stands for the language of that run). A test with test code in the language that the
     run did not report is `skipped`, and one that says `runs on:` is `deferred` as for the web tests."""
-    snap = lockfile.snapshot(project, Scan(project))
-    results, notes = {}, []
+    scan = Scan(project)
+    snap = lockfile.snapshot(project, scan)
+    results, notes, covered = {}, [], {}
     for name in names:
-        path, output, code = run_command(project, name, say, timeout)
+        path, lcov, output, code, note = run_command(project, name, say, timeout)
+        if note:
+            notes.append(note)
         given = read_results(path, name)
         reported = set()
         for key, status in sorted(given.items()):
@@ -134,4 +204,8 @@ def run(project, names, only=None, provides=None, everything=False, say=print, t
                 results[row] = {'status': 'skipped', 'message': f'the run of {name} did not report it', 'target': name}
         if code:
             notes.append(f'{name}: the command exited with {code}' + (f'. Its last lines:\n{tail(output)}' if output.strip() else ''))
-    return dict(sorted(results.items())), notes
+        fc, unproven = clause_coverage(project, name, results)
+        ran, total, by_clause = line_coverage(project, scan, name, read_lcov(lcov, project.root)) if lcov else (0, 0, {})
+        covered[name] = {'clause_coverage': fc, 'unproven': unproven, 'line_coverage': 100 * ran / total if total else None,
+                         'lines': (ran, total), 'by_clause': by_clause}
+    return dict(sorted(results.items())), notes, covered

@@ -56,13 +56,13 @@ class Runs(targeted.Targeted):
     """greet/hello has code and test code in Python and TypeScript; both targets say how their tests run."""
     RUN = '"%s" run.py %s' % (sys.executable.replace('\\', '/'), '%s')
 
-    def build(self, py_extra=None, ts_extra=None, **more):
+    def build(self, py_extra=None, ts_extra=None, parts=None, **more):
         shutil.rmtree(os.path.join(self.dir, 'sor'), ignore_errors=True)
         py_extra = py_extra if py_extra is not None else 'Run with {run: %s}, results in {results: out/results-py.json}, coverage in {lcov: out/lcov-py.info}.' % (self.RUN % 'py')
         ts_extra = ts_extra if ts_extra is not None else 'Run with {run: %s}, results in {results: out/results-ts.json}.' % (self.RUN % 'ts')
         self.project({'targets/py': target_part('py', 'src_py/', py_extra), 'targets/ts': target_part('ts', 'src_ts/', ts_extra),
                       'greet': doc('Greet', 'Says hello.', rules=['- **hello** - The greeting is "Hello".', '- **bye** - The farewell is "Bye".'],
-                                   tests=more.get('tests') or TESTS)})
+                                   tests=more.get('tests') or TESTS), **(parts or {})})
         root = os.path.join(self.spec, 'SPECOFRECORD.md')
         write(self.dir, 'sor/SPECOFRECORD.md', read(root).replace('Why: A project the tests use.', 'Why: A project the tests use.\nTargets: py, ts', 1))
 
@@ -153,7 +153,7 @@ class TestTheRowsOfTheWebRunAndOfATarget(Runs):
         external = ({TEST: {'status': 'external', 'message': 'your own run'}, 'greet/test:bye': {'status': 'manual', 'message': ''}}, None)
         with mock.patch.object(testrun, 'web_targets', return_value=[object()]), mock.patch.object(testrun, 'run', return_value=external), \
                 contextlib.redirect_stdout(io.StringIO()):
-            results, summary, notes = cli.run_tests(Project(self.dir), ['py'])
+            results, summary, notes, covered = cli.run_tests(Project(self.dir), ['py'])
         self.assertEqual(sorted(results), ['greet/test:bye', f'{TEST}@py'])
         self.assertEqual(results[f'{TEST}@py']['status'], 'pass')
 
@@ -292,6 +292,133 @@ class TestAResultsFileThatWasNotWritten(Runs):
         with self.assertRaises(targetrun.TargetError) as caught:
             targetrun.run_command(project, 'py', say=lambda *_: None, timeout=1)
         self.assertIn('the run took more than 1 s and was stopped', str(caught.exception))
+
+
+class TestCoverageOfATarget(Runs):
+    PY_LCOV = 'SF:src_py/greet.py\nDA:2,3\nend_of_record\n'
+
+    def covered(self, *args):
+        code, out = self.out('test', '--targets', 'py', '--coverage', *args)
+        return code, out
+
+    def test_the_lines_of_the_marked_code_that_ran_are_counted_for_the_target(self):
+        self.plan('py', {TEST: 'pass'})
+        write(self.dir, 'lcov-py.info', self.PY_LCOV)
+        code, out = self.covered()
+        self.assertEqual(code, 0, out)
+        self.assertIn('line coverage py 100.0% (1 of 1 marked code lines ran)', out)
+        self.assertIn('line coverage per clause in py (lowest first):', out)
+        self.assertRegex(out, r'100%\s+1/1\s+greet/hello')
+
+    def test_a_line_that_did_not_run_and_a_line_with_no_record_are_told_apart(self):
+        self.plan('py', {TEST: 'pass'})
+        write(self.dir, 'src_py/greet.py', '# @clause greet/hello\nHELLO = "Hello"\nOTHER = 1\nANOTHER = 2\n# @clause end\n')
+        write(self.dir, 'lcov-py.info', 'SF:src_py/greet.py\nDA:2,1\nDA:3,0\nend_of_record\n')      # line 4 has no record: it cannot run
+        code, out = self.covered()
+        self.assertIn('line coverage py 50.0% (1 of 2 marked code lines ran)', out)
+
+    def test_a_line_marker_counts_as_the_one_line_it_is(self):
+        self.plan('py', {TEST: 'pass'})
+        write(self.dir, 'src_py/greet.py', self.PY + 'X = 1  # @clause greet/hello\n')
+        write(self.dir, 'lcov-py.info', 'SF:src_py/greet.py\nDA:2,1\nDA:4,0\nend_of_record\n')
+        code, out = self.covered()
+        self.assertIn('line coverage py 50.0% (1 of 2 marked code lines ran)', out)
+
+    def test_a_file_of_another_target_is_not_counted_for_this_one(self):
+        self.plan('py', {TEST: 'pass'})
+        write(self.dir, 'lcov-py.info', self.PY_LCOV + 'SF:src_ts/greet.ts\nDA:2,0\nend_of_record\n')
+        code, out = self.covered()
+        self.assertIn('line coverage py 100.0% (1 of 1 marked code lines ran)', out)
+
+    def test_a_coverage_file_the_run_did_not_write_is_not_read(self):
+        self.plan('py', {TEST: 'pass'})
+        write(self.dir, 'out/lcov-py.info', self.PY_LCOV)                          # from an earlier run
+        code, out = self.covered()
+        self.assertEqual(code, 0, out)
+        self.assertIn('py: out/lcov-py.info is as it was before the run: no line coverage', out)
+        self.assertNotIn('line coverage py', out)
+        self.assertIn('clause coverage py', out)                                     # what the results give does not need it
+
+    def test_a_target_that_says_no_lcov_has_clause_coverage_only(self):
+        self.plan('ts', {TEST: 'pass'})
+        code, out = self.out('test', '--targets', 'ts')
+        self.assertIn('clause coverage ts 20.0% (4 rules and gives that apply to ts without a passing test of its run)', out)
+        self.assertNotIn('line coverage ts', out)
+
+    def test_the_clause_coverage_of_a_target_is_the_share_of_what_applies_to_it_that_its_run_proved(self):
+        self.plan('py', {TEST: 'pass'})
+        code, out = self.covered()
+        self.assertIn('clause coverage py 20.0% (4 rules and gives that apply to py without a passing test of its run)', out)
+        self.assertRegex(out, r'not proven in py by a passing test of its run:\n  greet/bye\n  out-of-scope\n  targets/py/code\n  targets/py/tests\n')
+        self.assertNotIn('targets/ts', out)                                          # what the part of ts says about itself does not apply to py
+        self.assertNotIn('clause coverage ts', out)                                  # ts was not run
+
+    def test_the_rules_of_a_part_that_is_not_for_the_target_do_not_count_against_it(self):
+        self.build(parts={'pyonly': doc('Py only', 'Only for Python.', rules=['- **pkg** - It packages.'], header=['Targets: py'])})
+        write(self.dir, 'run.py', RUNNER)
+        self.plan('ts', {TEST: 'pass'})
+        code, out = self.out('test', '--targets', 'ts')
+        self.assertIn('clause coverage ts 20.0% (4 rules and gives that apply to ts without', out)       # pkg is for Python only: it is not among the five
+        self.plan('py', {TEST: 'pass'})
+        code, out = self.out('test', '--targets', 'py')
+        self.assertIn('clause coverage py 16.7% (5 rules and gives that apply to py without', out)
+
+    def test_the_run_of_another_target_proves_nothing_for_this_one(self):
+        self.plan('py', {TEST: 'pass'})
+        self.plan('ts', {TEST: 'fail'})
+        code, out = self.out('test', '--targets', 'py,ts')
+        self.assertIn('clause coverage py 20.0% (4 rules', out)
+        self.assertIn('clause coverage ts 0.0% (5 rules', out)                       # the pass of py is not a pass of ts
+
+    def test_a_goal_refined_by_a_proven_rule_is_proven_too(self):
+        self.build(tests=TESTS)
+        flows.replace_in(self.spec_file, '- **bye** - The farewell is "Bye".', '- **bye** - The farewell is "Bye".\n- **goal** - It greets. Refined by {hello}.')
+        self.plan('py', {TEST: 'pass'})
+        code, out = self.covered()
+        self.assertIn('clause coverage py 33.3% (4 rules', out)                      # hello, and the goal that is refined by it
+
+    def test_a_failed_test_proves_nothing(self):
+        self.plan('py', {TEST: 'fail'})
+        code, out = self.covered()
+        self.assertIn('clause coverage py 0.0% (5 rules', out)
+
+    def test_the_lock_prints_it_too(self):
+        self.plan('py', {TEST: 'pass'})
+        write(self.dir, 'lcov-py.info', self.PY_LCOV)
+        self.assertEqual(self.sor('lock', '--all', '--allow-incomplete', '--allow-behind', 'py,ts')[0], 0)
+        code, out = self.out('lock', 'greet/hello@py', '--run-tests', '--targets', 'py')
+        self.assertIn('line coverage py 100.0%', out)
+
+
+class TestReadingAnLcovFile(unittest.TestCase):
+    def read(self, text):
+        folder = self.tmp()
+        path = write(folder, 'lcov.info', text)
+        return targetrun.read_lcov(path, folder)
+
+    def tmp(self):
+        import tempfile
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, True)
+        return d
+
+    def test_files_and_lines_with_their_hits_and_the_other_records_ignored(self):
+        got = self.read('TN:\nSF:a/b.py\nFN:1,f\nDA:1,2\nDA:2,0,abc123\nBRDA:1,0,0,1\nLF:2\nLH:1\nend_of_record\nSF:c.py\nDA:5,1\nend_of_record\n')
+        self.assertEqual(got, {'a/b.py': {1: 2, 2: 0}, 'c.py': {5: 1}})
+
+    def test_a_path_is_made_relative_to_the_project_and_one_outside_it_is_left_out(self):
+        folder = self.tmp()
+        path = write(folder, 'lcov.info', f'SF:{folder}/x/y.py\nDA:1,1\nend_of_record\nSF:./z.py\nDA:1,1\nend_of_record\nSF:/elsewhere/q.py\nDA:1,1\nend_of_record\n'
+                                           'SF:..\\up.py\nDA:1,1\nend_of_record\nSF:w\\v.py\nDA:1,1\nend_of_record\n')
+        got = targetrun.read_lcov(path, folder)
+        self.assertEqual(sorted(got), ['w/v.py', 'x/y.py', 'z.py'])
+
+    def test_a_line_seen_twice_keeps_the_larger_count_and_a_record_that_is_not_numbers_is_ignored(self):
+        got = self.read('SF:a.py\nDA:1,4\nDA:1,0\nDA:x,1\nDA:2,-\nDA:3\nend_of_record\n')
+        self.assertEqual(got, {'a.py': {1: 4}})
+
+    def test_lines_outside_a_file_record_are_ignored(self):
+        self.assertEqual(self.read('DA:1,1\nSF:a.py\nend_of_record\nDA:2,2\n'), {'a.py': {}})
 
 
 class TestLockingWithTheResultsOfARun(Runs):

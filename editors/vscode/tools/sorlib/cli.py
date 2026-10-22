@@ -470,7 +470,7 @@ def cmd_lock(args):
         return 2
     if args.run_tests:
         try:
-            ran, summary, notes = run_tests(project, targets, confirmed=confirm)
+            ran, summary, notes, by_target = run_tests(project, targets, confirmed=confirm)
         except targetrun.TargetError as e:
             print(f'lock refused:\n  {e}')
             return 2
@@ -478,6 +478,7 @@ def cmd_lock(args):
         for note in notes:
             print('note: ' + note)
         print_coverage(summary, False)
+        print_target_coverage(by_target, False)
         results = {k: r['status'] for k, r in ran.items() if r['status'] in ('pass', 'fail')}
         external = {k for k, r in ran.items() if r['status'] == 'external'}
         if args.results:   # the project's own results, for the tests `sor test` shows as EXTERNAL and for those only
@@ -710,18 +711,38 @@ def print_results(results):
 
 
 def run_tests(project, targets, only=None, confirmed=(), provides=None, everything=False):
-    """(results, summary, notes) of the tests a call runs: the web tests when the project has a web target (or when no target is named, which
+    """(results, summary, notes, covered) of the tests a call runs: the web tests when the project has a web target (or when no target is named, which
     says why nothing can run), and the tests of the targets it names. A result of a target's own run replaces the EXTERNAL row of its test."""
-    results, summary, notes = {}, None, []
+    results, summary, notes, covered = {}, None, [], {}
     if testrun.web_targets(project) or not targets:
         results, summary = testrun.run(project, only, confirmed=confirmed, provides=provides, everything=everything)
     if targets:
-        rows, notes = targetrun.run(project, targets, only, provides, everything)
+        rows, notes, covered = targetrun.run(project, targets, only, provides, everything)
         for key in rows:
             if results.get(key.partition('@')[0], {}).get('status') == 'external':
                 del results[key.partition('@')[0]]
         results.update(rows)
-    return dict(sorted(results.items())), summary, notes
+    return dict(sorted(results.items())), summary, notes, covered
+
+
+def print_target_coverage(covered, detail):
+    """The clause coverage and the line coverage of each target whose tests ran, and with `detail` what it leaves unproven and the lines per clause."""
+    for name, c in covered.items():
+        if c['clause_coverage'] is not None:
+            print(f'clause coverage {name} {c["clause_coverage"]:.1f}% ({len(c["unproven"])} rules and gives that apply to {name} without a passing test of its run)')
+        if c['line_coverage'] is not None:
+            print(f'line coverage {name} {c["line_coverage"]:.1f}% ({c["lines"][0]} of {c["lines"][1]} marked code lines ran)')
+    if detail:
+        for name, c in covered.items():
+            print()
+            print(f'not proven in {name} by a passing test of its run:')
+            for i in c['unproven']:
+                print('  ' + i)
+            if c['by_clause']:
+                print()
+                print(f'line coverage per clause in {name} (lowest first):')
+                for key, (ran, total) in sorted(c['by_clause'].items(), key=lambda kv: kv[1][0] / kv[1][1]):
+                    print(f'  {100 * ran / total:5.0f}%  {ran:>3}/{total:<3}  {key}')
 
 
 def print_coverage(summary, detail):
@@ -795,7 +816,7 @@ def cmd_test(args):
         print(f'sor test: {err}', file=sys.stderr)
         return 2
     try:
-        results, summary, notes = run_tests(project, targets, args.ids or None, provides=prov, everything=args.all)
+        results, summary, notes, by_target = run_tests(project, targets, args.ids or None, provides=prov, everything=args.all)
     except targetrun.TargetError as e:
         print(f'sor test: {e}', file=sys.stderr)
         return 2
@@ -805,6 +826,7 @@ def cmd_test(args):
     for hint in targetrun.hints(project, targets):
         print('note: ' + hint)
     print_coverage(summary, args.coverage)
+    print_target_coverage(by_target, args.coverage)
     if args.out:
         with open(args.out, 'w', encoding='utf8') as fh:
             json.dump({k: r['status'] for k, r in results.items() if r['status'] in ('pass', 'fail')},
@@ -1123,7 +1145,7 @@ def build_parser():
     s = sub.add_parser('test')
     s.add_argument('ids', nargs='*', help='tests, items or parts to run (default: all)')
     s.add_argument('--out', help='write {test id: pass|fail} for `sor lock --results`')
-    s.add_argument('--coverage', action='store_true', help='list unproven clauses and line coverage per clause')
+    s.add_argument('--coverage', action='store_true', help='list unproven clauses and line coverage per clause (of each target named with --targets too)')
     s.add_argument('--targets', metavar='TARGETS',
                    help='also run the tests of these targets (comma-separated) with the command their rules give, `{run: …}`; a command runs only when named')
     s.add_argument('--strength', action='store_true',
