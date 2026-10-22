@@ -9,7 +9,9 @@ write the same file:
 
 A result counts only for the fingerprint it was made for: a hash of the test, of what it refers to and of the text and code
 of every clause it proves. Change any of them and the result no longer matches, so there is no timestamp and nothing to
-expire. The file is as trustworthy as the job that wrote it: `sor verify` checks that a result is current and which
+expire. In a project that says its targets, a test with test code in a language takes one result for each of those languages
+(`greet/test:hello@py`), and the fingerprint of a language covers the code in that language only, so an edit in another language
+leaves it current. A test with no test code per language keeps one result, for the code of every language. The file is as trustworthy as the job that wrote it: `sor verify` checks that a result is current and which
 environments the job said it provides, not that the job really ran the test.
 
 The file has a format number, as the lock has. Format 1 is the three keys above and has no marker. Format 2 adds `"format": 2` and
@@ -40,17 +42,34 @@ def owner_of(key, ids):
     return key
 
 
+def code_in(entry, target):
+    """The hash of an entry's code in one language, '' when it has none there. An entry that keeps its code in one hash (no `targets`) has that."""
+    if 'targets' in entry:
+        return entry['targets'].get(target, {}).get('code', '')
+    return entry.get('code', '')
+
+
+def result_names(project, now, key):
+    """The keys a result for the test `key` may have: `key`, or `key@language` for each language it has test code in (a test that needs a
+    result from the project's own framework or from CI, per language, like the lock's lines of a test)."""
+    languages = sorted((now.get(key) or {}).get('targets') or {})
+    return [f'{key}@{t}' for t in languages] or [key]
+
+
 def fingerprints(project, scan, keys=None):
-    """{test key: fingerprint} for the tests asked for (all of them by default). The hash covers the test's own text, what
-    it refers to, its own rows and values, the code marked with it (a test in your own framework), and for every clause it
-    proves the clause's text, its code, and the text and code of its rows and values, so a result is stale as soon as any of
-    them changes."""
+    """{key: fingerprint} for the tests asked for (all of them by default), and for a test with test code in some languages also for each
+    of them (`test@py`). The hash covers the test's own text, what it refers to, its own rows and values, the code marked with it (a test in
+    your own framework), and for every clause it proves the clause's text, its code, and the text and code of its rows and values, so a
+    result is stale as soon as any of them changes. The one of a language covers the code in that language only."""
     now = lockfile.snapshot(project, scan)
     ids = {i.id for i in project.all_items()}
     parts = {}   # item id -> [(key, text hash, code hash)] of its rows and values
+    entries = {}   # item id -> [(key, text hash, entry)] of the same
     for k, e in now.items():
         if e.get('kind') in ('row', 'value'):
-            parts.setdefault(owner_of(k, ids), []).append((k, e.get('text', ''), e.get('code', '')))
+            owner = owner_of(k, ids)
+            parts.setdefault(owner, []).append((k, e.get('text', ''), e.get('code', '')))
+            entries.setdefault(owner, []).append((k, e.get('text', ''), e))
     out = {}
     for item in project.all_items():
         if not item.is_test or (keys is not None and item.id not in keys):
@@ -63,6 +82,12 @@ def fingerprints(project, scan, keys=None):
         payload = [own.get('text', ''), sorted(own.get('refs', {}).items()), own.get('code', ''), sorted(parts.get(item.id, [])),
                    proved]
         out[item.id] = lockfile.h(json.dumps(payload, sort_keys=True, ensure_ascii=False))
+        for t in sorted(own.get('targets') or {}):
+            proved_in = [[pid, now.get(pid, {}).get('text', ''), code_in(now.get(pid, {}), t),
+                          sorted((k, text, code_in(e, t)) for k, text, e in entries.get(pid, []))] for pid in sorted(project.proves(item))]
+            payload = [own.get('text', ''), sorted(own.get('refs', {}).items()), code_in(own, t),
+                       sorted((k, text, code_in(e, t)) for k, text, e in entries.get(item.id, [])), proved_in]
+            out[f'{item.id}@{t}'] = lockfile.h(json.dumps(payload, sort_keys=True, ensure_ascii=False))
     return out
 
 
@@ -175,24 +200,32 @@ def write(path, data):
 def build(project, scan, job, provides, results, src=None):
     """(data, notes, errors): the evidence a job writes from the results it has ({test key: 'pass' | 'fail'}, the format of
     `sor test --out` and `sor lock --results`). Only a test that says `runs on:` and names an environment the job provides is
-    evidence; every other result is left out and said, never refused, because a job's own results hold all its tests."""
+    evidence; every other result is left out and said, never refused, because a job's own results hold all its tests. A test with test
+    code in some languages takes a result for each (`greet/test:hello@py`), by the lock's rule for the results of such a test."""
     notes, errors = [], []
     deferred = {k: project.items[k] for k in lockfile.deferred_tests(project)}
     prov = frozenset(provides)
-    fps = fingerprints(project, scan, set(results) & set(deferred))
+    fps = fingerprints(project, scan, {k.partition('@')[0] for k in results} & set(deferred))
+    now = lockfile.snapshot(project, scan)
     out, quiet, nowhere = {}, [], []
     for key, status in sorted(results.items()):
-        item = project.items.get(key)
+        base = key.partition('@')[0]
+        item = project.items.get(base)
         if not (item is not None and getattr(item, 'is_test', False)):
             errors.append(f'{key} is not a test')
-        elif key not in deferred:
+        elif base not in deferred:
             quiet.append(key)
-        elif not any(set(env) <= prov for env in deferred[key].runs_on()):
-            nowhere.append(key)
-        elif status not in STATUSES:   # only a result that is kept has to be pass or fail: a job's file holds skipped tests too
-            errors.append(f'{key}: "{status}" is not a result (pass or fail)')
         else:
-            out[key] = {'fingerprint': fps[key], 'status': status}
+            language, why = lockfile.result_language(key, sorted((now.get(base) or {}).get('targets') or {}))
+            name = f'{base}@{language}' if language else base
+            if why:
+                errors.append(why.replace('results: ', '', 1))
+            elif not any(set(env) <= prov for env in deferred[base].runs_on()):
+                nowhere.append(key)
+            elif status not in STATUSES:   # only a result that is kept has to be pass or fail: a job's file holds skipped tests too
+                errors.append(f'{key}: "{status}" is not a result (pass or fail)')
+            else:
+                out[name] = {'fingerprint': fps[name], 'status': status}
     if quiet:
         notes.append(f'left out, they do not say `runs on:` (the lock proves them): {listed(quiet)}')
     if nowhere:
@@ -233,22 +266,41 @@ def verify(project, scan, evidence):
     results for an older fingerprint) or missing. A current failure beats a current pass: it is not averaged away."""
     deferred = {k: project.items[k] for k in lockfile.deferred_tests(project)}
     fps = fingerprints(project, scan, set(deferred))
+    snap = lockfile.snapshot(project, scan)
     rows = []
-    for key in sorted(deferred):
-        envs = []
-        for env in deferred[key].runs_on():
-            seen = [(d['job'], d['results'][key]) for _, d in evidence
-                    if key in d['results'] and set(env) <= set(d['provides'])]
-            now = [(j, r) for j, r in seen if r['fingerprint'] == fps[key]]
-            failed = sorted({j for j, r in now if r['status'] == 'fail'})
-            passed = sorted({j for j, r in now if r['status'] == 'pass'})
-            status = 'fail' if failed else 'pass' if passed else 'stale' if seen else 'missing'
-            envs.append({'needs': list(env), 'status': status, 'jobs': failed or passed or sorted({j for j, _ in seen})})
-        rows.append({'id': key, 'environments': envs})
+    for test in sorted(deferred):
+        for key in result_names(project, snap, test):   # the test, or each language it has test code in
+            envs = []
+            for env in deferred[test].runs_on():
+                seen = [(d['job'], d['results'][key]) for _, d in evidence
+                        if key in d['results'] and set(env) <= set(d['provides'])]
+                now = [(j, r) for j, r in seen if r['fingerprint'] == fps[key]]
+                failed = sorted({j for j, r in now if r['status'] == 'fail'})
+                passed = sorted({j for j, r in now if r['status'] == 'pass'})
+                status = 'fail' if failed else 'pass' if passed else 'stale' if seen else 'missing'
+                envs.append({'needs': list(env), 'status': status, 'jobs': failed or passed or sorted({j for j, _ in seen})})
+            rows.append({'id': key, 'environments': envs})
     return rows
 
 
-def unknown(project, evidence):
+def expected(project, scan):
+    """{key: test} of every result a job may write: for a test that says `runs on:` its own key, or one for each language it has test code in."""
+    snap = lockfile.snapshot(project, scan)
+    return {key: test for test in lockfile.deferred_tests(project) for key in result_names(project, snap, test)}
+
+
+def unknown(project, scan, evidence):
     """[(job, key)]: results for tests that no longer exist or no longer say `runs on:`. Information, never a failure."""
-    deferred = set(lockfile.deferred_tests(project))
-    return sorted((d['job'], k) for _, d in evidence for k in d['results'] if k not in deferred)
+    keys = expected(project, scan)
+    deferred = set(keys.values())
+    return sorted((d['job'], k) for _, d in evidence for k in d['results'] if k not in keys and k not in deferred)
+
+
+def renamed(project, scan, evidence):
+    """[(job, test, [keys])]: results a job wrote for a test as one, when the test now takes a result for each language (it has test code in
+    them). They are not taken for the test, and `sor verify` says so: the job has to write the keys it names."""
+    keys = expected(project, scan)
+    by_test = {}
+    for key, test in keys.items():
+        by_test.setdefault(test, []).append(key)
+    return sorted((d['job'], k, by_test[k]) for _, d in evidence for k in d['results'] if k in by_test and k not in keys)

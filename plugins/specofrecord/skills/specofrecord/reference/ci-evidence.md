@@ -46,6 +46,11 @@ branch would fail all the time. A clause that has no code in a language that app
   values and code of every clause it proves, the code marked with a row included. Change any of them and the result is stale. There
   are no timestamps. It does not cover code a test only uses as input, or code outside the marked regions. After a tool upgrade that
   changes how code is hashed, the old evidence reads as stale until the jobs run again.
+- In a project with `Targets:` a test with test code in some languages takes one result for each: the job writes `greet/test:hello@py` and
+  `greet/test:hello@ts` (`sor evidence` refuses the plain id when two languages have test code, and names the keys). The fingerprint of a
+  language covers the code in that language only, so a TypeScript edit does not make the Python evidence stale, and `sor verify` has a row for
+  each language. After an upgrade, evidence written for the plain id of such a test proves nothing and `sor verify` says which keys the job has
+  to write instead. A test with no test code per language keeps its one result.
 - The lock never holds a result of a job, so it has the same bytes whatever ran where. Committing the evidence or keeping it as CI
   artifacts is the team's choice.
 - A deferred test does not count for clause coverage until a run includes it. A project with a coverage budget gives that

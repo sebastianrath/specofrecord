@@ -644,6 +644,22 @@ def owner_parts(project):
     return owners
 
 
+def result_language(key, languages):
+    """(language, reason) for a result given as `test` or `test@language` when the test has test code in `languages` (sorted names; none when it has
+    no test code per language). The language is '' for a test with none, whose one result is the test's. The reason is None, or why the key names no
+    result: the lock and the evidence a CI job writes read their results by this rule."""
+    base, _, target = key.partition('@')
+    if not languages:
+        return '', (f'results: {key}: {base} has no test code per language, so it has one result: {base}' if target else None)
+    if target:
+        return (target, None) if target in languages else \
+            ('', f'results: {key}: the test code of {base} is in {", ".join(languages)}, not in {target}')
+    if len(languages) > 1:
+        return '', (f'results: {base} has test code in {", ".join(languages)}: give a result for each, '
+                    + ', '.join(f'{base}@{t}' for t in languages))
+    return languages[0], None
+
+
 def accept(project, scan, results, allow_incomplete, findings=(), old=None, confirm=(), scope=None, allow_behind=(), already_fits=()):
     """The entries `sor lock` would write, or the reasons it refuses. `confirm` names manual
     tests a person has just checked; earlier confirmations carry over while they still stand.
@@ -707,16 +723,11 @@ def accept(project, scan, results, allow_incomplete, findings=(), old=None, conf
             reasons.append(f'results: {key} is not a test')
             continue
         lines = {t: line for t, line in (entry.get('targets') or {}).items() if 'result' in line}
-        if lines:
-            if target and target not in lines:
-                reasons.append(f'results: {key}: the test code of {base} is in {", ".join(sorted(lines))}, not in {target}')
-            elif not target and len(lines) > 1:
-                reasons.append(f'results: {base} has test code in {", ".join(sorted(lines))}: give a result for each, '
-                               + ', '.join(f'{base}@{t}' for t in sorted(lines)))
-            else:
-                lines[target or next(iter(lines))]['result'] = res if res in ('pass', 'fail') else 'none'
-        elif target:
-            reasons.append(f'results: {key}: {base} has no test code per language, so it has one result: {base}')
+        language, why = result_language(key, sorted(lines))
+        if why:
+            reasons.append(why)
+        elif lines:
+            lines[language]['result'] = res if res in ('pass', 'fail') else 'none'
         elif entry['result'] not in ('manual', 'checked', 'deferred'):   # a result never settles what CI proves
             entry['result'] = res if res in ('pass', 'fail') else 'none'
     for entry in entries.values():
@@ -830,15 +841,13 @@ def accept_language(project, scan, results, allow_incomplete, findings, old, wan
         lines[(key, t)] = line
     for key, t, line in needing:
         langs = sorted(x for x, l in entries[key]['targets'].items() if 'result' in l)
-        name = f'{key}@{t}'
-        if name in results:
-            got = results[name]
-        elif key in results and len(langs) > 1:
-            got = None
-            reasons.append(f'results: {key} has test code in {", ".join(langs)}: give a result for each, '
-                           + ', '.join(f'{key}@{x}' for x in langs))
-        else:
-            got = results.get(key)
+        got = results.get(f'{key}@{t}')
+        if got is None and key in results:
+            language, why = result_language(key, langs)
+            if why:
+                reasons.append(why)
+            elif language == t:
+                got = results[key]
         line['result'] = got if got in ('pass', 'fail') else 'none'
         lines[(key, t)] = line
     bad = sorted((f'{k}@{t}', line['result']) for (k, t), line in lines.items() if 'result' in line and line['result'] != 'pass')

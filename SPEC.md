@@ -294,7 +294,15 @@ for that item) or `bug:` (a regression test).
   with a fingerprint and `pass` or `fail` for each test, so two jobs never write the same file and a team decides whether to commit
   them. The fingerprint hashes the test (its rows and values too), what it refers to, and the text, rows, values and code of every clause it
   proves, the code marked with a row included: a result goes stale when any of them changes, and there is no timestamp. A tool that hashes
-  code differently (§11) gives other fingerprints, so the next run of the jobs writes the evidence again. The file has a format number, as
+  code differently (§11) gives other fingerprints, so the next run of the jobs writes the evidence again. **In a project that says its targets (§9)**
+  a test with test code in some languages takes a result for each of them, by the rule of §8 for the lock: the key is `part/test:name@py`, a plain id
+  is the result of the only language with test code and is refused, naming the keys, when two have, and a language with no test code is refused. The
+  fingerprint of a language hashes the test, what it refers to, and the text of the clauses it proves, with the code in that language only, so an edit in
+  another language leaves its evidence current; `sor verify` has a row for each language (`part/test:name@py`) and each environment, and a test with no
+  test code per language keeps one result and a fingerprint of the code of every language. The evidence file has the same format, because only the keys
+  and the meaning of the fingerprint change: a tool from before reads a result under a new key as missing for the test, and a new tool reads an old
+  fingerprint as stale, so neither takes a result for what it was not made for. A job that still writes the plain id for a test that now takes one
+  result for each language is named by `sor verify` (`renamed` in `--json`), apart from the results of tests that no longer exist. The file has a format number, as
   the lock has: format 1 is the keys above and has no marker; format 2 adds `"format": 2` and `"from": {commit, run}`, and a job writes it only
   when it is given `--commit` or `--run`. `sor verify` names the commit and run of a job next to it. A number a tool does not know is refused
   with exit 2 and a message to update, and so is a key it does not know, which is how a tool from before the number refuses a format 2 file.

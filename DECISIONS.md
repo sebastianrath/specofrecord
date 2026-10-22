@@ -1086,6 +1086,22 @@ one clause. The answer is that each language is its own claim and its own lock l
   says when it has code that is not locked. Nothing is enforced: claims stay advice, and `sor status` and the session-start note go on listing what is pending.
 - **Not done.** `Targets:` per single clause; evidence per target (stage 7); the editor extension (stage 8).
 
+## Evidence is per language for a test that has test code in a language (2026-10-22)
+Stage 7 of `proposals/multi-target.md`, decided by the owner earlier as "results per target where test code exists".
+- **Keys.** A deferred test (`runs on:`) whose entry has lines (test code in a language) takes a result `test@py` for each of them. The rule for which language a
+  result belongs to is one function of the lock (`result_language`), now used by `sor lock`, `sor lock greet/hello@py` and `sor evidence`, so the three cannot disagree.
+- **Fingerprint.** `test@py` hashes the test's text and references, its test code and the text of the clauses it proves with their code in that language only. A TypeScript edit leaves Python evidence current, an edit of the clause or of the test's text makes every language stale. The one for the test as a
+  whole is kept for a test with no test code per language, as it was for every test before, so an untargeted project and a test without lines have the same
+  fingerprints byte for byte (checked on `examples/solar-system` and `editors/vscode` against main: `sor test --list --json` and `sor verify` are identical).
+- **The evidence file does not change format.** Its keys and fields are the same; the keys of the results gain `@` and the fingerprint means something narrower. An
+  older `sor verify` never matches `test@py` and reports the test as missing (exit 1); a new one reads an old file's fingerprint as stale. Neither direction can turn
+  into a false pass, which is the rule that made the lock a new format when a line gained a field.
+- **One-time churn.** Every targeted project with deferred tests that have test code fails its gate once after the upgrade, until its jobs write the new keys.
+  A plain id for a test that now takes one result for each language is not "a test that no longer exists": `sor verify` names it (`renamed` in `--json`) and the keys
+  to write.
+- **Not done.** `sor test --list --json` still has one `fingerprint` for a test (the whole one). A job in a language that runs the test code of one language alone
+  gives the results of that language, and nothing in the tool stops a job from giving results for a language it did not run: evidence is as trustworthy as the job.
+
 ## Still open
 - The tool is not under Spec of Record. Its hashing, marker and lock rules could be clauses with `Targets: py, js`, so that a change to a clause
   leaves the other language behind and a lock refuses until both follow (`proposals/multi-target.md`). Until then the vectors and the

@@ -974,7 +974,8 @@ def cmd_verify(args):
             print('  ' + e)
         return 2
     rows = evidence.verify(project, scan, files)
-    stray = evidence.unknown(project, files)
+    stray = evidence.unknown(project, scan, files)
+    renamed = evidence.renamed(project, scan, files)
     if rows and not files and not args.json:
         print('note: no evidence files (*.json) found in ' + (', '.join(paths) if paths else 'the evidence folder, which does not exist'))
     bad = [r for r in rows if any(e['status'] != 'pass' for e in r['environments'])]
@@ -985,7 +986,8 @@ def cmd_verify(args):
         return job + (' (' + ', '.join(f'{k} {v[:12] if k == "commit" else v}' for k, v in sorted(src.items())) + ')' if src else '')
     if args.json:
         print(json.dumps({'ok': not bad, 'tests': rows, 'unknown': [{'job': j, 'test': k} for j, k in stray],
-                          'sources': sources}, indent=2))
+                          'sources': sources, **({'renamed': [{'job': j, 'test': k, 'now': now} for j, k, now in renamed]} if renamed else {})},
+                         indent=2))
     else:
         if not rows:
             print('no test says `runs on:`: nothing to verify')
@@ -999,6 +1001,8 @@ def cmd_verify(args):
             print(f'{len(rows)} deferred test(s): {len(rows) - left} proven, {left} not' + (' proven' if left else ''))
         if stray:
             print(f'note: results for tests that no longer say `runs on:` are ignored: {", ".join(k for _, k in stray[:10])}')
+        for job, test, now in renamed:
+            print(f'note: {job} has a result for {test}, which now takes one result for each language ({", ".join(now)}): the job has to write those')
     return 1 if bad else 0
 
 

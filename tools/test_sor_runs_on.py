@@ -195,6 +195,11 @@ class TestWritingEvidence(Gate):
                                 'results': {self.KEY: {'fingerprint': self.fingerprint(), 'status': 'pass'}}})
         self.assertIn('do not say `runs on:`', text)
 
+    def test_a_language_of_a_test_in_a_project_that_says_no_targets_is_refused(self):
+        code, text = self.job('linux', 'linux', key=self.KEY + '@py')
+        self.assertEqual(code, 2, text)
+        self.assertIn(f'{self.KEY} has no test code per language, so it has one result: {self.KEY}', text)
+
     def test_a_job_that_provides_none_of_the_environments_writes_no_result_and_says_so(self):
         code, text = self.job('mac', 'macos')
         self.assertEqual(code, 0, text)
