@@ -964,11 +964,12 @@ Decided by the owner on 2026-10-22, because the flag now covers "no code yet" as
 
 ## The session-start note says what is pending (2026-10-22)
 Decided by the owner on 2026-10-22: a new session is told about changes an earlier session left pending.
-- **What it says.** After the parts index, one line `Pending since the last lock: …` (the findings new, changed, removed, stale, behind and drift, each with its
-  detail, at most 900 characters and then "and N more") and one line `Claims in force: …`. Both are facts. The tool cannot tell which session left a change,
+- **What it says.** After the parts index, one line `Pending since the last lock: …` (every finding `sor status` lists apart from the information group:
+  new, changed, removed, behind, stale, shared, drift, built and fixing, each with its detail, at most 900 characters and then "and N more") and one line `Claims in force: …`. Both are facts. The tool cannot tell which session left a change,
   so it says "since the last lock", and drift keeps its meaning (a person changed the code).
-- **When it is silent.** A project in agreement, a project with no lock yet (every clause would be new, and the agent runs `sor status` anyway), and any
-  failure: a lock this copy cannot read or a broken part leaves the plain note, never an error in the hook.
+- **When it is silent.** The pending line is left out for a project in agreement, for a project with no lock yet (every clause would be new, and the agent
+  runs `sor status` anyway) and on any failure: a lock this copy cannot read or a broken part leaves the plain note, never an error in the hook. The claims
+  line does not depend on the lock: agents can work in parallel before the first one.
 - **Cost.** One scan and one status, about 70 ms on the solar-system example; the plugin's timeout for the hook is 10 s.
 - **The skill** says in its routine to tell the user once what is pending that the agent did not start (an existing line, edited in place).
 

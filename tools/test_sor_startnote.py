@@ -5,6 +5,7 @@ claims in force, so that a session that did not start the work still knows of it
 
 Python 3.9, standard library only. Every project lives in a temporary folder.
 """
+import json
 import os
 import re
 import sys
@@ -22,6 +23,9 @@ from sorlib import hook                      # noqa: E402
 from sorlib import lock as lockfile          # noqa: E402
 
 doc, write, read = base.doc, base.write, base.read
+
+
+APP_WITHOUT_BYE = flows.APP.split('// @clause greet/bye')[0]
 
 
 def note(root):
@@ -53,14 +57,40 @@ class TestWhatTheStartNoteSaysIsPending(flows.Flow):
         line, = pending_lines(self.dir)
         self.assertIn('greet/hello drift', line)
 
+    def test_the_information_group_is_not_pending_work(self):
+        flows.replace_in(self.app, '"use strict";', '"use strict"; var changed = 1;')       # glue, which sor status lists as information
+        code, out, _ = flows.run_sor(self.dir, 'status', '--json')
+        self.assertEqual([f['status'] for f in json.loads(out)['findings']], ['glue'])
+        self.assertEqual(pending_lines(self.dir), [])
+
     def test_a_claim_in_force_is_named_with_who_holds_it(self):
         self.claim(['greet/bye'], 'alice')
         line, = pending_lines(self.dir)
         self.assertTrue(line.startswith('Claims in force: alice: greet/bye'), line)
 
-    def test_a_project_with_no_lock_yet_says_nothing_of_it(self):
+    def test_code_built_for_a_clause_locked_without_code_is_named(self):
+        # the session that wrote it ended before the lock: the clause is `built`, which sor status lists and the note must too
+        write(self.dir, 'out/app.js', APP_WITHOUT_BYE)
+        flows.accepted(self.dir)
+        self.assertEqual(pending_lines(self.dir), [])
+        write(self.dir, 'out/app.js', flows.APP)
+        line, = pending_lines(self.dir)
+        self.assertIn('greet/bye built', line)
+
+    def test_a_project_with_no_lock_yet_says_nothing_is_pending(self):
         os.remove(os.path.join(self.spec, 'sor-lock.json'))
         self.assertEqual(pending_lines(self.dir), [])
+
+    def test_a_claim_is_named_also_when_there_is_no_lock_yet_or_the_lock_cannot_be_read(self):
+        self.claim(['greet/bye'], 'alice')
+        lock = os.path.join(self.spec, 'sor-lock.json')
+        text = read(lock)
+        os.remove(lock)
+        line, = pending_lines(self.dir)
+        self.assertTrue(line.startswith('Claims in force: alice: greet/bye'), line)
+        write(self.dir, 'sor/sor-lock.json', text.replace('{\n', '{\n"*format": 99,\n', 1))
+        line, = pending_lines(self.dir)
+        self.assertTrue(line.startswith('Claims in force: alice: greet/bye'), line)
 
     def test_a_lock_this_copy_cannot_read_leaves_the_plain_note(self):
         lock = os.path.join(self.spec, 'sor-lock.json')

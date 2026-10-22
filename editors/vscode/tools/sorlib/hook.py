@@ -402,32 +402,46 @@ def post_read(payload):
     return {'hookSpecificOutput': {'hookEventName': 'PostToolUse', 'additionalContext': ctx}}
 
 
-def pending_note(project):
-    """Lines of facts about what a session finds when it starts, from a project with a lock: what changed since the last lock (the clauses to
-    build, a language behind, drift) and the claims in force. Nobody can say which session left it, so it says "since the last lock". Empty when
-    nothing is pending, when there is no lock yet (every clause would be new), and, by the caller, when anything fails."""
+def pending_line(project):
+    """One line of facts about what is pending since the last lock: every finding `sor status` lists apart from the information group (clauses to
+    build, a language behind, code built and not locked, something to review, drift), each with its detail, as many as fit in PENDING_MAX and then
+    "and N more". Empty when nothing is pending and when there is no lock yet (every clause would be new)."""
     old = lockfile.read(project)
     if not old:
         return ''
     findings, _ = lockfile.status(project, Scan(project), old)
-    rows = [f for f in findings if f.status in PENDING or f.status == 'drift']
-    lines = []
-    if rows:
-        items = []
-        for f in rows:
+    listed = {s for group, statuses, _ in lockfile.GROUPS if group != 'info' for s in statuses}
+    items = []
+    for f in findings:
+        if f.status in listed:
             detail = ' '.join((f.detail or '').split())
             items.append(f'{f.key} {f.status}' + (f' ({detail if len(detail) <= 60 else detail[:59].rstrip() + "…"})' if detail else ''))
+    if not items:
+        return ''
 
-        def line(shown):   # the first `shown` items, and a count of the rest
-            text = 'Pending since the last lock: ' + '; '.join(items[:shown])
-            if shown < len(items):
-                text += ('; ' if shown else '') + f'... and {len(items) - shown} more'
-            return text + f' (`{CMD} status` has the detail).'
+    def line(shown):   # the first `shown` items, and a count of the rest
+        text = 'Pending since the last lock: ' + '; '.join(items[:shown])
+        if shown < len(items):
+            text += ('; ' if shown else '') + f'... and {len(items) - shown} more'
+        return text + f' (`{CMD} status` has the detail).'
 
-        shown = len(items)
-        while shown and len(line(shown)) > PENDING_MAX:
-            shown -= 1
-        lines.append(line(shown))
+    shown = len(items)
+    while shown and len(line(shown)) > PENDING_MAX:
+        shown -= 1
+    return line(shown)
+
+
+def pending_note(project):
+    """Lines of facts a session finds when it starts: what is pending since the last lock (`pending_line`), and the claims in force, which exist
+    with or without a lock. Nobody can say which session left a change, so it says "since the last lock". A pending line that cannot be worked
+    out (a lock this copy cannot read, a broken part) is left out, never an error."""
+    lines = []
+    try:
+        pending = pending_line(project)
+        if pending:
+            lines.append(pending)
+    except (Exception, SystemExit):
+        pass
     held = claims.active(project)
     if held:
         shown = [claims.describe(c) for c in held[:3]]
