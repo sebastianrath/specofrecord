@@ -133,10 +133,26 @@ class TestWhatTheWriterRefuses(unittest.TestCase):
 
     def test_entries_with_code_per_target_cannot_be_written_as_format_1(self):
         self.assertTrue(lockfile.render({'a/b': self.ENTRY}).startswith('{\n"*format": 2,\n'))
-        self.assertTrue(lockfile.render({'a/b': self.ENTRY}, lockfile.FORMAT).startswith('{\n"*format": 2,\n'))
+        self.assertTrue(lockfile.render({'a/b': self.ENTRY}, 2).startswith('{\n"*format": 2,\n'))
         with self.assertRaises(ValueError) as caught:
             lockfile.render({'a/b': self.ENTRY}, 1)
         self.assertIn('need lock format 2, not 1', str(caught.exception))
+
+    def test_a_line_that_says_more_than_code_and_built_is_format_3_and_cannot_be_written_as_format_2(self):
+        fits = dict(self.ENTRY, targets={'py': {'code': 'aaa', 'built': 'abc'}, 'ts': {'code': 'bbb', 'built': 'abc', 'fits': True}})
+        self.assertTrue(lockfile.render({'a/b': fits}).startswith('{\n"*format": 3,\n'))
+        self.assertIn('"fits": true', lockfile.render({'a/b': fits}))
+        with self.assertRaises(ValueError) as caught:
+            lockfile.render({'a/b': fits}, 2)
+        self.assertIn('need lock format 3, not 2', str(caught.exception))
+
+    def test_every_field_of_a_line_goes_into_its_clause_and_comes_back(self):
+        text = lockfile.render({'a/b': dict(self.ENTRY, targets={'ts': {'code': 'bbb', 'built': 'abc', 'fits': True, 'later': 'x'}})})
+        data = json.loads(text)
+        self.assertEqual(data.pop(lockfile.FORMAT_KEY), 3)
+        entries = lockfile.fold(data)
+        self.assertEqual(entries['a/b']['targets'], {'ts': {'code': 'bbb', 'built': 'abc', 'fits': True, 'later': 'x'}})
+        self.assertEqual(lockfile.render(entries), text)
 
     def test_a_clause_named_like_the_line_for_the_code_of_another_is_refused_at_the_write(self):
         entries = {'a/b': self.ENTRY, 'a/b@py': {'kind': 'item', 'text': 'x'}}

@@ -1,6 +1,6 @@
 {
  "about": "Rows of input and expected output for how Spec of Record hashes code and writes the lock (SPEC section 11). Any implementation of the tool runs every row. The expected texts are written by hand and the hashes are computed with SHA-256 alone, never with the tool. A line in a row is one string; a text is one string. Run them with tools/test_sor_vectors.py.",
- "format": 2,
+ "format": 3,
  "style_of": {
   "how": "style_of(path) -> style: the style of the lower-cased file name if it is one of the known names, else of the text after its last dot if the name has a dot, else \"safe\". A style is family[-keep][+kinds]; see SPEC section 11.",
   "rows": [
@@ -2551,7 +2551,7 @@
   ]
  },
  "fold": {
-  "how": "fold(file entries) -> entries: a line of kind \"code\" goes into the entry named by its `of` as targets[<target>] = {code, built}, and that entry gets code = digest(targets); a line without its clause is dropped.",
+  "how": "fold(file entries) -> entries: a line of kind \"code\" goes into the entry named by its `of` as targets[<target>], with every field it has but kind, of and target ({code, built}, and fits when the language was confirmed to fit), and that entry gets code = digest(targets); a line without its clause is dropped.",
   "rows": [
    {
     "name": "a line goes into its clause and the clause gets the digest of its targets as its code",
@@ -2619,6 +2619,45 @@
       },
       "text": "text1",
       "code": "123456789abc"
+     }
+    }
+   },
+   {
+    "name": "every field of a line goes into its clause, not only code and built",
+    "file": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1"
+     },
+     "g/h@ts": {
+      "kind": "code",
+      "of": "g/h",
+      "target": "ts",
+      "code": "0f1e2d3c4b5a",
+      "built": "text1",
+      "fits": true,
+      "later": "x"
+     }
+    },
+    "entries": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1",
+      "code": "c9a0dd4410c6",
+      "targets": {
+       "ts": {
+        "code": "0f1e2d3c4b5a",
+        "built": "text1",
+        "fits": true,
+        "later": "x"
+       }
+      }
      }
     }
    },
@@ -4027,7 +4066,7 @@
   ]
  },
  "lock_render": {
-  "how": "render(entries, fmt) -> text of the lock file (fmt null: the format the entries need, 2 when a clause has `targets`, else 1): a clause with `targets` loses `targets` and `code` and gets a line `<clause>@<target>` of kind \"code\" per target; keys sorted, one entry per line, entry keys sorted, separators \", \" and \": \", non-ASCII as written; a fmt above 1 opens with its marker line.",
+  "how": "render(entries, fmt) -> text of the lock file (fmt null: the format the entries need, 3 when a line of `targets` holds more than code and built, 2 when a clause has `targets`, else 1): a clause with `targets` loses `targets` and `code` and gets a line `<clause>@<target>` of kind \"code\" per target; keys sorted, one entry per line, entry keys sorted, separators \", \" and \": \", non-ASCII as written; a fmt above 1 opens with its marker line.",
   "rows": [
    {
     "name": "sorted keys, one entry per line, entry keys sorted",
@@ -4129,6 +4168,53 @@
      }
     },
     "text": "{\n\"*format\": 2,\n\"g/b\": {\"code\": \"123456789abc\", \"kind\": \"item\", \"text\": \"t2\"},\n\"g/h\": {\"kind\": \"item\", \"refs\": {\"x\": \"r1\"}, \"text\": \"text1\"},\n\"g/h@py\": {\"built\": \"text1\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"py\"},\n\"g/h@ts\": {\"built\": \"text0\", \"code\": \"0f1e2d3c4b5a\", \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"ts\"}\n}\n"
+   },
+   {
+    "name": "a line that says more than code and built makes the lock format 3",
+    "fmt": null,
+    "entries": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1",
+      "code": "ignored",
+      "targets": {
+       "ts": {
+        "code": "0f1e2d3c4b5a",
+        "built": "text1",
+        "fits": true
+       },
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "text1"
+       }
+      }
+     }
+    },
+    "text": "{\n\"*format\": 3,\n\"g/h\": {\"kind\": \"item\", \"refs\": {\"x\": \"r1\"}, \"text\": \"text1\"},\n\"g/h@py\": {\"built\": \"text1\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"py\"},\n\"g/h@ts\": {\"built\": \"text1\", \"code\": \"0f1e2d3c4b5a\", \"fits\": true, \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"ts\"}\n}\n"
+   },
+   {
+    "name": "a higher format than the entries need is written as asked, with plain lines",
+    "fmt": 3,
+    "entries": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1",
+      "code": "ignored",
+      "targets": {
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "text1"
+       }
+      }
+     }
+    },
+    "text": "{\n\"*format\": 3,\n\"g/h\": {\"kind\": \"item\", \"refs\": {\"x\": \"r1\"}, \"text\": \"text1\"},\n\"g/h@py\": {\"built\": \"text1\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"py\"}\n}\n"
    },
    {
     "name": "the format follows the entries: none with a line is format 1 with no marker",

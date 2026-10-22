@@ -35,7 +35,8 @@ from .model import LEGACY_ROOT_KEY, Item, Problem, Row, listed, test_keyword
 # a person looks at it (manual, checked), or it is left to the CI jobs that provide its environment (deferred).
 SETTLED = ('pass', 'manual', 'checked', 'deferred')
 
-FORMAT = 2                # the newest lock format this tool reads and writes
+FORMAT = 3                # the newest lock format this tool reads and writes
+LINE_FIELDS = ('code', 'built')   # what a format 2 line holds; a line with more is format 3
 LINE_KIND = 'code'        # the kind of a per-target line in the file
 FORMAT_KEY = '*format'    # the marker of a format above 1: a scalar, so that a tool older than this one fails on it instead of dropping it
 
@@ -263,7 +264,7 @@ def fold(data):
     for e in lines:
         parent = out.get(e.get('of'))
         if isinstance(parent, dict) and isinstance(e.get('target'), str):
-            parent.setdefault('targets', {})[e['target']] = {x: e[x] for x in ('code', 'built') if x in e}
+            parent.setdefault('targets', {})[e['target']] = {x: v for x, v in e.items() if x not in ('kind', 'of', 'target')}
     for e in out.values():
         if isinstance(e, dict) and e.get('targets'):
             e['code'] = digest(e['targets'])
@@ -310,8 +311,12 @@ def check_writable(project):
 
 def render(entries, fmt=None):
     """The text of a lock file: a format above 1 opens with its marker, then one entry per line, sorted. The format follows the
-    entries: 2 when a clause has code per target, else 1. A caller cannot name a lower one than the entries need."""
-    needed = 2 if any(isinstance(e, dict) and e.get('targets') for e in entries.values()) else 1
+    entries: 3 when a line of a language holds more than `code` and `built` (it was confirmed to fit), 2 when a clause has code per
+    target, else 1. A caller cannot name a lower one than the entries need."""
+    needed = 1
+    for e in entries.values():
+        if isinstance(e, dict) and e.get('targets'):
+            needed = max(needed, 3 if any(set(line) - set(LINE_FIELDS) for line in e['targets'].values()) else 2)
     fmt = needed if fmt is None else fmt
     if fmt > FORMAT:
         raise ValueError(f'lock format {fmt} is newer than this tool ({FORMAT})')
@@ -539,9 +544,39 @@ def built_for(project, entries, old):
         prior = ((old or {}).get(key) or {}).get('targets') or {}
         for t, line in e['targets'].items():
             if t in prior and prior[t].get('code') == line['code']:
+                line.update({x: v for x, v in prior[t].items() if x != 'code'})
                 line['built'] = prior[t].get('built', old_basis.get(key))
+                if line['built'] != now_basis[key]:
+                    line.pop('fits', None)   # confirmed for an older text of the clause: it says nothing about this one
             else:
                 line['built'] = now_basis[key]
+
+
+def confirm_fits(project, entries, keys, owners, languages):
+    """Marks the languages of the clauses among `keys` that are behind and are named in `languages` as built for the clause as it is now,
+    and as confirmed rather than rebuilt (`fits`). Returns [(key, [targets])] of what it marked."""
+    marked, basis = [], bases(project, entries)
+    for key in sorted(keys):
+        e = entries.get(key) or {}
+        late = [t for t in lagging_targets(project, key, e, owners, basis) if t in languages]
+        for t in late:
+            e['targets'][t]['built'] = basis[key]
+            e['targets'][t]['fits'] = True
+        if late:
+            marked.append((key, late))
+    return marked
+
+
+def confirmed_fits(project, lock):
+    """[(key, [targets])] of the clauses whose code in a language was confirmed to fit the clause as it is (`fits`, and built for its
+    current text) and not rebuilt: what `sor status` keeps naming."""
+    basis, out = bases(project, lock), []
+    for key in sorted(lock):
+        e = lock[key]
+        langs = sorted(t for t, line in (e.get('targets') or {}).items() if line.get('fits') and line.get('built') == basis.get(key))
+        if langs:
+            out.append((key, langs))
+    return out
 
 
 def behind_after(project, entries, keys, owners, allowed):
@@ -575,11 +610,13 @@ def no_code_after(project, scan, findings, keys, allowed):
     return out
 
 
-def accept(project, scan, results, allow_incomplete, findings=(), old=None, confirm=(), scope=None, allow_behind=()):
+def accept(project, scan, results, allow_incomplete, findings=(), old=None, confirm=(), scope=None, allow_behind=(), already_fits=()):
     """The entries `sor lock` would write, or the reasons it refuses. `confirm` names manual
     tests a person has just checked; earlier confirmations carry over while they still stand.
     `scope`: lock keys to accept; every other key keeps its entry from `old` (SPEC §11).
-    `allow_behind`: targets that may stay behind the clause, or lack code for it (`sor lock --allow-behind`)."""
+    `allow_behind`: targets that may stay behind the clause, or lack code for it (`sor lock --allow-behind`).
+    `already_fits`: targets whose code was checked against the changed clause and needs no change (`sor lock --already-fits`): they are
+    marked built for it and confirmed, and nothing is behind for them."""
     old = upgrade(old, scan) if old else old
     entries = snapshot(project, scan)
     built_for(project, entries, old)
@@ -608,7 +645,15 @@ def accept(project, scan, results, allow_incomplete, findings=(), old=None, conf
             owners[it.id] = p
             for r in it.rows.values():
                 owners[r.id] = p
-    for key, late in behind_after(project, entries, entries if scope is None else scope, owners, set(allow_behind)):
+    keys = entries if scope is None else scope
+    if already_fits:
+        clash = sorted(set(already_fits) & set(allow_behind))
+        if clash:
+            reasons.append(f'{", ".join(clash)} is named by --allow-behind and by --already-fits: say either "not rebuilt yet" or "needs no change"')
+        elif not confirm_fits(project, entries, keys, owners, set(already_fits)):
+            reasons.append(f'--already-fits {",".join(already_fits)}: nothing to confirm, no clause being locked has code in '
+                           f'{", ".join(already_fits)} that is behind')
+    for key, late in behind_after(project, entries, keys, owners, set(allow_behind)):
         reasons.append(f'behind  {key}  its code in {", ".join(late)} was accepted for an older text of the clause: rebuild it '
                        f'(change that code). Only when the user has said that {", ".join(late)} is rebuilt later, lock again with '
                        '--allow-behind <language>; it then stays listed as behind')

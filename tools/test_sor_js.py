@@ -171,6 +171,9 @@ class TestTheJavaScriptCopy(unittest.TestCase):
                     entry['refs'] = {rng.choice(KEYS): 'r1', rng.choice(KEYS): 'r2'}
                 if rng.random() < 0.3:
                     entry['targets'] = {t: {'code': 'a' * 12, 'built': 'b'} for t in rng.sample(['py', 'ts', '*', '\U0001F600', '～', 'go'], rng.randint(1, 3))}
+                    for line in entry['targets'].values():
+                        if rng.random() < 0.3:
+                            line.update(rng.choice([{'fits': True}, {'later': '\u00fc'}, {'fits': True, 'note': 'a\nb'}]))
                 entries[key] = entry
             jobs.append({'entries': entries, 'fmt': rng.choice([None, None, 1, 2, 3])})
         want = [python_render(j['entries'], j['fmt']) for j in jobs]

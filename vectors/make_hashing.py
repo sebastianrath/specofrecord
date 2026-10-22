@@ -291,6 +291,9 @@ FOLD = [
      'entries': {'g/h': dict(clause, code=sha(f'py:{PY_C}\nts:{TS_C}'), targets={'py': {'code': PY_C, 'built': 'text1'}, 'ts': {'code': TS_C, 'built': 'text0'}})}},
     {'name': 'a clause that keeps one joined code is left as it is', 'file': {'g/h': dict(clause, code=ALL_C)},
      'entries': {'g/h': dict(clause, code=ALL_C)}},
+    {'name': 'every field of a line goes into its clause, not only code and built',
+     'file': {'g/h': clause, 'g/h@ts': {'kind': 'code', 'of': 'g/h', 'target': 'ts', 'code': TS_C, 'built': 'text1', 'fits': True, 'later': 'x'}},
+     'entries': {'g/h': dict(clause, code=sha(f'ts:{TS_C}'), targets={'ts': {'code': TS_C, 'built': 'text1', 'fits': True, 'later': 'x'}})}},
     {'name': 'a line whose clause is not in the file is dropped',
      'file': {'g/h': clause, 'g/x@py': {'kind': 'code', 'of': 'g/x', 'target': 'py', 'code': PY_C, 'built': 'text1'}},
      'entries': {'g/h': clause}},
@@ -301,6 +304,16 @@ LOCK.append({'name': 'a clause with code per target: its own line without code, 
              'text': '{\n"*format": 2,\n"g/b": {"code": "%s", "kind": "item", "text": "t2"},\n"g/h": {"kind": "item", "refs": {"x": "r1"}, "text": "text1"},\n'
                      '"g/h@py": {"built": "text1", "code": "%s", "kind": "code", "of": "g/h", "target": "py"},\n'
                      '"g/h@ts": {"built": "text0", "code": "%s", "kind": "code", "of": "g/h", "target": "ts"}\n}\n' % (ALL_C, PY_C, TS_C)})
+LOCK.append({'name': 'a line that says more than code and built makes the lock format 3',
+             'fmt': None,
+             'entries': {'g/h': dict(clause, code='ignored', targets={'ts': {'code': TS_C, 'built': 'text1', 'fits': True}, 'py': {'code': PY_C, 'built': 'text1'}})},
+             'text': '{\n"*format": 3,\n"g/h": {"kind": "item", "refs": {"x": "r1"}, "text": "text1"},\n'
+                     '"g/h@py": {"built": "text1", "code": "%s", "kind": "code", "of": "g/h", "target": "py"},\n'
+                     '"g/h@ts": {"built": "text1", "code": "%s", "fits": true, "kind": "code", "of": "g/h", "target": "ts"}\n}\n' % (PY_C, TS_C)})
+LOCK.append({'name': 'a higher format than the entries need is written as asked, with plain lines', 'fmt': 3,
+             'entries': {'g/h': dict(clause, code='ignored', targets={'py': {'code': PY_C, 'built': 'text1'}})},
+             'text': '{\n"*format": 3,\n"g/h": {"kind": "item", "refs": {"x": "r1"}, "text": "text1"},\n'
+                     '"g/h@py": {"built": "text1", "code": "%s", "kind": "code", "of": "g/h", "target": "py"}\n}\n' % PY_C})
 LOCK.append({'name': 'the format follows the entries: none with a line is format 1 with no marker', 'fmt': None,
              'entries': {'g/b': {'kind': 'item', 'text': 't2', 'code': ALL_C}},
              'text': '{\n"g/b": {"code": "%s", "kind": "item", "text": "t2"}\n}\n' % ALL_C})
@@ -351,17 +364,17 @@ doc = {
     'about': 'Rows of input and expected output for how Spec of Record hashes code and writes the lock (SPEC section 11). Any implementation '
              'of the tool runs every row. The expected texts are written by hand and the hashes are computed with SHA-256 alone, never with the tool. '
              'A line in a row is one string; a text is one string. Run them with tools/test_sor_vectors.py.',
-    'format': 2,
+    'format': 3,
     'style_of': {'how': 'style_of(path) -> style: the style of the lower-cased file name if it is one of the known names, else of the text after its last dot if the name has a dot, else "safe". A style is family[-keep][+kinds]; see SPEC section 11.', 'rows': STYLE},
     'split_lines': {'how': 'split_lines(text) -> lines: a line ends at LF, CRLF or CR and nowhere else; no empty last line for a final break.', 'rows': SPLIT},
     'normalize': {'how': 'normalized(lines, style) -> text: the code as the lock sees it.', 'rows': N},
     'code_hash': {'how': 'code_hash(regions) -> hash: regions sorted by (file, start), each normalized by style_of(file), joined with "\\n\\u0000\\n", SHA-256 of the UTF-8, first 12 hex digits.', 'rows': CODE},
     'text_hash': {'how': 'text_hash(text) -> hash: SHA-256 of the UTF-8, first 12 hex digits (lock.h).', 'rows': TEXT},
     'targets_digest': {'how': 'digest(targets) -> hash: text_hash of the lines "<target>:<code>" in the order of the target names, joined by LF. It is the `code` of a clause that keeps its code per target.', 'rows': DIGEST},
-    'fold': {'how': 'fold(file entries) -> entries: a line of kind "code" goes into the entry named by its `of` as targets[<target>] = {code, built}, and that entry gets code = digest(targets); a line without its clause is dropped.', 'rows': FOLD},
+    'fold': {'how': 'fold(file entries) -> entries: a line of kind "code" goes into the entry named by its `of` as targets[<target>], with every field it has but kind, of and target ({code, built}, and fits when the language was confirmed to fit), and that entry gets code = digest(targets); a line without its clause is dropped.', 'rows': FOLD},
     **({'marker': {'how': 'parse_marker(path, line, starters) -> null | {code, words}: a marker is `@clause` after a comment starter, the whole line or after code (a line marker). Every file has the starters // # /* <!-- -- ; as runs (// and ///, ; and ;;), its type adds more (SPEC section 10), and `starters` are those its target declares, which add and never take away. Words are what follows `@clause` without a closing */ --> or *); REM and :: count only at the start of a line.', 'rows': MARK}}),
     **({'starters_of': {'how': 'starters_of(path) -> [starter]: the comment starters, besides // # /* <!-- -- ; (SPEC section 10), that a marker may follow in a file of that type: the `starters` column of the table, in order. A row for every extension in it.', 'rows': STARTERS}}),
-    'lock_render': {'how': 'render(entries, fmt) -> text of the lock file (fmt null: the format the entries need, 2 when a clause has `targets`, else 1): a clause with `targets` loses `targets` and `code` and gets a line `<clause>@<target>` of kind "code" per target; keys sorted, one entry per line, entry keys sorted, separators ", " and ": ", non-ASCII as written; a fmt above 1 opens with its marker line.', 'rows': LOCK},
+    'lock_render': {'how': 'render(entries, fmt) -> text of the lock file (fmt null: the format the entries need, 3 when a line of `targets` holds more than code and built, 2 when a clause has `targets`, else 1): a clause with `targets` loses `targets` and `code` and gets a line `<clause>@<target>` of kind "code" per target; keys sorted, one entry per line, entry keys sorted, separators ", " and ": ", non-ASCII as written; a fmt above 1 opens with its marker line.', 'rows': LOCK},
 }
 names = [r['name'] for k in doc if isinstance(doc[k], dict) and 'rows' in doc[k] for r in doc[k]['rows']]
 assert len(names) == len(set(names)), 'duplicate row names'

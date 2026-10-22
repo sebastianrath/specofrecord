@@ -13,7 +13,7 @@
     sor test --list [ID ...] [--provides NAMES] [--all]  the tests a run would run and the ones it leaves to CI; runs nothing
     sor evidence --job NAME --provides NAMES --results F [--commit SHA] [--run ID]  write what a CI job proved about the tests that say `runs on:`
     sor verify [FILE|FOLDER ...]  the gate: every test that says `runs on:` has a current pass in every environment it names
-    sor lock [IDS|--all] [--run-tests] [--allow-behind T]  accept clauses, code and test results: IDS, else what you claimed (--all: the whole project)
+    sor lock [IDS|--all] [--run-tests] [--allow-behind T] [--already-fits T]  accept clauses, code and test results: IDS, else what you claimed (--all: the whole project)
     sor claim IDS --as NAME       say you are working on these clauses; refused (exit 3) when someone else is
     sor release [IDS|--all]       give them up again
     sor markers [ID | FILE:LINE] [--json]  where a clause's code is, or which clauses a line serves
@@ -192,6 +192,12 @@ def cmd_status(args):
         if len(project.target_names()) >= 2:
             for note in lint.no_code_for_target(project, scan):
                 print(f'note: {note.text} (not a pending change; `sor check` lists them)')
+        pending_keys = {f.key for f in findings}   # a clause with a change of its own is about its pending change, not about what was confirmed
+        confirmed = [(k, langs) for k, langs in lockfile.confirmed_fits(project, old) if k not in pending_keys] if old else []
+        if confirmed:
+            shown = '; '.join(f'{k} in {", ".join(langs)}' for k, langs in confirmed[:5])
+            print(f'note: confirmed to fit the clause and not rebuilt (`--already-fits`): {shown}'
+                  + (f'; ... and {len(confirmed) - 5} more' if len(confirmed) > 5 else '') + ' (not a pending change)')
     if found or any(f.status == 'drift' for f in findings):
         return 2
     return 1 if findings else 0
@@ -391,9 +397,14 @@ def cmd_lock(args):
             print('  ' + r)
         return 2
     allow_behind = [t.strip() for t in (args.allow_behind or '').split(',') if t.strip()]
-    unknown = sorted(set(allow_behind) - set(project.target_names()))
-    if unknown:
-        print(f'lock refused:\n  --allow-behind names {", ".join(unknown)}, which is no target (targets: {", ".join(project.target_names()) or "none"})')
+    already_fits = [t.strip() for t in (args.already_fits or '').split(',') if t.strip()]
+    for flag, names in (('--allow-behind', allow_behind), ('--already-fits', already_fits)):
+        unknown = sorted(set(names) - set(project.target_names()))
+        if unknown:
+            print(f'lock refused:\n  {flag} names {", ".join(unknown)}, which is no target (targets: {", ".join(project.target_names()) or "none"})')
+            return 2
+    if already_fits and not project.targeted():
+        print('lock refused:\n  --already-fits needs a project that says its targets (`Targets:` in the root file): there is no code per language to confirm')
         return 2
     confirm = [c if '/test:' in c or c.startswith('test:') else lockfile.own_test(c) for c in args.confirm]
     results, external = {}, set()
@@ -413,7 +424,7 @@ def cmd_lock(args):
     elif args.results:
         with open(args.results, encoding='utf8') as fh:
             results = json.load(fh)
-    entries, more = lockfile.accept(project, scan, results, args.allow_incomplete, findings, old, confirm, scope, allow_behind)
+    entries, more = lockfile.accept(project, scan, results, args.allow_incomplete, findings, old, confirm, scope, allow_behind, already_fits)
     gave = sorted(k for k, v in results.items() if entries.get(k, {}).get('result') == 'deferred' and (scope is None or k in scope))
     if gave:
         print(f'note: a result for {", ".join(gave)} is not recorded in the lock: it says `runs on:`, so a CI job proves it '
@@ -448,6 +459,12 @@ def cmd_lock(args):
                    and old.get(k, {}).get('result') != 'deferred' and (scope is None or k in scope))
     if newly:   # a line in the spec is all it takes to leave a test to CI: say which tests that is
         print(f'now left to CI, because they say `runs on:`: {", ".join(newly)}')
+    fresh = [(k, [t for t, line in (e.get('targets') or {}).items() if line.get('fits')
+                  and not (((old.get(k) or {}).get('targets') or {}).get(t) or {}).get('fits')])
+             for k, e in sorted(entries.items()) if scope is None or k in scope]
+    for k, langs in fresh:
+        if langs:
+            print(f'confirmed to fit the clause, not rebuilt: {k} in {", ".join(langs)} (the lock says so on the line, and `sor status` keeps a note)')
     tests = [e for e in entries.values() if e.get('kind') == 'test']
     n = {r: sum(e['result'] == r for e in tests) for r in ('pass', 'checked', 'manual', 'deferred')}
     what = f'{len(scope)} of {len(entries)} entries' if scope is not None else f'{len(entries)} entries'
@@ -883,6 +900,9 @@ def build_parser():
     s.add_argument('--allow-behind', metavar='TARGETS',
                    help='lock a clause although its code in these targets (comma-separated) was accepted for an older text of the '
                         'clause (they stay listed as behind until their code changes), or the clause has no code there')
+    s.add_argument('--already-fits', metavar='TARGETS',
+                   help='lock a clause whose code in these targets (comma-separated) is behind although it was checked against the changed clause '
+                        'and needs no change: no code edit, and the lock records that it was confirmed, not rebuilt')
     s.add_argument('--rehash', action='store_true',
                    help='rewrite the code hashes made with an older rule (no change is accepted, nothing else is rewritten)')
     s.set_defaults(fn=cmd_lock)

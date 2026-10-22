@@ -77,7 +77,7 @@ and the changed parts under a claimed part; `sor lock <ids>` locks only the ids 
 
 - Other agents hold claims: lock only your own clauses; `--all` is refused while they hold claims.
 - Failures that were already there: add `--allow-incomplete` and say so; it does not cover a test of code shared with a
-  changed clause. A language `behind` the clause, or with no code for it (`Targets:`), gets its code; `--allow-behind T` only if the user says to.
+  changed clause. A language `behind` the clause or with no code (`Targets:`) gets its code; `--already-fits T` only after reading T's code against it, `--allow-behind T` only if the user says to.
 - A person checks a `manual:` test: `sor lock --confirm <test>` is for people, never for you.
 - A lock is refused while a test that is not `manual:` or `runs on:` has no passing result: the `tests (N)` block of `sor status`
   lists them and says the way out (for a test nobody can run yet, a `manual:` line saying what a person checks).

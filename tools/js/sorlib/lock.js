@@ -4,7 +4,8 @@
 const crypto = require('crypto');
 const { compare, sorted, own, put } = require('./pytext');
 
-const FORMAT = 2;               // the newest lock format this tool reads and writes
+const FORMAT = 3;               // the newest lock format this tool reads and writes
+const LINE_FIELDS = ['code', 'built'];   // what a format 2 line holds; a line with more is format 3
 const LINE_KIND = 'code';       // the kind of a per-target line in the file
 const FORMAT_KEY = '*format';   // the marker of a format above 1
 
@@ -44,7 +45,7 @@ function fold(data) {
     if (isObject(parent) && typeof e.target === 'string') {
       if (!isObject(parent.targets)) parent.targets = {};
       const line = {};
-      for (const x of ['code', 'built']) if (Object.prototype.hasOwnProperty.call(e, x)) line[x] = e[x];
+      for (const x of Object.keys(e)) if (x !== 'kind' && x !== 'of' && x !== 'target') put(line, x, e[x]);
       put(parent.targets, e.target, line);
     }
   }
@@ -91,11 +92,18 @@ function dumps(value) {
 
 /**
  * The text of a lock file: a format above 1 opens with its marker, then one entry per line, sorted by code point. The format follows
- * the entries: 2 when a clause has code per target, else 1. A caller cannot name a lower one than the entries need. `newest` is the
- * newest format this tool writes; the tests move it to try a later one.
+ * the entries: 3 when a line of a language holds more than `code` and `built`, 2 when a clause has code per target, else 1. A caller
+ * cannot name a lower one than the entries need. `newest` is the newest format this tool writes; the tests move it to try a later one.
  */
 function render(entries, fmt, newest = FORMAT) {
-  const needed = Object.keys(entries).some((k) => isObject(entries[k]) && hasKeys(entries[k].targets)) ? 2 : 1;
+  let needed = 1;
+  for (const k of Object.keys(entries)) {
+    const e = entries[k];
+    if (isObject(e) && hasKeys(e.targets)) {
+      const more = Object.keys(e.targets).some((t) => Object.keys(e.targets[t]).some((x) => !LINE_FIELDS.includes(x)));
+      needed = Math.max(needed, more ? 3 : 2);
+    }
+  }
   const format = fmt === null || fmt === undefined ? needed : fmt;
   if (format > newest) throw new ValueError(`lock format ${format} is newer than this tool (${newest})`);
   if (format < needed) throw new ValueError(`these entries need lock format ${needed}, not ${format}`);

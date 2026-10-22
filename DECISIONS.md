@@ -997,6 +997,25 @@ Decided by the owner on 2026-10-22: no fixed lifetime in an agentic workflow. A 
 - **The messages** say what ends a claim: "claims end after 30 min idle by default", and a claim is described with its last activity and when it ends if
   nothing more happens.
 
+## Lock format 3 and `--already-fits` (2026-10-22)
+Decided by the owner on 2026-10-22: a language whose code already fits a changed clause is cleared by a flag of `sor lock`, which any caller may use and
+which is recorded on the language's line; the hook that asks before `--allow-behind` asks before this too.
+- **`sor lock greet/hello --already-fits ts`** marks `ts` as built for the clause as it is now, with no code edit, and writes `"fits": true` on its line. It
+  is not `--allow-behind`: that one says "not rebuilt yet" and leaves the language listed; this one says "checked, needs no change" and clears it.
+- **It refuses** a language that is also named by `--allow-behind`, a name that is no target, a project that keeps no code per language, and a call in which
+  no clause being locked has that language behind. It does not allow a language with no code for a clause (that stays `--allow-behind`'s, and the refusal for
+  no code still comes).
+- **It ends when it stops being true.** A rebuild of that code, or the next change to the clause, drops it (`built_for` drops a `fits` whose `built` is not the
+  clause's text now). While it holds, `sor status` keeps a `note:` for each confirmed language, with no exit code and nothing in `--json`; a clause that has a
+  change of its own is not named, because its pending change is the news.
+- **A lock line holds every field it has.** `fold` copied only `code` and `built`, so a reader of format 2 would have dropped a new field without a word. A line
+  now carries all its fields but `kind`, `of` and `target`, and the lock is **format 3** exactly when a line holds a field besides `code` and `built`. A
+  targeted project that never confirms anything stays in format 2 with the same bytes; an older tool refuses a format 3 lock with the message to update. The
+  vectors file is format 3 (the fold rule changed), with rows for a confirmed line, every field coming back, and the format a lock needs.
+- **The hook** reads `--already-fits`, `--already-fits=ts` and the shortest prefix argparse takes (`--alr`) like `--allow-behind`, and says what each does.
+- **Version skew.** A targeted project that confirms a language moves to format 3 at that lock. The installed 0.9.8 extension and the game-engine project's own copy
+  of the tool refuse it with the message to update.
+
 ## Still open
 - The tool is not under Spec of Record. Its hashing, marker and lock rules could be clauses with `Targets: py, js`, so that a change to a clause
   leaves the other language behind and a lock refuses until both follow (`proposals/multi-target.md`). Until then the vectors and the

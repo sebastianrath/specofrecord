@@ -20,7 +20,7 @@ An implementation passes when it gives the expected output for every row. The Py
   Python it runs on.
 - A rule that changes means the rows change in the same commit, and `format` in the file counts the changes that are not
   additions. Adding rows does not change it. Format 2 is the table of types with a safe default, and keeps indentation and tracks multi-line
-  strings where the type needs it.
+  strings where the type needs it. Format 3 is a lock line that carries every field it has, which is also what makes a lock format 3.
 - A row pins a rule and not what one tool happens to do. Several rows are there for the places where another language does the same thing
   differently: what whitespace is (`str.strip()`), what a word character is, what a dot matches (a line separator is text), and the order of
   strings (by code point). They were found by breaking the JavaScript copy on purpose and seeing what the rows let through.

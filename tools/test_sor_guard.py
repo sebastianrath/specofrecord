@@ -43,6 +43,9 @@ class TestWhichCommandsAreALockWithAllowBehind(unittest.TestCase):
         ('inside eval', "eval 'cd p && sor lock a --allow-behind ts'", (['a'], ['ts'])),
         ('the values of other options are not ids', 'sor lock a --as bob --results r.json --allow-behind ts', (['a'], ['ts'])),
         ('a command that cannot be read still counts', "sor lock a --allow-behind ts 'unbalanced", ([], [])),
+        ('the confirmation flag', 'sor lock greet/bye --already-fits ts', (['greet/bye'], ['ts'])),
+        ('the confirmation flag with an equals sign', 'sor lock --all --already-fits=ts,py', ([], ['ts', 'py'])),
+        ('the shortest prefix argparse takes for the confirmation flag', 'sor lock a --alr ts', (['a'], ['ts'])),
         ('a here-document for a shell is a list of commands', "bash <<EOF\nsor lock a --allow-behind ts\nEOF", (['a'], ['ts'])),
         ('the command after a here-document', "cat <<EOF\nsor status\nEOF\nsor lock a --allow-behind ts", (['a'], ['ts'])),
         ('the command after a here-document with tabs', "cat <<-EOF\n\tbody\n\tEOF\nsor lock a --allow-behind ts", (['a'], ['ts'])),
@@ -67,20 +70,31 @@ class TestWhichCommandsAreALockWithAllowBehind(unittest.TestCase):
     def test_a_lock_that_carries_the_flag_is_found_with_its_ids_and_languages(self):
         for name, command, expected in self.ASKED:
             with self.subTest(name):
-                self.assertEqual(hook.lock_allowances(command), [expected])
+                self.assertEqual([(i, l) for i, l, _ in hook.lock_allowances(command)], [expected])
+
+    def test_each_option_is_named_as_it_was_written(self):
+        for command, options in (('sor lock a --allow-behind ts', {'allow-behind'}), ('sor lock a --already-fits ts', {'already-fits'}),
+                                 ('sor lock a --already-fits=ts', {'already-fits'}), ('sor lock a --alr ts', {'already-fits'}),
+                                 ('sor lock a --allow-behind ts --already-fits py', {'allow-behind', 'already-fits'}),
+                                 ("sor lock a --already-fits ts 'unbalanced", {'already-fits'})):
+            with self.subTest(command):
+                (call,) = hook.lock_allowances(command)
+                self.assertEqual(call[2], options)
 
     def test_a_command_that_only_mentions_it_is_not(self):
         for name, command in self.NOT_ASKED:
             with self.subTest(name):
                 self.assertEqual(hook.lock_allowances(command), [])
+                self.assertEqual(hook.lock_allowances(command.replace('allow-behind', 'already-fits')), [])
 
     def test_a_quoted_command_is_read_three_levels_deep_and_no_further(self):
         nested = 'bash -c "sor lock a --allow-behind ts"'
-        self.assertEqual(hook.lock_allowances(nested, depth=2), [(['a'], ['ts'])])
+        self.assertEqual([(i, l) for i, l, _ in hook.lock_allowances(nested, depth=2)], [(['a'], ['ts'])])
         self.assertEqual(hook.lock_allowances(nested, depth=3), [])
 
     def test_two_locks_in_one_line_are_two_answers(self):
-        self.assertEqual(hook.lock_allowances('sor lock a --allow-behind ts && sor lock b --allow-behind=py'), [(['a'], ['ts']), (['b'], ['py'])])
+        found = hook.lock_allowances('sor lock a --allow-behind ts && sor lock b --allow-behind=py')
+        self.assertEqual([(i, l) for i, l, _ in found], [(['a'], ['ts']), (['b'], ['py'])])
 
 
 class TestWhatTheHookAnswers(unittest.TestCase):
@@ -89,7 +103,15 @@ class TestWhatTheHookAnswers(unittest.TestCase):
         self.assertEqual((out['hookEventName'], out['permissionDecision']), ('PreToolUse', 'ask'))
         self.assertIn('greet/bye, greet/hello', out['permissionDecisionReason'])
         self.assertIn('ts would stay behind the clause or have no code for it', out['permissionDecisionReason'])
-        self.assertIn('Allow it only if you have said that this language comes later', out['permissionDecisionReason'])
+        self.assertIn('Allow it only if you have said that this language comes later, or have checked that its code fits', out['permissionDecisionReason'])
+
+    def test_it_says_what_each_option_does(self):
+        out = hook.pre_bash(bash('sor lock a --already-fits ts'))['hookSpecificOutput']['permissionDecisionReason']
+        self.assertIn('with --already-fits: ts would be cleared as fitting the changed clause, with no code change', out)
+        self.assertNotIn('--allow-behind', out)
+        both = hook.pre_bash(bash('sor lock a --allow-behind ts --already-fits py'))['hookSpecificOutput']['permissionDecisionReason']
+        self.assertIn('--allow-behind', both)
+        self.assertIn('--already-fits', both)
 
     def test_a_lock_of_what_was_claimed_says_so(self):
         self.assertIn('of what it claimed', hook.pre_bash(bash('sor lock --allow-behind ts'))['hookSpecificOutput']['permissionDecisionReason'])
@@ -134,16 +156,17 @@ class TestTheRegisteredCommands(unittest.TestCase):
         return subprocess.run(['sh', '-c', command], input=json.dumps(payload), capture_output=True, text=True, cwd=REPO,
                               env=dict(os.environ, PYTHONDONTWRITEBYTECODE='1', **env))
 
-    def test_each_asks_for_a_lock_with_the_flag(self):
+    def test_each_asks_for_a_lock_with_either_flag(self):
         for name, path, env in self.WHERE:
-            with self.subTest(name):
-                done = self.run_command(registered_command(path, 'Bash'), env, bash('sor lock greet/bye --allow-behind ts'))
-                self.assertEqual(done.returncode, 0, done.stderr)
-                self.assertEqual(json.loads(done.stdout)['hookSpecificOutput']['permissionDecision'], 'ask')
+            for flag in ('--allow-behind ts', '--already-fits ts', '--alr ts'):
+                with self.subTest(name, flag=flag):
+                    done = self.run_command(registered_command(path, 'Bash'), env, bash(f'sor lock greet/bye {flag}'))
+                    self.assertEqual(done.returncode, 0, done.stderr)
+                    self.assertEqual(json.loads(done.stdout)['hookSpecificOutput']['permissionDecision'], 'ask')
 
     def test_each_is_silent_for_a_command_that_only_mentions_it_or_does_not_at_all(self):
         for name, path, env in self.WHERE:
-            for command in ('grep -rn allow-behind docs', 'ls -la', 'sor lock greet/bye'):
+            for command in ('grep -rn allow-behind docs', 'grep -rn already-fits docs', 'ls -la', 'sor lock greet/bye'):
                 with self.subTest(name, command=command):
                     done = self.run_command(registered_command(path, 'Bash'), env, bash(command))
                     self.assertEqual((done.returncode, done.stdout, done.stderr), (0, '', ''))
