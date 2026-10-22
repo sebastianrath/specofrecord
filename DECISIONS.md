@@ -1130,6 +1130,12 @@ Asked by the owner whether `Targets:` on a single clause matters, and why a diff
 - **The way out that exists is a part.** A clause for one language goes in a part with `Targets: py`. The price is one more file for such clauses, which the owner
   accepted. It is not built, not planned, and not listed as open any more.
 
+## The tool stays outside Spec of Record (2026-10-22)
+Decided by the owner when the open items of the multi-target work were listed. Its hashing, marker and lock rules could have been clauses with `Targets: py, js`, so that a
+change to a clause leaves the other language behind and a lock refuses until both follow. That is not done, and not planned. The guard against the Python and the JavaScript
+copy disagreeing is the shared test vectors (`vectors/hashing.json`) and the cross-check of `tools/test_sor_js.py`, and a change to the rules goes into both copies in the
+same change (`CLAUDE.md`).
+
 ## Review of stages 6 to 8 (2026-10-22)
 A review of the code of stages 6 to 8, with each finding reproduced before it was fixed.
 - **A language covers the rows of its clause.** `sor lock greet/hello@ts` ignored the rows of the clause that have code of their own in TypeScript: it said
@@ -1146,9 +1152,6 @@ A review of the code of stages 6 to 8, with each finding reproduced before it wa
 - **`sor verify` takes one snapshot** of the project instead of four.
 
 ## Still open
-- The tool is not under Spec of Record. Its hashing, marker and lock rules could be clauses with `Targets: py, js`, so that a change to a clause
-  leaves the other language behind and a lock refuses until both follow (`proposals/multi-target.md`). Until then the vectors and the
-  cross-check are the only guard.
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for
   this format (SPEC §15). The old `fdd` prototype (previous syntax) is not in this folder.
 - The example's `quality` clause asks for 90% clause coverage and gets 90.5%, with one confirmed check: `test:delivery`

@@ -116,4 +116,4 @@ clause (`DECISIONS.md`, "`Targets:` stays on parts").
 3. **Phase 0 now,** on its own, ahead of everything else. Done: merged, with the fixes from its reviews.
 4. **A lock refuses while a target is behind,** with a flag to allow it. Status reports it either way.
 
-Still open: how a language confirms that its code already fits a changed clause (above), and the name of the flag.
+How a language confirms that its code already fits a changed clause was decided on 2026-10-22: `sor lock --already-fits <language>`, recorded on the language's line.
