@@ -5,8 +5,8 @@ tool is read as unchanged by another (SPEC section 11): which style a file gets,
 regions of a clause are joined and hashed, how a text is hashed, how the code of a clause per target is digested and folded out of the
 lock file's lines, and how the lock file is written.
 
-An implementation passes when it gives the expected output for every row. The Python tool runs them in `tools/test_sor_vectors.py`;
-a port (for example a TypeScript one, so that an editor needs no Python) loads the same file.
+An implementation passes when it gives the expected output for every row. The Python tool runs them in `tools/test_sor_vectors.py` and its JavaScript copy in `tools/js/test/vectors.js`
+(`tools/test_sor_js.py` runs that one too); a port to another language loads the same file.
 
 - `make_hashing.py` writes the file (`python3 vectors/make_hashing.py`, and `--check` to see whether it is up to date); a test fails when the
   two differ. The expected texts in it were written by hand, and every hash was computed with SHA-256 alone, never with the tool. The rows
@@ -21,6 +21,9 @@ a port (for example a TypeScript one, so that an editor needs no Python) loads t
 - A rule that changes means the rows change in the same commit, and `format` in the file counts the changes that are not
   additions. Adding rows does not change it. Format 2 is the table of types with a safe default, and keeps indentation and tracks multi-line
   strings where the type needs it.
+- A row pins a rule and not what one tool happens to do. Several rows are there for the places where another language does the same thing
+  differently: what whitespace is (`str.strip()`), what a word character is, what a dot matches (a line separator is text), and the order of
+  strings (by code point). They were found by breaking the JavaScript copy on purpose and seeing what the rows let through.
 - Not covered: the evidence fingerprint, which needs a parsed project, and the status of a clause.
 
 ## Adding a row

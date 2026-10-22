@@ -5,6 +5,7 @@
 #   sh plugins/sync-tools.sh --check   fail (exit 1) when a copy is out of date
 # The extension copy (editors/vscode/tools) is the tool the extension falls back on when a project has none; it is
 # left alone when this repository has no editors/vscode.
+# tools/js (the JavaScript copy of the hashing rules) is not copied: it has no command yet, so shipping it would add code nobody runs.
 set -e
 here=$(cd "$(dirname "$0")" && pwd)
 src="$here/../tools"

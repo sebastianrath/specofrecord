@@ -1595,6 +1595,17 @@
     "hash": "a193a250cd7a"
    },
    {
+    "name": "python: a tab goes to the next multiple of eight columns, also after spaces",
+    "style": "python",
+    "lines": [
+     "if x:",
+     "  \ty",
+     "          z"
+    ],
+    "normalized": "0:if x:\n1:y\n2:z",
+    "hash": "f2b9d09fff7d"
+   },
+   {
     "name": "python: a piece that dips below its first line counts a level below it",
     "style": "python",
     "lines": [
@@ -1667,6 +1678,82 @@
     "hash": "f10d4fc64221"
    },
    {
+    "name": "python: a # in a format spec is text, not a comment",
+    "style": "python",
+    "lines": [
+     "x = f\"{n:#x}\"",
+     "if x:",
+     "    pass"
+    ],
+    "normalized": "0:x = f\"{n:#x}\"\n0:if x:\n1:pass",
+    "hash": "a6bbb9261315"
+   },
+   {
+    "name": "python: a quote in a format spec is text, not a string",
+    "style": "python",
+    "lines": [
+     "x = f\"{n:'>10}\"",
+     "if x:",
+     "    pass"
+    ],
+    "normalized": "0:x = f\"{n:'>10}\"\n0:if x:\n1:pass",
+    "hash": "196c0840fc6d"
+   },
+   {
+    "name": "python: in a raw f-string a backslash before a brace does not hide the field",
+    "style": "python",
+    "lines": [
+     "x = rf\"\\{d[\"(\"]}\"",
+     "if x:",
+     "    pass"
+    ],
+    "normalized": "0:x = rf\"\\{d[\"(\"]}\"\n0:if x:\n1:pass",
+    "hash": "5e7d577830bd"
+   },
+   {
+    "name": "python: in an f-string that is not raw a backslash before a brace is text and the brace opens a field",
+    "style": "python",
+    "lines": [
+     "x = f\"\\{d[\"(\"]}\"",
+     "if x:",
+     "    pass"
+    ],
+    "normalized": "0:x = f\"\\{d[\"(\"]}\"\n0:if x:\n1:pass",
+    "hash": "be241679e8b9"
+   },
+   {
+    "name": "python: a backslash at the end of the text of an f-string goes on to the next line",
+    "style": "python",
+    "lines": [
+     "x = f\"ab\\",
+     "# still text {y}\"",
+     "z = 1"
+    ],
+    "normalized": "0:x = f\"ab\\\n# still text {y}\"\n0:z = 1",
+    "hash": "d5a9e74a2c00"
+   },
+   {
+    "name": "python: \\N{ in an f-string reads a name up to the next }",
+    "style": "python",
+    "lines": [
+     "x = f\"\\N{ab",
+     "y = 1"
+    ],
+    "normalized": "0:x = f\"\\N{ab\n0:y = 1",
+    "hash": "1acf4031d1e4"
+   },
+   {
+    "name": "python: a string nobody closes ends with its line",
+    "style": "python",
+    "lines": [
+     "x = \"abc",
+     "# a note",
+     "y = 1"
+    ],
+    "normalized": "0:x = \"abc\n0:y = 1",
+    "hash": "2617e6958047"
+   },
+   {
     "name": "python: a triple-quoted f-string keeps its lines, whatever they start with",
     "style": "python",
     "lines": [
@@ -1688,6 +1775,16 @@
     ],
     "normalized": "0:y = [1 if\"(\" else 2]\n0:z = 1",
     "hash": "d313c1412dec"
+   },
+   {
+    "name": "python: a name that ends in f is not a string prefix, also when the string has a brace",
+    "style": "python",
+    "lines": [
+     "y = [1 if\"{\" else 2]",
+     "z = 1"
+    ],
+    "normalized": "0:y = [1 if\"{\" else 2]\n0:z = 1",
+    "hash": "820ea8f2dadb"
    },
    {
     "name": "python: a template string (Python 3.14) is read like an f-string",
@@ -1969,6 +2066,64 @@
     "normalized": "a\nb\nc",
     "note": "a port has to strip the same characters",
     "hash": "ea7fb08b7a2d"
+   },
+   {
+    "name": "c: U+0085 and U+001F are whitespace too, and a byte order mark is not",
+    "style": "c",
+    "lines": [
+     "d",
+     "\u001fe\u001f",
+     "﻿a",
+     "﻿// x"
+    ],
+    "normalized": "d\ne\n﻿a\n﻿// x",
+    "note": "whitespace is what Python strips, which is not what a regular expression or trim() of another language strips",
+    "hash": "1a156ad549d4"
+   },
+   {
+    "name": "c: a Unicode line separator inside a comment line or a string is just a character",
+    "style": "c",
+    "lines": [
+     "// a b",
+     "/* a b */",
+     "x(1);",
+     "y  =  \"a  \\   b\"  ;"
+    ],
+    "normalized": "x(1);\ny = \"a  \\   b\" ;",
+    "note": "a dot matches everything but a line feed",
+    "hash": "66dfca64a236"
+   },
+   {
+    "name": "dash: a Unicode line separator inside a comment line is just a character",
+    "style": "dash",
+    "lines": [
+     "-- a b",
+     "select 1"
+    ],
+    "normalized": "select 1",
+    "hash": "822ae07d4783"
+   },
+   {
+    "name": "hash: a Unicode line separator inside a comment line is just a character",
+    "style": "hash",
+    "lines": [
+     "# a b",
+     "ls"
+    ],
+    "normalized": "ls",
+    "hash": "c7b68ac37f36"
+   },
+   {
+    "name": "hash: a # in the middle of a word is no comment, so the quote after it opens a string",
+    "style": "hash",
+    "lines": [
+     "echo a#b '",
+     "# inside the string",
+     "'",
+     "ls"
+    ],
+    "normalized": "echo a#b '\n# inside the string\n'\nls",
+    "hash": "572f5b9e674c"
    },
    {
     "name": "safe: moving the whole piece is not a change",
@@ -2254,6 +2409,26 @@
     "hash": "4fd41aa01443"
    },
    {
+    "name": "files are ordered by code point, so a file named with an astral character comes after one named with U+FF5E",
+    "regions": [
+     {
+      "file": "src/😀.ts",
+      "start": 1,
+      "lines": [
+       "two();"
+      ]
+     },
+     {
+      "file": "src/～.ts",
+      "start": 1,
+      "lines": [
+       "one();"
+      ]
+     }
+    ],
+    "hash": "4fd41aa01443"
+   },
+   {
     "name": "no regions is the hash of an empty text",
     "regions": [],
     "hash": "e3b0c44298fc"
@@ -2348,6 +2523,18 @@
      }
     },
     "digest": "6423277cf92e"
+   },
+   {
+    "name": "targets are ordered by code point, so an astral name comes after U+FF5E",
+    "targets": {
+     "😀": {
+      "code": "0f1e2d3c4b5a"
+     },
+     "～": {
+      "code": "a1b2c3d4e5f6"
+     }
+    },
+    "digest": "47ff9c63f460"
    },
    {
     "name": "code in no target is the target `*`",
@@ -2593,6 +2780,52 @@
     "line": "// @clauses a/b",
     "starters": [],
     "marker": null
+   },
+   {
+    "name": "a letter of another alphabet after clause makes it another word",
+    "path": "a.js",
+    "line": "// @clauseé a/b",
+    "starters": [],
+    "marker": null
+   },
+   {
+    "name": "a Unicode line separator in the words separates them",
+    "path": "a.js",
+    "line": "// @clause a/b c",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b",
+      "c"
+     ]
+    }
+   },
+   {
+    "name": "words are separated by whatever Python takes for whitespace",
+    "path": "a.js",
+    "line": "// @clause a/b cd",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b",
+      "c",
+      "d"
+     ]
+    }
+   },
+   {
+    "name": "whitespace between the starter and the word is whatever Python takes for whitespace",
+    "path": "a.js",
+    "line": "//@clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
    },
    {
     "name": "a quote before the word is not a starter in a javascript file",
@@ -3822,6 +4055,21 @@
      }
     },
     "text": "{\n\"é\": {\"kind\": \"part\", \"text\": \"ü\"}\n}\n"
+   },
+   {
+    "name": "keys are ordered by code point, so an astral key comes after U+FF5E",
+    "fmt": 1,
+    "entries": {
+     "😀": {
+      "kind": "part",
+      "text": "y"
+     },
+     "～": {
+      "kind": "part",
+      "text": "z"
+     }
+    },
+    "text": "{\n\"～\": {\"kind\": \"part\", \"text\": \"z\"},\n\"😀\": {\"kind\": \"part\", \"text\": \"y\"}\n}\n"
    },
    {
     "name": "a test entry with a result",

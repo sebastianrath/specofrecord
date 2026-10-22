@@ -399,7 +399,7 @@ when the root file has none; and a clause whose lock line `clause@target` (§11)
 - **The rules are pinned by rows.** `vectors/hashing.json` holds rows of input and expected output for the file type of a path, the
   splitting of lines, the normalization of code, the hash of the regions of a clause, the hash of a text and the text of the lock file,
   written by hand and hashed with SHA-256 alone. An implementation of the tool, in any language, has to give the same answer for every
-  row, or a lock written by one shows as drift in the other (`tools/test_sor_vectors.py` runs them for the Python tool).
+  row, or a lock written by one shows as drift in the other (`tools/test_sor_vectors.py` runs them for the Python tool, and `tools/js/test/vectors.js` for its JavaScript copy).
 - **A project that says its targets keeps a clause's code per target (`Targets:`, §9).** The clause's entry keeps its text and
   references, and each target with code gets a line of its own, `greet/hello@py`, with `kind: code`, `of` (the clause), `target`,
   `code` (the hash of the code in that target's paths, in file and line order) and `built` (the text hash of the clause that code was

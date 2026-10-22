@@ -67,6 +67,8 @@ N.append(norm('python: a string a backslash continues does not blind the lines a
     "0:def f(items):\n1:for item in items:\n2:x = 'a\\\n(b'\n2:y = 1\n2:z = 2\n1:return 3"))
 N.append(norm('python: an escaped backslash at the end of a string continues nothing', 'python',
     ["x = 'a\\\\'", '# note', 'y = 1'], "0:x = 'a\\\\'\n0:y = 1"))
+N.append(norm('python: a tab goes to the next multiple of eight columns, also after spaces', 'python',
+    ['if x:', '  \ty', '          z'], '0:if x:\n1:y\n2:z'))
 N.append(norm('python: a piece that dips below its first line counts a level below it', 'python',
     ['        a = 1', '    b = 2', '        c = 3'], '0:a = 1\n-1:b = 2\n0:c = 3'))
 N.append(norm('python: the same piece in other columns is the same', 'python',
@@ -81,10 +83,25 @@ N.append(norm('python: a field of an f-string may span lines, and its lines carr
     ['x = f"{', '    a +', '    b', '}"', 'if x:', '    pass'], '0:x = f"{\na +\nb\n}"\n0:if x:\n1:pass'))
 N.append(norm('python: fields nested in a format spec close where they should', 'python',
     ['x = f"{a:{w}.{p}}"', 'if x:', '    pass'], '0:x = f"{a:{w}.{p}}"\n0:if x:\n1:pass'))
+N.append(norm('python: a # in a format spec is text, not a comment', 'python',
+    ['x = f"{n:#x}"', 'if x:', '    pass'], '0:x = f"{n:#x}"\n0:if x:\n1:pass'))
+N.append(norm('python: a quote in a format spec is text, not a string', 'python',
+    ['x = f"{n:\'>10}"', 'if x:', '    pass'], '0:x = f"{n:\'>10}"\n0:if x:\n1:pass'))
+N.append(norm('python: in a raw f-string a backslash before a brace does not hide the field', 'python',
+    ['x = rf"\\{d["("]}"', 'if x:', '    pass'], '0:x = rf"\\{d["("]}"\n0:if x:\n1:pass'))
+N.append(norm('python: in an f-string that is not raw a backslash before a brace is text and the brace opens a field', 'python',
+    ['x = f"\\{d["("]}"', 'if x:', '    pass'], '0:x = f"\\{d["("]}"\n0:if x:\n1:pass'))
+N.append(norm('python: a backslash at the end of the text of an f-string goes on to the next line', 'python',
+    ['x = f"ab\\', '# still text {y}"', 'z = 1'], '0:x = f"ab\\\n# still text {y}"\n0:z = 1'))
+N.append(norm('python: \\N{ in an f-string reads a name up to the next }', 'python',
+    ['x = f"\\N{ab', 'y = 1'], '0:x = f"\\N{ab\n0:y = 1'))
+N.append(norm('python: a string nobody closes ends with its line', 'python', ['x = "abc', '# a note', 'y = 1'], '0:x = "abc\n0:y = 1'))
 N.append(norm('python: a triple-quoted f-string keeps its lines, whatever they start with', 'python',
     ['s = f"""', '# heading {x}', '{y:>{w}}', '"""', 'z = 2'], '0:s = f"""\n# heading {x}\n{y:>{w}}\n"""\n0:z = 2'))
 N.append(norm('python: a name that ends in f is not a string prefix', 'python',
     ['y = [1 if"(" else 2]', 'z = 1'], '0:y = [1 if"(" else 2]\n0:z = 1'))
+N.append(norm('python: a name that ends in f is not a string prefix, also when the string has a brace', 'python',
+    ['y = [1 if"{" else 2]', 'z = 1'], '0:y = [1 if"{" else 2]\n0:z = 1'))
 N.append(norm('python: a template string (Python 3.14) is read like an f-string', 'python',
     ['def clean(s):', '    x = t"{s.replace("(", "")}"', '    if x:', '        return x', '    return None'],
     '0:def clean(s):\n1:x = t"{s.replace("(", "")}"\n1:if x:\n2:return x\n1:return None'))
@@ -123,6 +140,16 @@ N.append(norm('safe: the start every kept line has in common is dropped, tabs to
 N.append(norm('safe: another whitespace character in the indentation is written out', 'safe', ['\u00a0a', 'b'], '\\u00a0:a\n0:b'))
 N.append(norm('c: whitespace at the ends of a line is what Python strips: no-break space, form feed, U+001C', 'c',
     ['\u00a0a\u00a0', '\x0cb\x0c', '\x1cc\x1c'], 'a\nb\nc', 'a port has to strip the same characters'))
+N.append(norm('c: U+0085 and U+001F are whitespace too, and a byte order mark is not', 'c',
+    ['\x85d\x85', '\x1fe\x1f', '\ufeffa', '\ufeff// x'], 'd\ne\n\ufeffa\n\ufeff// x',
+    'whitespace is what Python strips, which is not what a regular expression or trim() of another language strips'))
+N.append(norm('c: a Unicode line separator inside a comment line or a string is just a character', 'c',
+    ['// a\u2028b', '/* a\u2028b */', 'x(1);', 'y  =  "a  \\\u2028  b"  ;'], 'x(1);\ny = "a  \\\u2028  b" ;',
+    'a dot matches everything but a line feed'))
+N.append(norm('dash: a Unicode line separator inside a comment line is just a character', 'dash', ['-- a\u2028b', 'select 1'], 'select 1'))
+N.append(norm('hash: a Unicode line separator inside a comment line is just a character', 'hash', ['# a\u2028b', 'ls'], 'ls'))
+N.append(norm('hash: a # in the middle of a word is no comment, so the quote after it opens a string', 'hash',
+    ["echo a#b '", '# inside the string', "'", 'ls'], "echo a#b '\n# inside the string\n'\nls"))
 N.append(norm('safe: moving the whole piece is not a change', 'safe', ['  f(x) ->', '      g(x).'], '0:f(x) ->\n4:g(x).'))
 N.append(norm('dash-keep: a line moved out of a haskell do block is a different text', 'dash-keep',
     ['main = do', '  putStrLn "a"', 'putStrLn "b"'], '0:main = do\n2:putStrLn "a"\n0:putStrLn "b"'))
@@ -216,6 +243,8 @@ CODE.append({'name': 'regions of several files are joined in file order, each by
              'hash': sha(join([loop_text, 'export const A = 1;']))})
 CODE.append({'name': 'the same text in one region or two gives different hashes (the join counts)',
              'regions': [region('src/a.ts', 1, ['one();']), region('src/a.ts', 5, ['two();'])], 'hash': sha(join(['one();', 'two();']))})
+CODE.append({'name': 'files are ordered by code point, so a file named with an astral character comes after one named with U+FF5E',
+             'regions': [region('src/\U0001F600.ts', 1, ['two();']), region('src/\uff5e.ts', 1, ['one();'])], 'hash': sha(join(['one();', 'two();']))})
 CODE.append({'name': 'no regions is the hash of an empty text', 'regions': [], 'hash': sha('')})
 CODE.append({'name': 'a region of only comments and blanks is the hash of an empty text',
              'regions': [region('src/a.ts', 1, ['// only', ''])], 'hash': sha('')})
@@ -234,6 +263,9 @@ LOCK.append({'name': 'sorted keys, one entry per line, entry keys sorted', 'fmt'
              'text': '{\n"a": {"kind": "part", "text": "y"},\n"b/item": {"code": "c", "kind": "item", "text": "x"}\n}\n'})
 LOCK.append({'name': 'non-ascii is written as it is', 'fmt': 1, 'entries': {'é': {'kind': 'part', 'text': 'ü'}},
              'text': '{\n"é": {"kind": "part", "text": "ü"}\n}\n'})
+LOCK.append({'name': 'keys are ordered by code point, so an astral key comes after U+FF5E', 'fmt': 1,
+             'entries': {'\U0001F600': {'kind': 'part', 'text': 'y'}, '\uff5e': {'kind': 'part', 'text': 'z'}},
+             'text': '{\n"\uff5e": {"kind": "part", "text": "z"},\n"\U0001F600": {"kind": "part", "text": "y"}\n}\n'})
 LOCK.append({'name': 'a test entry with a result', 'fmt': 1,
              'entries': {'a/test:x': {'kind': 'test', 'result': 'pass', 'text': 't'}},
              'text': '{\n"a/test:x": {"kind": "test", "result": "pass", "text": "t"}\n}\n'})
@@ -246,6 +278,8 @@ DIGEST = [
     {'name': 'one target', 'targets': {'py': {'code': PY_C}}, 'digest': sha(f'py:{PY_C}')},
     {'name': 'targets in the order of their names, whatever order they come in', 'targets': {'ts': {'code': TS_C}, 'py': {'code': PY_C}},
      'digest': sha(f'py:{PY_C}\nts:{TS_C}')},
+    {'name': 'targets are ordered by code point, so an astral name comes after U+FF5E', 'targets': {'\U0001F600': {'code': TS_C}, '\uff5e': {'code': PY_C}},
+     'digest': sha(f'\uff5e:{PY_C}\n\U0001F600:{TS_C}')},
     {'name': 'code in no target is the target `*`', 'targets': {'*': {'code': ALL_C}, 'py': {'code': PY_C}},
      'digest': sha(f'*:{ALL_C}\npy:{PY_C}')},
 ]
@@ -284,6 +318,10 @@ for name, path, line, starters, expected in [
     ('a marker with no id', 'a.js', '// @clause', [], ['', []]),
     ('the end of a region', 'a.js', '// @clause end', [], ['', ['end']]),
     ('a word that only starts with clause is not the marker', 'a.js', '// @clauses a/b', [], None),
+    ('a letter of another alphabet after clause makes it another word', 'a.js', '// @clause\u00e9 a/b', [], None),
+    ('a Unicode line separator in the words separates them', 'a.js', '// @clause a/b\u2028c', [], ['', ['a/b', 'c']]),
+    ('words are separated by whatever Python takes for whitespace', 'a.js', '// @clause a/b\u00a0c\u0085d', [], ['', ['a/b', 'c', 'd']]),
+    ('whitespace between the starter and the word is whatever Python takes for whitespace', 'a.js', '//\u0085@clause a/b', [], ['', ['a/b']]),
     ('a quote before the word is not a starter in a javascript file', 'a.js', "assert(!x, '@clause end has no lens');", [], None),
     ('erlang percent', 'a.erl', '% @clause a/b', [], ['', ['a/b']]),
     ('erlang double percent', 'a.erl', '%% @clause a/b', [], ['', ['a/b']]),

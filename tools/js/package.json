@@ -1,0 +1,12 @@
+{
+  "name": "sor-js",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The hashing and marker rules of the sor tool in JavaScript, tested against the shared vectors in ../../vectors.",
+  "license": "MIT",
+  "main": "sorlib/index.js",
+  "engines": { "node": ">=16" },
+  "scripts": {
+    "test": "node test/vectors.js"
+  }
+}

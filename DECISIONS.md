@@ -881,7 +881,37 @@ A full review of the styles and the markers (12 findings; three of them reproduc
 - **Not changed:** the three quote scanners (Python, `#` languages, C family strings) stay separate. A shared lexer would be a larger change
   than the review warranted; instead each scanner has a test of the same backslash case, since the escape bug that hid for a day was in one of them.
 
+## A JavaScript copy of the hashing rules (2026-10-21)
+The proposal ends with a copy of the tool that an editor can run without Python. This is the first slice of it, in `tools/js/`.
+- **JavaScript, not TypeScript.** The extension's own spec says plain JavaScript on Node, no build step, VS Code 1.80 or newer (Node 16). A
+  TypeScript copy would need a compile step it may not have. The copy is CommonJS with no dependencies, and it runs on Node 16.20 and on 26.
+- **Only the rules the vectors cover.** The style of a path, the splitting of lines, the normalization of code in every style, markers (parsed
+  and scanned), the hash of the regions of a clause, the hash of a text, the digest of the targets of a clause, and folding, unfolding and
+  writing the text of the lock. There is no project reader, folder scan or command line yet.
+- **It is not shipped yet.** `plugins/sync-tools.sh` copies only the Python files. A copy with no command would put code in the extension's
+  package that nothing runs, and the extension's `code` rule lists what the package may hold.
+- **Python's text rules sit in one module** (`pytext.js`). Where JavaScript differs from Python the copy follows Python, because a lock written by
+  one has to read as unchanged by the other. Whitespace is what `str.strip()` removes (not `trim()` or `\s`, which differ at U+001C to U+001F,
+  U+0085 and U+FEFF), a word character is a Unicode letter, digit or `_` (JavaScript's `\b` is ASCII only), a dot matches everything but a line
+  feed (so U+2028 is text), and strings and lock keys sort by code point (JavaScript sorts by UTF-16 unit and puts U+1F600 below U+FF5E).
+- **Written by hand, not built from clauses.** The tool has no `sor/` project of its own, so its rules are not clauses and the copy is not
+  generated from any. Nothing but tests ties the two copies, and the SPEC pins the rules in prose (§10, §11). This is the gap the multi-target
+  work was built for, and it is open (below).
+- **How the two copies are kept from drifting.** The same rows run on both. Breaking the JavaScript on purpose in 33 places showed that the
+  rows alone missed 13 real ones (U+0085, a letter after `@clause`, U+2028 in a comment or a marker, a tab after spaces, `\{` and `\N{` in
+  f-strings, a name ending in `f` before a string, a `#` inside a word in shell, a format spec holding `#` or a quote, the order of astral keys),
+  so 21 rows were added. The Python tool fails on the new rows too when it is broken at the matching places (tried at six). A test in the
+  Python suite (`tools/test_sor_js.py`) also puts the repository's own code through every style in both tools, plain and with characters put in at
+  random, and compares markers, scans and lock texts. With it, every one of the 33 breakages fails a test except one that changes nothing (the common
+  prefix of the indentations does not depend on which string it starts from).
+- **Limits.** The test is skipped, with a message, when `node` is missing. The rows and the cross-check only reach what they try. Letters and
+  digits that Unicode added after the older of the two versions that Python and Node carry can be word characters in one and not the other. The
+  JavaScript is not measured for coverage, since that needs a package from npm. Paths are read with `/` as the separator.
+
 ## Still open
+- The tool is not under Spec of Record. Its hashing, marker and lock rules could be clauses with `Targets: py, js`, so that a change to a clause
+  leaves the other language behind and a lock refuses until both follow (`proposals/multi-target.md`). Until then the vectors and the
+  cross-check are the only guard.
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for
   this format (SPEC §15). The old `fdd` prototype (previous syntax) is not in this folder.
 - The example's `quality` clause asks for 90% clause coverage and gets 90.5%, with one confirmed check: `test:delivery`

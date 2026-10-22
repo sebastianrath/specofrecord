@@ -12,7 +12,7 @@ the tools and the questions people ask. This README only says what is in this re
 | Folder or file | What it is |
 |---|---|
 | [`SPEC.md`](SPEC.md) | The format. It covers files and hierarchy, the four sections of a part (Rules, Approach, Contract, Tests), items and ids, values and references, targets, code markers, the lock file (`sor-lock.json`), what a tool enforces and how agents work in parallel. It starts with a cheat sheet. |
-| [`tools/`](tools) | The `sor` command. That is `tools/sor.py` and the library behind it (`tools/sorlib/`), with its own tests and a coverage script. `python3 tools/sor.py --help` lists what it does. |
+| [`tools/`](tools) | The `sor` command. That is `tools/sor.py` and the library behind it (`tools/sorlib/`), with its own tests and a coverage script. `python3 tools/sor.py --help` lists what it does. `tools/js/` is a JavaScript copy of its hashing rules, for an editor that has no Python. |
 | [`plugins/specofrecord/`](plugins/specofrecord) | The Claude Code plugin, with the workflow skill, the edit guard and a copy of `tools/`. Its [README](plugins/specofrecord/README.md) has the requirements. |
 | [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) | Lets the repository itself be added as a plugin marketplace. |
 | [`examples/solar-system/`](examples/solar-system) | A complete project built with it, where planets orbit and you click one for a fun fact. Specs in `sor/`, the built page in `out/`. A good place to read real clauses next to their code. |
@@ -28,6 +28,7 @@ the tools and the questions people ask. This README only says what is in this re
 - Run the tests with `python3 -m unittest discover -s tools -p 'test_*.py'`. They need no browser and touch only temporary
   folders.
 - `sh tools/coverage.sh` runs them under coverage.
+- With `node` installed (16 or later) the same run also checks the JavaScript copy of the hashing rules in `tools/js/`. Without it that test is skipped and says so.
 - The plugin carries its own copy of `tools/` and of the cheat sheet, and the VS Code extension carries a copy of `tools/`.
   After changing `tools/` or the cheat sheet in `SPEC.md`, run `sh plugins/sync-tools.sh` (`--check` fails when a copy is
   out of date).

@@ -94,7 +94,7 @@ Phase 1 built that (`DECISIONS.md`, "The lock has a format number"). Format 1 ha
 - **Phase 4:** per-target evidence and fingerprints.
 
 ## For the Python and TypeScript tool
-The risk is that the two copies disagree on a hash. So the hashing and normalization rules should be clauses with tables of test vectors (input, expected hash), and both implementations should run against the same rows. The rows are built (`vectors/hashing.json`, `DECISIONS.md`); the second copy is not part of this proposal.
+The risk is that the two copies disagree on a hash. So the hashing and normalization rules should be clauses with tables of test vectors (input, expected hash), and both implementations should run against the same rows. The rows are built (`vectors/hashing.json`, `DECISIONS.md`); a first slice of the second copy is built, in JavaScript and not TypeScript (`tools/js`, `DECISIONS.md`): the hashing, marker and lock text rules, run against the same rows and compared with the Python tool by a test. It is written by hand, since the tool has no spec of its own to build it from.
 
 ## Decisions (made on 2026-10-21)
 1. **Lock shape:** separate lines per (clause, target), each with `built`. Not a dict inside one entry.

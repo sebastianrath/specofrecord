@@ -29,5 +29,9 @@ In this repository:
 - The plugin carries its own copy of `tools/` and of the cheat sheet, and the VS Code extension carries a copy of `tools/`
   (`editors/vscode/tools`, the tool it falls back on). After you change `tools/` or the cheat sheet in `SPEC.md`, run
   `sh plugins/sync-tools.sh`; `sh plugins/sync-tools.sh --check` fails when a copy is out of date.
+- `tools/js/` is the JavaScript copy of the hashing, marker and lock text rules (`node tools/js/test/vectors.js` runs it against the vectors, and
+  `tools/test_sor_js.py` in the normal test run compares it with the Python tool). A change to those rules in `tools/sorlib/` goes into
+  `tools/js/sorlib/` in the same change, and into `vectors/hashing.json` through `python3 vectors/make_hashing.py`. It is not shipped in the
+  plugin or the extension yet, so `plugins/sync-tools.sh` leaves it alone.
 - Do not run `lock` or `claim` against `examples/` or `editors/vscode` to try the tool out: use a temporary
   folder.
