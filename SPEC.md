@@ -317,7 +317,8 @@ for that item) or `bug:` (a regression test).
 
 ## 9. Targets
 A target is a part under `sor/targets/` that says how code is delivered and tested:
-- Rules: delivery rules ("one HTML file", "1 px = 1 CSS pixel"), where code goes.
+- Rules: delivery rules ("one HTML file", "1 px = 1 CSS pixel"), where code goes, and the comment starters the markers of its files may
+  follow (`{comment: %}`, §10).
 - Approach: how code is built, laid out and run; the test command; the coverage format.
 - Contract: `gives` the probes (`read:`, `do:`), generators (`gen:`), metrics (`metrics:`) and
   the setup run before each test (`before each test:`).
@@ -346,6 +347,13 @@ when the root file has none; and a clause whose lock line `clause@target` (§11)
 ## 10. Code markers
 - Every generated line sits in one region: `@clause <id> [<id> …]` … `@clause end`, written in the
   file's comment syntax. `@clause glue` for wiring. Regions never nest. Unmarked lines fail.
+- A marker is `@clause` after a comment starter. Every file has `//`, `#`, `/*`, `<!--`, `--` and `;`, and a starter written more than once
+  is still one starter (`;;`, `///`, `##`), so `;; @clause end` is the whole line and not code before a line marker. A type adds its own: `%`
+  for Erlang, MATLAB and TeX; `!` for Fortran; `'` for Visual Basic; `REM` and `::` for batch files, at the start of a line only; `(*` for
+  OCaml, Pascal and F# (the closing `*)` is not an id). A target may declare more for the files under its paths with `{comment: %}` in its Rules,
+  a list of starters of one to three characters (none a letter, a digit, a space, `@`, `{` or `}`) separated by commas. That adds starters
+  and takes none away, and `sor check` reports a malformed one. A starter in a type that does not list it is text, so a string such as
+  `'@clause end'` in a JavaScript file is never a marker. `vectors/hashing.json` has rows for all of this.
 - Where the tool looks for code: the declared code paths, or the whole project when none is declared yet.
   It never enters a folder whose name starts with a dot (`.git`, `.venv`, `.claude`: tools and plugin copies, not
   the project's code), nor `node_modules`, `venv` or `__pycache__`. A code path MAY itself be inside a dot folder.

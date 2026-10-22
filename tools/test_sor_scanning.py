@@ -91,6 +91,96 @@ class TestScanText(unittest.TestCase):
                 self.assertEqual((regions[0].ids, [p for p in problems if 'never' in p[1]]), (['a'], []))
 
 
+class TestMarkerStarters(unittest.TestCase):
+    """What a marker may follow (SPEC §10): the starters every file has, as runs; the ones its type adds; the ones its target declares."""
+
+    def scan(self, rel, text, starters=()):
+        regions, problems, unmarked = markers.scan_text(rel, text, starters)
+        return regions, [(p.kind, p.text) for p in problems], unmarked
+
+    def test_a_doubled_starter_opens_a_region_and_is_not_code_before_a_line_marker(self):
+        for rel, starter in (('a.clj', ';;'), ('a.rs', '///'), ('a.py', '##'), ('a.sql', '---'), ('a.js', '/**'), ('a.c', '////')):
+            with self.subTest(starter):
+                regions, problems, unmarked = self.scan(rel, f'{starter} @clause a/b\none();\n{starter} @clause end\n')
+                self.assertEqual(([(r.kind, r.ids) for r in regions], problems, unmarked), ([('code', ['a/b'])], [], []))
+
+    def test_a_type_adds_its_own_starters(self):
+        cases = [('a.erl', '%'), ('a.erl', '%%'), ('a.hrl', '%'), ('a.m', '%'), ('a.f90', '!'), ('a.vb', "'"), ('a.bat', 'REM'),
+                 ('a.bat', 'rem'), ('a.cmd', '::'), ('a.fs', '(*'), ('a.ml', '(*'), ('a.pas', '(*')]
+        for rel, starter in cases:
+            with self.subTest(f'{rel} {starter}'):
+                close = ' *)' if starter == '(*' else ''
+                regions, problems, unmarked = self.scan(rel, f'{starter} @clause a/b{close}\ncode\n{starter} @clause end{close}\n')
+                self.assertEqual(([(r.kind, r.ids) for r in regions], problems, unmarked), ([('code', ['a/b'])], [], []))
+
+    def test_the_same_starter_in_a_type_that_does_not_list_it_is_not_a_marker(self):
+        for rel in ('a.xyz', 'a.js', 'a.py', 'LICENSE'):
+            with self.subTest(rel):
+                regions, problems, unmarked = self.scan(rel, '% @clause a/b\ncode\n')
+                self.assertEqual((regions, unmarked), ([], [1, 2]))
+
+    def test_rem_starts_a_marker_only_at_the_start_of_a_line(self):
+        self.assertEqual(markers.parse_marker('a.bat', '  rem @clause a/b'), ('', ['a/b']))
+        self.assertIsNone(markers.parse_marker('a.bat', 'echo REM @clause a/b'))
+        self.assertIsNone(markers.parse_marker('a.bat', 'remark @clause a/b'))
+
+    def test_a_line_marker_after_code_in_a_type_with_its_own_starter(self):
+        regions, problems, _ = self.scan('a.erl', 'f() -> ok.  % @clause a/b\n')
+        self.assertEqual(([(r.kind, r.ids, r.lines) for r in regions], problems), ([('line', ['a/b'], ['f() -> ok.'])], []))
+
+    def test_a_quote_before_the_word_in_a_string_is_not_a_marker_in_a_type_that_has_no_such_starter(self):
+        # editors/vscode/test/suite.js has: assert(!at(...).length, '@clause end has no lens');
+        for rel in ('a.js', 'a.py', 'a.c', 'a.html'):
+            with self.subTest(rel):
+                regions, _, unmarked = self.scan(rel, "assert(!at(lineOf(/x/)).length, '@clause end has no lens');\n")
+                self.assertEqual((regions, unmarked), ([], [1]))
+
+    def test_a_comment_that_closes_on_the_line_is_not_an_id(self):
+        for rel, text in (('a.ml', '(* @clause a/b *)'), ('a.c', '/* @clause a/b */'), ('a.html', '<!-- @clause a/b -->')):
+            with self.subTest(rel):
+                self.assertEqual(markers.parse_marker(rel, text), ('', ['a/b']))
+
+    def test_what_a_target_declares_is_added_and_nothing_is_taken_away(self):
+        self.assertEqual(markers.parse_marker('a.xyz', '% @clause a/b'), None)
+        self.assertEqual(markers.parse_marker('a.xyz', '% @clause a/b', ['%']), ('', ['a/b']))
+        self.assertEqual(markers.parse_marker('a.xyz', '%% @clause a/b', ['%']), ('', ['a/b']))
+        self.assertEqual(markers.parse_marker('a.xyz', '// @clause a/b', ['%']), ('', ['a/b']))
+        self.assertEqual(markers.parse_marker('a.xyz', '(* @clause a/b *)', ['(*']), ('', ['a/b']))
+        self.assertEqual(markers.parse_marker('a.xyz', '|| @clause a/b', ['||']), ('', ['a/b']))
+
+
+class TestAStarterATargetDeclares(base.Case):
+    TARGET = doc('Odd', 'A language with its own comments.', rules=['- **code** - The code is under {path: src/}.',
+                                                                    '- **marks** - Markers follow {comment: %, ||}.'])
+
+    def setUp(self):
+        super().setUp()
+        self.project({'targets/odd': self.TARGET, 'bodies': doc('Bodies', 'The sky.', rules=['- **sun** - Size {size: 28}.'])})
+
+    def test_the_markers_of_the_target_are_found_in_a_file_of_any_type(self):
+        write(self.dir, 'src/a.xyz', '% @clause bodies/sun\ncode\n% @clause end\n|| @clause bodies/sun\nmore\n|| @clause end\n')
+        scan = Scan(Project(self.dir))
+        self.assertEqual([(r.kind, r.ids) for r in scan.regions], [('code', ['bodies/sun']), ('code', ['bodies/sun'])])
+        self.assertEqual([p for p in scan.problems if p.kind == 'unmarked'], [])
+
+    def test_a_file_outside_the_target_does_not_get_them(self):
+        write(self.dir, 'src/a.xyz', '// @clause bodies/sun\ncode\n// @clause end\n')
+        write(self.dir, 'other.xyz', '% @clause bodies/sun\ncode\n% @clause end\n')
+        scan = Scan(Project(self.dir))        # other.xyz is not under the code path, so it is not even read
+        self.assertEqual([r.file for r in scan.regions], ['src/a.xyz'])
+
+    def test_a_malformed_starter_is_a_problem(self):
+        for bad in ('abc', '@@', 'a%', '%%%%'):
+            with self.subTest(bad):
+                self.project({'targets/odd': self.TARGET.replace('{comment: %, ||}', f'{{comment: {bad}}}'),
+                              'bodies': doc('Bodies', 'The sky.', rules=['- **sun** - Size {size: 28}.'])})
+                found = [p for p in Project(self.dir).check() if p.kind == 'target' and 'is not a comment starter' in p.text]
+                self.assertEqual(len(found), 1, bad)
+
+    def test_a_good_declaration_is_no_problem(self):
+        self.assertEqual([p for p in Project(self.dir).check() if p.kind == 'target'], [])
+
+
 class TestScanOfAProject(base.Case):
     """The scanner against a project's clauses: ids that do not exist, code that is not marked, whole files."""
 

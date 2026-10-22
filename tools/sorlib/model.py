@@ -31,6 +31,15 @@ def within(rel, path):
     return path in ('.', '') or rel == path or rel.startswith(path + '/')
 
 
+STARTER = re.compile(r'^[^\w\s@{}]{1,3}$')   # a comment starter a target may declare: one to three characters, none a letter, digit or space
+
+
+def starters_in(text):
+    """([starters], [what is not one]) of a `{comment: %, !}` value."""
+    found = [t for t in re.split(r'[,\s]+', text.strip()) if t]
+    return [t for t in found if STARTER.match(t)], [t for t in found if not STARTER.match(t)]
+
+
 RESERVED_TARGETS = ('glue', 'test', 'ROOT')   # a target may not have a name that a lock key starts with
 
 LINE_BREAK = re.compile(r'\r\n|\r|\n')
@@ -873,6 +882,21 @@ class Project:
                                   for it in p.items.values() if it.section == 'Rules' and 'path' in it.values]
         return self._target_paths
 
+    def comment_starters(self, rel):
+        """The comment starters that the target of this file declares for its markers (`{comment: %}` in the target's rules),
+        besides the ones every file and its type have."""
+        target = self.target_of(rel)
+        if target is None:
+            return ()
+        if getattr(self, '_starters', None) is None:
+            self._starters = {}
+            for p in self.parts.values():
+                if p.id.startswith('targets/'):
+                    for it in p.items.values():
+                        if it.section == 'Rules' and 'comment' in it.values:
+                            self._starters.setdefault(p.id.split('/')[1], []).extend(starters_in(it.values['comment'])[0])
+        return tuple(self._starters.get(target, ()))
+
     def target_names(self):
         """The names of the targets that declare a path, sorted."""
         return sorted({name for name, _, _ in self.target_paths()})
@@ -944,6 +968,16 @@ class Project:
                         out.append(Problem('runs on', f'{item.file}:{item.lineno}',
                                            f'"{env}" is a target, so as an environment it would defer a test that runs here: '
                                            'give the environment another name'))
+        for p in self.parts.values():
+            if p.id.startswith('targets/'):
+                for it in p.items.values():
+                    if it.section == 'Rules' and 'comment' in it.values:
+                        bad = starters_in(it.values['comment'])[1]
+                        for token in bad:
+                            out.append(Problem('target', p.rel, f'`comment: {token}` is not a comment starter: one to three characters, '
+                                                                'none a letter, a digit, a space, `@`, `{` or `}`'))
+                        if not it.values['comment'].strip():
+                            out.append(Problem('target', p.rel, '`comment:` names no starter'))
         known = set(names)
         for p in self.parts.values():
             text = p.header.get('Targets', '').strip()

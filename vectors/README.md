@@ -1,7 +1,7 @@
 # Hashing vectors
 
 `hashing.json` holds rows of input and expected output for the rules that decide whether a lock written by one implementation of the
-tool is read as unchanged by another (SPEC section 11): which style a file gets, how lines are split, how code is normalized, how the
+tool is read as unchanged by another (SPEC section 11): which style a file gets, how lines are split, how a marker is found in a line (SPEC section 10), how code is normalized, how the
 regions of a clause are joined and hashed, how a text is hashed, how the code of a clause per target is digested and folded out of the
 lock file's lines, and how the lock file is written.
 

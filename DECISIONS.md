@@ -844,6 +844,22 @@ language: there are four families, and a port writes them once.
 - **Measured:** `sor check`, `sor status --json` and `sor markers --json` give the same output as before on all three real projects, back to
   back; `sor status` on the large copy takes 0.5 s; a style with no string kinds gives text identical to plain `c` for code without any.
 
+## A marker may follow more comment starters, per type and per target (2026-10-21)
+Five of the 36 languages tried could not be marked at all: the tool saw no region and called every line unmarked (Erlang `%`, MATLAB `%`,
+Fortran `!`, Visual Basic `'`, OCaml `(*`; batch files `REM` too).
+- **Per type, not global.** `MARK` is searched in every file, so a global `'` would turn `x = '@clause end has no lens'` into a line marker that
+  names ids that do not exist, and that blocks the lock (the extension's own test has such a line). A type's extra starters sit in the same
+  table row as its style (`LANGUAGES`). `REM` and `::` count only at the start of a line.
+- **A target may declare more: `{comment: %}`** in its Rules, one to three characters, none a letter, a digit, a space, `@`, `{` or `}`.
+  It adds and never takes away; `sor check` reports a malformed one. This is the answer for a language nobody listed, instead of guessing
+  a starter in every unknown file, which would turn lines of the doc files under a code root into markers.
+- **A starter is a run.** The old pattern matched `;; @clause` at the second `;`, so the text before it was not blank and the line read as a
+  line marker, and `;; @clause end` became a problem. `///` (Rust, C#, Swift) and `##` did the same. They are one starter now.
+- `(* … *)` strips the closing `*)` as `*/` and `-->` were.
+- **Not changed:** the VS Code extension keeps its own list of marker comment styles to hide and fold marker lines, so a line with a new starter
+  is not hidden or folded there. The regions come from the tool and are right. That JS is its own project and was not edited.
+- Vectors: 27 rows for `parse_marker`, among them the string case, `;;`, `///`, REM at the start only, and declared starters.
+
 ## Still open
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for
   this format (SPEC §15). The old `fdd` prototype (previous syntax) is not in this folder.

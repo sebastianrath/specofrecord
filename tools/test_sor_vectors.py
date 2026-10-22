@@ -27,7 +27,7 @@ from sorlib.model import split_lines         # noqa: E402
 PATH = os.path.join(REPO, 'vectors', 'hashing.json')
 with open(PATH, encoding='utf8') as fh:
     VECTORS = json.load(fh)
-CATEGORIES = ('style_of', 'split_lines', 'normalize', 'code_hash', 'text_hash', 'targets_digest', 'fold', 'lock_render')
+CATEGORIES = ('style_of', 'split_lines', 'normalize', 'code_hash', 'text_hash', 'targets_digest', 'fold', 'marker', 'lock_render')
 
 
 def rows(category):
@@ -100,6 +100,12 @@ class TestEveryRow(unittest.TestCase):
         for r in rows('text_hash'):
             with self.subTest(r['name']):
                 self.assertEqual(lockfile.h(r['input']), r['hash'])
+
+    def test_marker(self):
+        for r in rows('marker'):
+            with self.subTest(r['name']):
+                got = markers.parse_marker(r['path'], r['line'], r['starters'])
+                self.assertEqual(None if got is None else {'code': got[0], 'words': got[1]}, r['marker'])
 
     def test_targets_digest(self):
         for r in rows('targets_digest'):

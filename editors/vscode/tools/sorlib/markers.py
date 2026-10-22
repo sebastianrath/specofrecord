@@ -15,7 +15,29 @@ import re
 from . import anchors
 from .model import Problem, has_spec, split_lines
 
-MARK = re.compile(r'(?://|#|/\*|<!--|--|;)\s*@clause\b(.*)$')
+# A marker is `@clause` after a comment starter (SPEC §10). A starter is a run (`;; @clause`, `/// @clause`), so the marker is the
+# whole line and not "code, then a line marker". Every file has these; a type adds its own (`LANGUAGES`) and a target may declare more.
+BASE_STARTERS = (r'//+', r'#+', r'/\*+', r'<!--', r'-{2,}', r';+')
+EXTRA_STARTERS = {'%': r'%+', '!': r'!+', "'": r"'+", '(*': r'\(\*+', 'rem': r'^\s*(?:(?i:rem)\b|::)'}
+MARKER_CLOSERS = re.compile(r'(\*/|-->|\*\))\s*$')   # a comment that closes on the line is not an id
+_MARKERS = {}
+
+
+def marker_regex(extras=()):
+    """The regex that finds a marker in a line, for the extra starters of a file. Group 1 is what follows `@clause`."""
+    key = tuple(dict.fromkeys(extras))
+    if key not in _MARKERS:
+        alts = list(BASE_STARTERS) + [EXTRA_STARTERS.get(s) or re.escape(s) + re.escape(s[-1]) + '*' for s in key]
+        _MARKERS[key] = re.compile('(?:' + '|'.join(alts) + r')\s*@clause\b(.*)$')
+    return _MARKERS[key]
+
+
+def parse_marker(rel, line, starters=()):
+    """(the code before the marker, the words after `@clause`) of a line of the file at this path that holds a marker, else None.
+    `starters`: what the file's target declares besides the starters of its type."""
+    m = marker_regex(starters_of(rel) + tuple(starters)).search(line)
+    return None if m is None else (line[:m.start()].rstrip(), MARKER_CLOSERS.sub('', m.group(1)).split())
+
 SKIP_DIRS = {'node_modules', '__pycache__', 'venv'}   # and every folder whose name starts with a dot (.git, .venv, .claude)
 MAX_BYTES = 2_000_000
 
@@ -58,20 +80,21 @@ def _ranges(nums):
     return out
 
 
-def scan_text(rel, text):
-    """Regions, problems and unmarked line numbers of one file."""
+def scan_text(rel, text, starters=()):
+    """Regions, problems and unmarked line numbers of one file. `starters`: the comment starters its target declares."""
     regions, problems, unmarked = [], [], []
     cur, whole = None, None
     lines = split_lines(text)
+    mark = marker_regex(starters_of(rel) + tuple(starters))
     for n, line in enumerate(lines, 1):
-        m = MARK.search(line)
+        m = mark.search(line)
         if not m:
             if cur is not None:
                 cur.lines.append(line.rstrip())
             elif line.strip():
                 unmarked.append(n)
             continue
-        words = re.sub(r'(\*/|-->)\s*$', '', m.group(1)).split()
+        words = MARKER_CLOSERS.sub('', m.group(1)).split()
         head = words[0] if words else ''
         code = line[:m.start()].rstrip()
         if code.strip():
@@ -114,7 +137,7 @@ def scan_text(rel, text):
         regions.append(cur)
     if whole is not None:
         whole.end = len(lines)
-        whole.lines = [l.rstrip() for l in lines if not MARK.search(l)]
+        whole.lines = [l.rstrip() for l in lines if not mark.search(l)]
         regions.append(whole)
         unmarked = []
     return regions, problems, unmarked
@@ -194,6 +217,11 @@ def _language(rel):
     if name in LANGUAGES_BY_NAME:
         return LANGUAGES_BY_NAME[name], ''
     return STYLES.get(name.rpartition('.')[2], (DEFAULT_STYLE, '')) if '.' in name else (DEFAULT_STYLE, '')
+
+
+def starters_of(rel):
+    """The comment starters, besides the ones every file has, that a marker may follow in the file at this path (its type's)."""
+    return tuple(_language(rel)[1].split())
 
 
 def style_of(rel):
@@ -620,7 +648,7 @@ class Scan:
     def _add(self, rel, text):
         if not self._explicit and '@clause' not in text:
             return
-        regions, problems, unmarked = scan_text(rel, text)
+        regions, problems, unmarked = scan_text(rel, text, self.project.comment_starters(rel))
         self.problems += problems
         by_hand = self.by_hand(rel)
         if not by_hand:

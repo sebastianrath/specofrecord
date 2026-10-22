@@ -2120,6 +2120,317 @@
    }
   ]
  },
+ "marker": {
+  "how": "parse_marker(path, line, starters) -> null | {code, words}: a marker is `@clause` after a comment starter, the whole line or after code (a line marker). Every file has the starters // # /* <!-- -- ; as runs (// and ///, ; and ;;), its type adds more (SPEC section 10), and `starters` are those its target declares, which add and never take away. Words are what follows `@clause` without a closing */ --> or *); REM and :: count only at the start of a line.",
+  "rows": [
+   {
+    "name": "a line comment",
+    "path": "a.js",
+    "line": "// @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "a hash",
+    "path": "a.py",
+    "line": "# @clause a/b c/d",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b",
+      "c/d"
+     ]
+    }
+   },
+   {
+    "name": "a doubled starter is the whole marker",
+    "path": "a.clj",
+    "line": ";; @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "three slashes",
+    "path": "a.rs",
+    "line": "/// @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "a doc block opener",
+    "path": "a.js",
+    "line": "/** @clause a/b */",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "three dashes",
+    "path": "a.sql",
+    "line": "--- @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "an html comment",
+    "path": "a.html",
+    "line": "<!-- @clause a/b -->",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "code before the marker makes it a line marker",
+    "path": "a.js",
+    "line": "x = 1;  // @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "x = 1;",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "a marker with no id",
+    "path": "a.js",
+    "line": "// @clause",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": []
+    }
+   },
+   {
+    "name": "the end of a region",
+    "path": "a.js",
+    "line": "// @clause end",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "end"
+     ]
+    }
+   },
+   {
+    "name": "a word that only starts with clause is not the marker",
+    "path": "a.js",
+    "line": "// @clauses a/b",
+    "starters": [],
+    "marker": null
+   },
+   {
+    "name": "a quote before the word is not a starter in a javascript file",
+    "path": "a.js",
+    "line": "assert(!x, '@clause end has no lens');",
+    "starters": [],
+    "marker": null
+   },
+   {
+    "name": "erlang percent",
+    "path": "a.erl",
+    "line": "% @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "erlang double percent",
+    "path": "a.erl",
+    "line": "%% @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "erlang line marker",
+    "path": "a.erl",
+    "line": "f() -> ok.  % @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "f() -> ok.",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "fortran bang",
+    "path": "a.f90",
+    "line": "! @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "visual basic quote",
+    "path": "a.vb",
+    "line": "' @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "batch rem, in any case",
+    "path": "a.bat",
+    "line": "Rem @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "batch colons",
+    "path": "a.cmd",
+    "line": ":: @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "batch rem only at the start of a line",
+    "path": "a.bat",
+    "line": "echo REM @clause a/b",
+    "starters": [],
+    "marker": null
+   },
+   {
+    "name": "ocaml comment: the closing star paren is not an id",
+    "path": "a.ml",
+    "line": "(* @clause a/b *)",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "percent in a type that does not list it",
+    "path": "a.js",
+    "line": "% @clause a/b",
+    "starters": [],
+    "marker": null
+   },
+   {
+    "name": "percent in a type nobody listed",
+    "path": "a.xyz",
+    "line": "% @clause a/b",
+    "starters": [],
+    "marker": null
+   },
+   {
+    "name": "a starter the target declares",
+    "path": "a.xyz",
+    "line": "% @clause a/b",
+    "starters": [
+     "%"
+    ],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "a declared starter is a run",
+    "path": "a.xyz",
+    "line": "%% @clause a/b",
+    "starters": [
+     "%"
+    ],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "a declared starter of two characters",
+    "path": "a.xyz",
+    "line": "|| @clause a/b",
+    "starters": [
+     "||"
+    ],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "a declared starter adds and takes nothing away",
+    "path": "a.xyz",
+    "line": "// @clause a/b",
+    "starters": [
+     "%"
+    ],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   }
+  ]
+ },
  "lock_render": {
   "how": "render(entries, fmt) -> text of the lock file (fmt null: the format the entries need, 2 when a clause has `targets`, else 1): a clause with `targets` loses `targets` and `code` and gets a line `<clause>@<target>` of kind \"code\" per target; keys sorted, one entry per line, entry keys sorted, separators \", \" and \": \", non-ASCII as written; a fmt above 1 opens with its marker line.",
   "rows": [
