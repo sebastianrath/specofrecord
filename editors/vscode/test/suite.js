@@ -502,27 +502,25 @@ exports.run = async function run() {
   assert(Buffer.compare(fs.readFileSync(tuFile), tuBytes) === 0, 'the file on disk is the same bytes');
   ok(`colors: ${tuDoc.lineCount} lines walked with colors and preview on, the document is not edited and the file is the same bytes`);
 
-  // 13. python: the script set as sor.pythonPath is what the tool runs with (project/python)
-  if (process.platform !== 'win32') {
-    const os = require('os');
-    const pyLog = path.join(os.tmpdir(), 'sor-python-calls.log'), pyScript = path.join(os.tmpdir(), 'sor-fake-python.sh');
-    fs.rmSync(pyLog, { force: true });
-    fs.writeFileSync(pyScript, `#!/bin/sh\necho "$@" >> "${pyLog}"\nexec /usr/bin/env python3 "$@"\n`, { mode: 0o755 });
-    const cfg = vscode.workspace.getConfiguration('sor');
+  // 13. node: a refresh starts only the editor's own Node, running the bundled tool (project/node). child_process is one module for the extension and
+  // this test, and the extension calls cp.execFile when it needs it, so wrapping it shows every program a refresh starts, whatever the PATH holds.
+  {
+    const cp = require('child_process');
+    const started = [];
+    const execFile = cp.execFile;
+    cp.execFile = function (file, args, ...rest) { started.push([file, ...(Array.isArray(args) ? args : [])]); return execFile.call(this, file, args, ...rest); };
     try {
-      await cfg.update('pythonPath', pyScript, vscode.ConfigurationTarget.Global);
       await api.refresh();
-      const calls = fs.existsSync(pyLog) ? fs.readFileSync(pyLog, 'utf8') : '';
-      assert(/sor\.py/.test(calls) && /markers/.test(calls) && /status/.test(calls), 'the script was called with the tool: ' + calls.slice(0, 200));
     } finally {
-      await cfg.update('pythonPath', undefined, vscode.ConfigurationTarget.Global);
-      fs.rmSync(pyScript, { force: true });
-      fs.rmSync(pyLog, { force: true });
+      cp.execFile = execFile;
     }
-    await api.refresh();
-    ok('python: the script set as sor.pythonPath is called with the tool for markers and status');
-  } else {
-    ok('python: skipped on Windows (the script check is for a shell)');
+    assert(started.length >= 2 * api.state.projects.length, 'a refresh asks the tool for the index and the status of each project: ' + started.length + ' calls');
+    const toolJs = path.join(ext.extensionPath, 'tools', 'sor.js');
+    const odd = started.filter((c) => c[0] !== process.execPath || c[1] !== toolJs);
+    assert(!odd.length, 'a refresh started something else than the editor\'s Node on tools/sor.js: ' + JSON.stringify(odd[0] || null).slice(0, 200));
+    assert(!started.some((c) => c.some((x) => /python|(^|[\\/])py(\.exe)?$/i.test(String(x)))), 'no Python in any command');
+    assert(api.state.projects.length && api.state.projects.every((p) => p.index && p.status), 'every project has its index and status');
+    ok(`node: a refresh started ${started.length} programs, all of them the editor's Node on tools/sor.js, none of them Python`);
   }
 
   // 14. projects: the folder above sor/, node_modules skipped, 20 at most (project/projects). Last: findFiles returns any 20,

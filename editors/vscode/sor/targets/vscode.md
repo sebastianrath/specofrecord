@@ -5,10 +5,10 @@ Why: where the extension runs, and how its code is delivered and tested.
 - **code** — the extension's own code is one file, {path: src/extension.js}; the `sor` tool it ships is that
   tool's code, not the extension's.
 - **runtime** — plain JavaScript on Node in VS Code 1.80 or newer; no build step, no network; the
-  only program it starts is the `sor` tool.
+  only program it starts is the `sor` tool, which is JavaScript too, so no Python is needed.
 - **files-only** — it runs for files on disk (the `file:` scheme), also over Remote (WSL, SSH).
 - **package** — it packages as one `.vsix` (`npm run package`) that installs on its own, with a copy of the `sor`
-  tool inside (`tools/`, made from the repository's `tools/` by `plugins/sync-tools.sh`, never edited by hand).
+  tool inside (`tools/`, made from the repository's `tools/js` by `plugins/sync-tools.sh`, never edited by hand).
 - **paths-case** — paths are compared without case, so Windows paths match.
 
 ## Approach

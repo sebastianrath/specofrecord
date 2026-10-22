@@ -1906,15 +1906,26 @@ class TestSyncTools(unittest.TestCase):
         for k, v in kept.items():
             self.assertEqual(now.get(k), v, k)
 
-    def test_the_extension_carries_the_current_tool_and_nothing_else(self):
+    def test_the_extension_carries_the_current_javascript_tool_and_nothing_else(self):
         ext_tools = os.path.join(self.extension, 'tools')
-        self.assertEqual(sorted(os.listdir(ext_tools)), ['sor.py', 'sorlib'])   # not the tests next to the tool in tools/
-        self.assertEqual(read(os.path.join(ext_tools, 'sor.py')), read(os.path.join(self.root, 'tools', 'sor.py')))
-        for name in sorted(os.listdir(os.path.join(self.root, 'tools', 'sorlib'))):
-            if name.endswith('.py'):
-                self.assertEqual(read(os.path.join(ext_tools, 'sorlib', name)),
-                                 read(os.path.join(self.root, 'tools', 'sorlib', name)), name)
+        js = os.path.join(self.root, 'tools', 'js')
+        self.assertEqual(sorted(os.listdir(ext_tools)), ['sor.js', 'sorlib'])   # no Python, and not the tests or the README next to the tool in tools/js
+        self.assertEqual(read(os.path.join(ext_tools, 'sor.js')), read(os.path.join(js, 'sor.js')))
+        names = sorted(n for n in os.listdir(os.path.join(js, 'sorlib')) if n.endswith('.js'))
+        self.assertGreater(len(names), 5)
+        self.assertEqual(sorted(os.listdir(os.path.join(ext_tools, 'sorlib'))), names)
+        for name in names:
+            self.assertEqual(read(os.path.join(ext_tools, 'sorlib', name)), read(os.path.join(js, 'sorlib', name)), name)
         self.assertEqual(read(os.path.join(self.extension, 'package.json')), '{}\n')   # the rest of the extension is left alone
+
+    def test_an_extension_that_still_has_the_python_tool_is_stale_and_the_sync_removes_it(self):
+        write(self.extension, 'tools/sor.py', 'print(1)\n')
+        write(self.extension, 'tools/sorlib/cli.py', 'x = 1\n')
+        code, out, err = self.sh('--check')
+        self.assertEqual(code, 1, out)
+        self.sync()
+        self.assertEqual(sorted(os.listdir(os.path.join(self.extension, 'tools'))), ['sor.js', 'sorlib'])
+        self.assertEqual(self.sh('--check')[0], 0)
 
     def stale_extension(self, change):
         change()
@@ -1927,12 +1938,17 @@ class TestSyncTools(unittest.TestCase):
 
     def test_an_extension_copy_edited_missing_or_left_over_is_stale_until_it_is_synced(self):
         def edit():
-            with open(os.path.join(self.extension, 'tools', 'sor.py'), 'a', encoding='utf8') as fh:
-                fh.write('\n# edited in the extension\n')
+            with open(os.path.join(self.extension, 'tools', 'sor.js'), 'a', encoding='utf8') as fh:
+                fh.write('\n// edited in the extension\n')
         self.stale_extension(edit)
-        self.stale_extension(lambda: os.remove(os.path.join(self.extension, 'tools', 'sorlib', 'views.py')))
-        self.stale_extension(lambda: write(self.extension, 'tools/sorlib/leftover.py', 'x = 1\n'))
-        self.assertFalse(os.path.exists(os.path.join(self.extension, 'tools', 'sorlib', 'leftover.py')))
+        self.stale_extension(lambda: os.remove(os.path.join(self.extension, 'tools', 'sorlib', 'views.js')))
+        self.stale_extension(lambda: write(self.extension, 'tools/sorlib/leftover.js', 'x = 1;\n'))
+        self.assertFalse(os.path.exists(os.path.join(self.extension, 'tools', 'sorlib', 'leftover.js')))
+
+    def test_a_change_in_tools_js_makes_the_extension_stale_and_the_plugin_not(self):
+        with open(os.path.join(self.root, 'tools', 'js', 'sorlib', 'views.js'), 'a', encoding='utf8') as fh:
+            fh.write('\n// changed\n')
+        self.stale_extension(lambda: None)
 
     def test_a_repository_without_the_extension_gets_no_extension_copy(self):
         shutil.rmtree(os.path.join(self.root, 'editors'))

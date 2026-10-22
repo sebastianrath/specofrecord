@@ -154,3 +154,19 @@ Both checks pass: `node test/grammar.js` (34 scope checks) and `node test/run.js
       scan broke on npm 11 and gave an empty file list) and checks the package for `tools/sor.py` and for no `test/`, `sor/` or
       `node_modules/`.
     - *Python:* not bundled. `python3` (`py -3` on Windows) or `sor.pythonPath`, 3.9 or newer, as before.
+26. **The extension runs a JavaScript tool and never Python.** `tools/` now holds `sor.js` and `sorlib/*.js`, copied from the
+    repository's `tools/js` by `sh plugins/sync-tools.sh`; the Python copy is gone. Version 0.10.0.
+    - *Why:* the extension needed Python 3.9 or newer on the machine, and on a machine without it the extension did nothing. The
+      three commands it asks for are `markers --json`, `status --json` and `parts --json`, and `tools/js` answers them with the
+      same JSON as the Python tool (its test compares them on every state the Python tests build, `SOR_COMPARE_JS=1`).
+    - *What it starts:* `process.execPath` with `ELECTRON_RUN_AS_NODE=1`, the way an extension host starts plain Node. The command is
+      the small function `toolCommand` (region `project/tool-path`, the only one `test/regions.js` can run alone).
+    - *What went:* the settings `sor.pythonPath` and `sor.toolPath`, the walk up the folders for a project's own `tools/sor.py`,
+      the rules `project/python` and the test `project/test:tool-fallback`. A project's own tool was only ever a match for its own
+      spec, and the JavaScript tool reads the same specs, markers and locks (format 3 at most; a newer lock is named in the log).
+    - *What the JavaScript tool does not do:* it reads and prints; it writes nothing (no claim is touched). Its `status --json` has no
+      `problems`, which the extension never read.
+    - *Tests:* `test/bundle.js` compares the copy with `tools/js` and runs it on a copy of the example; `test/regions.js` runs
+      `toolCommand` alone; `test/suite.js` (check 13) wraps `child_process.execFile` for one refresh and finds that every program started is the
+      editor's Node on `tools/sor.js`. (A first version put traps called `python3`, `python` and `py` first on the PATH; VS Code rebuilds the PATH of the
+      extension host from the user's shell, so the traps never ran, which a control in the test showed.)

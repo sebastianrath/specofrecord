@@ -1172,6 +1172,57 @@ A review of the code of stages 6 to 8, with each finding reproduced before it wa
 - **`claims._one` returned three values to a caller that passes them on to `conflicts`**, whose third argument is no longer `pins`. It returns two.
 - **`sor verify` takes one snapshot** of the project instead of four.
 
+## The extension runs a JavaScript tool and never Python (2026-10-22)
+The last open item of the multi-target proposal: a VS Code user needs no Python. The owner decided three things when asked. The extension always
+runs the JavaScript tool it ships, never Python and never a tool from the project. The real VS Code test runs. Putting the tool itself under Spec of
+Record is not part of this (see "The tool stays outside Spec of Record").
+- **Only the reading half.** The extension asks for three commands, `markers --json`, `status --json` and `parts --json`, so `tools/js/sor.js` has
+  those three and nothing else. Checking, locking, claims, the tests and the edit guard stay the Python tool's, which is what agents run. The
+  JavaScript tool writes nothing, not even the sign of life the Python tool gives a claim of the Claude Code session that calls it.
+- **Same answers, field for field.** Positions in the index are counted in code points, as Python counts them, not in UTF-16 units. Where Python's
+  dictionaries keep the order they were filled in, JavaScript uses `Map`s, and the output has the keys in Python's order. Strings and keys sort by code
+  point. Text files are read as strict UTF-8, and a file that is not is skipped as in Python.
+- **Three differences, on purpose.** `status --json` has no `problems`, which is `sor check` and which the extension never read. A damaged lock
+  gives a one-line message, where the Python tool stops with a traceback. A lock whose format number is written `2.0` is read as 2, since JSON in
+  JavaScript does not keep the difference (Python refuses it as not a whole number).
+- **Python files are read by a tokenizer, not by `ast`.** An anchor `code: src/x.py#Class.method` asks Python's parser for the first and last line of
+  a def, a class or an assignment. JavaScript has no such parser. The first version looked at indentation, and it disagreed with `ast` on 568 of
+  11,955 anchors in the standard library (a bracket or a quote inside a string, a decorator, a class in a class). The second one reads logical
+  lines the way the tokenizer does (strings, brackets, comments, backslash continuations, form feeds, tabs as 8), builds the blocks, and looks
+  only at the direct children of a module, a class or a def, as `ast` does; it answers nothing for a file with an unfinished string or bracket or
+  an indentation that does not fit. It now agrees on all 11,955, and a test pins 26 hand-made shapes and the repository's own files with a line
+  taken out or a character put in. What it cannot see is a syntax error of the grammar (a bad operator): Python refuses the whole file there and the
+  JavaScript still finds the function. That is the friendlier answer while someone types, and it is written down in `tools/js/README.md`. A `match`
+  statement is read although Python 3.9 refuses it.
+- **How the two are kept equal.** `tools/test_sor_jsreader.py` puts a project in 56 states (a clause reworded, code edited in one language,
+  a region shared by two clauses, a language left behind and then rebuilt, a table row changed with the code of its table, a test that did not pass
+  at the last lock and then its code, tests left to CI, an alias value, no targets at all, a lock under its old name, an old root key, a lock from a
+  newer sor, git blame with a commit by someone else) and compares the three answers. The states must include every kind of finding and every
+  field of the answer. It also runs the two real projects of this repository, the command line the way an editor calls it, and checks that the
+  tool writes nothing. `SOR_COMPARE_JS=1` runs the whole Python suite and compares the two tools before and after every command any test gives
+  `run_sor`: 1,272 tests, twelve minutes, and no difference between the tools (two tests that count how often the project is read failed because the
+  comparison itself read it; it now asks a Python of its own).
+- **Mutation check.** Breaking the JavaScript on purpose (a comparison turned round, an `&&` for an `||`, a status name misspelt, a statement
+  deleted) at 686 places in `sor.js`, `status.js`, `views.js` and `anchors.js`. The first 394, without the Python anchors, showed that the first set
+  of tests missed 173: the command line was not tested at all, no state had a test that needed a result, a failed one, a deferred one or an alias,
+  nothing was in git, no lock was old or empty, and a row with code of its own was missing. Two samples of 150 and 170 after that, and a re-run of
+  every survivor, brought the states from 35 to 56 and added a cross-check for anchors in the other languages (which found nothing). 15 breaks
+  survive, each looked at: a blank put into text that is only searched for brackets, a `;` inside brackets that Python cannot write, a condition that
+  only saves work, a default date. Not all 686 were run on the final tests, and `model.js` and `scan.js` were not mutated; they are checked by the
+  comparisons on the real projects and on the whole suite only.
+- **Version skew.** The extension used to prefer a project's own tool. It would then read a lock written by a tool of another age. Now it always reads
+  with its own, which understands lock formats up to 3 and says "update sor" for a newer one, the Python tool's own sentence. Both are copies of
+  one repository, so they change together: `plugins/sync-tools.sh` copies `tools/js` into `editors/vscode/tools` and `--check` fails when it is out
+  of date. The extension is 0.10.0: the settings `sor.pythonPath` and `sor.toolPath` are gone.
+- **How it starts.** The program of the extension host with `ELECTRON_RUN_AS_NODE=1`, which is plain Node. The real VS Code test wraps
+  `child_process.execFile` for one refresh and checks that every program started is that Node running `tools/sor.js`, and none is Python. (Traps called
+  `python3`, `python` and `py` put first on the PATH did not work: VS Code rebuilds the PATH of the extension host from the user's shell, and the control
+  that checked the traps said so.) It ran on VS Code 1.142 from `/Applications`: `test-electron` 2.5.2 downloads the newest VS Code, 1.143, whose
+  program is called `Code` where it looks for `Electron`, so `node test/run.js ../../examples/solar-system "/Applications/Visual Studio Code.app/Contents/MacOS/Code"`
+  names the program.
+- **Limits.** Node 16 or later, since VS Code 1.80 has 16.17. The JavaScript is not measured for coverage. Windows paths and the Windows start of the
+  tool are not run here.
+
 ## Still open
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for
   this format (SPEC §15). The old `fdd` prototype (previous syntax) is not in this folder.

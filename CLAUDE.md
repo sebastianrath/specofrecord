@@ -26,12 +26,14 @@ In this repository:
 - `tools/test_sor_docs.py` checks the documents against the code: a command, flag, number or name that a document gets wrong
   fails there, and the message names the document. The limits of the format are written only in SPEC §13 and the cheat sheet;
   point to them, do not repeat the numbers.
-- The plugin carries its own copy of `tools/` and of the cheat sheet, and the VS Code extension carries a copy of `tools/`
-  (`editors/vscode/tools`, the tool it falls back on). After you change `tools/` or the cheat sheet in `SPEC.md`, run
+- The plugin carries its own copy of `tools/` and of the cheat sheet. The VS Code extension carries the JavaScript tool, `tools/js`
+  (`editors/vscode/tools`), and always runs that one, never Python. After you change `tools/`, `tools/js` or the cheat sheet in `SPEC.md`, run
   `sh plugins/sync-tools.sh`; `sh plugins/sync-tools.sh --check` fails when a copy is out of date.
-- `tools/js/` is the JavaScript copy of the hashing, marker and lock text rules (`node tools/js/test/vectors.js` runs it against the vectors, and
-  `tools/test_sor_js.py` in the normal test run compares it with the Python tool). A change to those rules in `tools/sorlib/` goes into
-  `tools/js/sorlib/` in the same change, and into `vectors/hashing.json` through `python3 vectors/make_hashing.py`. It is not shipped in the
-  plugin or the extension yet, so `plugins/sync-tools.sh` leaves it alone.
+- `tools/js/` is the JavaScript copy of how the tool reads a project (`markers --json`, `status --json`, `parts --json`) and of the hashing, marker
+  and lock text rules (`node tools/js/test/vectors.js` runs it against the vectors, and `tools/test_sor_js.py` in the normal test run compares it
+  with the Python tool on a project in many states). A change in `tools/sorlib/` to how a project is read, or to what those commands print, goes
+  into `tools/js/sorlib/` in the same change; a change to the hashing, marker or lock rules also goes into `vectors/hashing.json` through
+  `python3 vectors/make_hashing.py`. After a change to how the Python tool reads a project, run the whole suite once with `SOR_COMPARE_JS=1`
+  (about twelve minutes): it compares the two tools on every state the tests build.
 - Do not run `lock` or `claim` against `examples/` or `editors/vscode` to try the tool out: use a temporary
   folder.

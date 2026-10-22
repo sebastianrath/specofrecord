@@ -3,9 +3,8 @@
 # regenerates the skill's format cheat sheet from ../SPEC.md. `tools/` and SPEC.md stay the places to edit.
 #   sh plugins/sync-tools.sh           copy
 #   sh plugins/sync-tools.sh --check   fail (exit 1) when a copy is out of date
-# The extension copy (editors/vscode/tools) is the tool the extension falls back on when a project has none; it is
-# left alone when this repository has no editors/vscode.
-# tools/js (the JavaScript copy of the hashing rules) is not copied: it has no command yet, so shipping it would add code nobody runs.
+# The extension copy (editors/vscode/tools) is the JavaScript tool (tools/js: sor.js and sorlib/*.js, not its tests) that the extension
+# always runs, so it needs no Python; it is left alone when this repository has no editors/vscode. The plugin carries the Python tool.
 set -e
 here=$(cd "$(dirname "$0")" && pwd)
 src="$here/../tools"
@@ -18,6 +17,12 @@ copy_tools() {  # copy_tools <folder>: the tool as it is shipped, in <folder>/to
   mkdir -p "$1/tools/sorlib"
   cp "$src/sor.py" "$1/tools/sor.py"
   for f in "$src"/sorlib/*.py; do cp "$f" "$1/tools/sorlib/"; done
+}
+
+copy_js_tool() {  # copy_js_tool <folder>: the JavaScript tool the editor extension runs, in <folder>/tools
+  mkdir -p "$1/tools/sorlib"
+  cp "$src/js/sor.js" "$1/tools/sor.js"
+  for f in "$src"/js/sorlib/*.js; do cp "$f" "$1/tools/sorlib/"; done
 }
 
 build() {  # build <folder>: everything this script generates, laid out as inside the plugin
@@ -49,7 +54,8 @@ if [ "$1" = "--check" ]; then
   fi
   bad_extension=0
   if [ "$has_extension" = 1 ]; then
-    diff -r -q -x __pycache__ "$tmp/tools" "$vscode/tools" >&2 || bad_extension=1
+    copy_js_tool "$tmp/vscode"
+    diff -r -q "$tmp/vscode/tools" "$vscode/tools" >&2 || bad_extension=1
     if [ "$bad_extension" = 0 ]; then
       echo "extension tools are in sync"
     else
@@ -65,6 +71,6 @@ build "$plugin"
 echo "copied tools/ and the cheat sheet into plugins/specofrecord"
 if [ "$has_extension" = 1 ]; then
   rm -rf "$vscode/tools"
-  copy_tools "$vscode"
-  echo "copied tools/ into editors/vscode"
+  copy_js_tool "$vscode"
+  echo "copied tools/js into editors/vscode"
 fi

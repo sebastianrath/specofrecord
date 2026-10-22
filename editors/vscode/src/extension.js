@@ -67,6 +67,13 @@ function classOf(status) {
 }
 // @clause end
 
+// @clause project/tool-path project/node
+/** The command that runs the tool: the JavaScript tool inside the extension (tools/sor.js, next to src/) on the editor's own Node. Nothing of the project is looked at. */
+function toolCommand(root, args, node = process.execPath, dir = __dirname) {
+  return { file: node, args: [path.join(dir, '..', 'tools', 'sor.js'), '-C', root, ...args], env: { ELECTRON_RUN_AS_NODE: '1' } };
+}
+// @clause end
+
 // @clause glue
 function activate(context) {
   const out = vscode.window.createOutputChannel('Spec of Record');
@@ -85,49 +92,12 @@ function activate(context) {
 
   // @clause project project/wake
   // ---------------------------------------------------------------- project / tool
-  const cfg = (k) => (vscode.workspace.getConfiguration('sor').get(k) || '').trim();
-
-  // @clause end
-  // @clause project/tool-path
-  function findTool(root) {
-    const set = cfg('toolPath');
-    if (set) return set;
-    let dir = root;
-    for (;;) {
-      // in the project, then in the plugin's own folder
-      // (named specofrecord, or spec-of-record before the plugin was renamed)
-      const skills = path.join(dir, '.claude', 'skills');
-      for (const base of [path.join(dir, 'tools'), path.join(skills, 'specofrecord', 'tools'), path.join(skills, 'spec-of-record', 'tools')]) {
-        const cand = path.join(base, 'sor.py');
-        if (fs.existsSync(cand)) return cand;
-      }
-      const up = path.dirname(dir);
-      if (up === dir) break;
-      dir = up;
-    }
-    // last resort: the copy of the tool that ships inside the extension (tools/ next to src/)
-    const bundled = path.join(__dirname, '..', 'tools', 'sor.py');
-    if (fs.existsSync(bundled)) return bundled;
-    throw new Error('the sor tool (tools/sor.py) was not found for ' + root);
-  }
-  // @clause end
-
-  // @clause project project/wake
-  function pythonCommand() {
-    const set = cfg('pythonPath');
-    if (set) return [set, []];
-    return process.platform === 'win32' ? ['py', ['-3']] : ['python3', []];
-  }
-
   /** Runs `sor -C root ...args` and returns its JSON. Exit codes 1 and 2 still count. */
   function runSor(project, args) {
     return new Promise((resolve, reject) => {
-      let tool;
-      try { tool = findTool(project.root); } catch (e) { reject(e); return; }
-      const [py, pyArgs] = pythonCommand();
-      cp.execFile(py, [...pyArgs, tool, '-C', project.root, ...args], {
-        maxBuffer: 256 * 1024 * 1024, windowsHide: true, encoding: 'utf8',
-        env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' },
+      const run = toolCommand(project.root, args);
+      cp.execFile(run.file, run.args, {
+        maxBuffer: 256 * 1024 * 1024, windowsHide: true, encoding: 'utf8', env: { ...process.env, ...run.env },
       }, (err, stdout, stderr) => {
         const text = (stdout || '').trim();
         if (text) {

@@ -21,9 +21,12 @@ function regionOf(id) {
   return lines.slice(open + 1, close).join('\n');
 }
 
-/** Runs the code of a clause alone and returns the names it defines. */
+/** Runs the code of a clause alone and returns the names it defines. `context` is what the code finds around it (a module it requires). */
 function load(id, ...names) {
   return vm.runInNewContext(`${regionOf(id)}\n({ ${names.join(', ')} })`, {});
+}
+function loadWith(context, id, ...names) {
+  return vm.runInNewContext(`${regionOf(id)}\n({ ${names.join(', ')} })`, context);
 }
 
 let failed = 0;
@@ -91,6 +94,17 @@ check('the list of regions names the target of each only when they are in more t
   const same = [region('a.py', 1, 2, 'py', ['x/y']), region('c.py', 9, 9, 'py')];
   assert.strictEqual(pickOf(same[0], targetsOf(same)).description, 'x/y');
   assert.strictEqual(pickOf(same[1], targetsOf(same)).description, '');
+});
+
+// project/tool-path project/node
+const { toolCommand } = loadWith({ path: path.posix }, 'project/tool-path', 'toolCommand');
+check('the command runs tools/sor.js next to src/ on the editor\'s own Node, and looks at nothing of the project', () => {
+  const run = toolCommand('/work/a project', ['status', '--json'], '/app/Code Helper', '/ext/src');
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(run)), {   // through JSON: the object comes from another realm
+    file: '/app/Code Helper', args: ['/ext/tools/sor.js', '-C', '/work/a project', 'status', '--json'], env: { ELECTRON_RUN_AS_NODE: '1' },
+  });
+  assert.strictEqual(toolCommand('/other', ['markers', '--json'], '/n', '/ext/src').args[0], '/ext/tools/sor.js', 'the same tool for every project');
+  assert.ok(!/py|python/i.test(JSON.stringify(run)), 'no Python in the command');
 });
 
 console.log(failed ? `${failed} check(s) failed` : 'all checks passed');

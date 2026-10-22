@@ -60,8 +60,8 @@ jobs:
         run: sh plugins/sync-tools.sh --check
       - name: Grammar test
         run: node test/grammar.js
-      # The extension ships a copy of the sor tool (tools/) that it falls back on. This runs that copy away from the
-      # repository, with the python3 the runner has.
+      # The extension ships the JavaScript sor tool (tools/, from tools/js) and always runs it, on the editor's own Node. This
+      # runs that copy away from the repository.
       - name: Bundled tool test
         run: node test/bundle.js
       # The extension has no runtime dependencies (it needs only `vscode` and Node's own modules), so vsce skips the
@@ -79,10 +79,10 @@ jobs:
           unzip -Z1 "$vsix" | sort > contents.txt
           cat contents.txt
           for wanted in extension/package.json extension/src/extension.js extension/syntaxes/sor.tmLanguage.json \
-                        extension/tools/sor.py extension/tools/sorlib/cli.py extension/tools/sorlib/markers.py; do
+                        extension/tools/sor.js extension/tools/sorlib/status.js extension/tools/sorlib/views.js; do
             grep -qx "$wanted" contents.txt || { echo "missing from the package: $wanted" >&2; exit 1; }
           done
-          if grep -E '^extension/(test|sor|node_modules)/|__pycache__|\.pyc$' contents.txt; then
+          if grep -E '^extension/(test|sor|node_modules)/|\.py$|__pycache__|\.pyc$' contents.txt; then
             echo "files that must not ship are in the package" >&2
             exit 1
           fi

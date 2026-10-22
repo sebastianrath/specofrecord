@@ -3,7 +3,7 @@
   "displayName": "Spec of Record",
   "description": "Shows which code comes from which clause of the spec, and whether they still agree.",
   "publisher": "sor",
-  "version": "0.9.9",
+  "version": "0.10.0",
   "license": "MIT",
   "engines": { "vscode": "^1.80.0" },
   "categories": ["Other"],
@@ -35,8 +35,6 @@
     "configuration": {
       "title": "Spec of Record",
       "properties": {
-        "sor.pythonPath": { "type": "string", "default": "", "description": "Python used to run the sor tool. Empty: py -3 on Windows, python3 elsewhere." },
-        "sor.toolPath": { "type": "string", "default": "", "description": "Path of tools/sor.py. Empty: looked for in the project folder and every folder above it, then the copy that ships with the extension." },
         "sor.hideMarkerLines": { "type": "boolean", "default": true, "description": "Hide the @clause comment lines in code files (display only; the files never change)." },
         "sor.livePreview": { "type": "boolean", "default": true, "description": "Show spec files formatted while you type: **, braces and backticks hidden except on the line you edit (display only)." }
       }
