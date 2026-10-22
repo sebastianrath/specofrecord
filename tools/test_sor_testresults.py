@@ -107,6 +107,46 @@ class TestOneResultForEachLanguage(Tested):
         self.assertEqual(self.lock_with({TEST: 'pass'})[0], 0)                 # the plain id is its result, as for any test
 
 
+    def test_status_names_the_lines_and_its_example_is_a_line_the_lock_accepts(self):
+        code, out, _ = self.sor('status')
+        self.assertIn(f'tests (1) — no passing result yet, so locking them is refused: {TEST}@py, {TEST}@ts', out)
+        self.assertIn(f'{{"{TEST}@py": "pass"}}', out)
+        example = json.loads('{"%s@py": "pass", "%s@ts": "pass"}' % (TEST, TEST))
+        self.assertEqual(self.lock_with(example)[0], 0)
+        self.assertNotIn('tests (', self.sor('status')[1])
+
+
+class TestAChangedTestIsBehindLikeAClause(Tested):
+    """A test with test code per language has lines like a clause, so when its text changes and its code does not, each language is behind it."""
+    GIVEN = {f'{TEST}@py': 'pass', f'{TEST}@ts': 'pass'}
+
+    def setUp(self):
+        super().setUp()
+        self.assertEqual(self.lock_with(self.GIVEN)[0], 0)
+        flows.replace_in(self.spec_file, 'says hello.', 'says hello twice.')
+
+    def test_status_says_the_code_of_both_languages_is_not_updated_yet(self):
+        code, out, _ = self.sor('status')
+        self.assertEqual(code, 1, out)
+        self.assertIn(f'changed      {TEST}  code not updated yet in py, ts', out)
+
+    def test_the_lock_refuses_until_they_are_rebuilt(self):
+        code, out, _ = self.lock_with(self.GIVEN)
+        self.assertEqual(code, 2, out)
+        self.assertIn(f'behind  {TEST}  its code in py, ts', out)
+
+    def test_already_fits_clears_a_test_line_and_the_result_is_given_as_usual(self):
+        code, out, _ = self.lock_with(self.GIVEN, '--already-fits', 'py,ts')
+        self.assertEqual(code, 0, out)
+        self.assertEqual((self.line('py')['fits'], self.line('py')['result']), (True, 'pass'))
+        self.assertEqual(lockfile.read(Project(self.dir))[TEST]['result'], 'pass')
+
+    def test_allow_behind_locks_it_and_leaves_it_listed(self):
+        code, out, _ = self.lock_with(self.GIVEN, '--allow-behind', 'py,ts')
+        self.assertEqual(code, 0, out)
+        self.assertIn(f'behind       {TEST}  py, ts', self.sor('status')[1])
+
+
 class TestOneLanguageHasTestCode(Tested):
     def setUp(self):
         super().setUp()

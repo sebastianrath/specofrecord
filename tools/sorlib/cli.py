@@ -173,7 +173,11 @@ def cmd_status(args):
             for c in held:
                 print('  ' + claims.describe(c))
             print()
-        for line in lockfile.pending_lines(project, pending):
+        languages = {}
+        if pending and project.targeted():   # a test with test code in several languages is given a result for each
+            now = lockfile.snapshot(project, scan)
+            languages = {k: sorted(t for t, line in (now.get(k, {}).get('targets') or {}).items() if 'result' in line) for k in pending}
+        for line in lockfile.pending_lines(project, pending, languages):
             print(line)
         for line in lockfile.deferred_lines(project, deferred):
             print(line)

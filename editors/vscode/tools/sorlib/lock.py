@@ -766,12 +766,17 @@ def deferred_lines(project, keys):
             + listed(keys), '']
 
 
-def pending_lines(project, pending):
-    """The lines `sor status` prints for tests without a passing result: which, and what to do. No lines when there are none."""
+def pending_lines(project, pending, languages=None):
+    """The lines `sor status` prints for tests without a passing result: which, and what to do. No lines when there are none. `languages`: for a
+    test that keeps a result for each language, those languages; it is named by its lines then (`part/test:name@py`), which is what a result is given for."""
     if not pending:
         return []
-    return [f'tests ({len(pending)}) — no passing result yet, so locking them is refused: {listed(pending)}',
-            '  ' + how_to_pass(project, pending), '']
+    names = []
+    for k in pending:
+        langs = (languages or {}).get(k)
+        names += [f'{k}@{t}' for t in langs] if langs else [k]
+    return [f'tests ({len(pending)}) — no passing result yet, so locking them is refused: {listed(names)}',
+            '  ' + how_to_pass(project, names), '']
 
 
 def how_to_pass(project, keys, failed=False):

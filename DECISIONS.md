@@ -1049,6 +1049,11 @@ Decided by the owner on 2026-10-22: test results are per target, where the test 
 - **Results come with each lock,** as they always did: a line does not carry the result of an earlier lock, so a lock of everything asks again.
 - **Not done:** the same for `--run-tests` with a web target (a web test has no marked code, so it has no lines; the filter now lets `id@lang` through for the
   tests it calls external, and no test exercises it, since it needs the headless browser); and evidence per language (stage 7).
+- **A changed test is behind like a clause.** Its lines have `built`, so when the text of a test changes and its test code in a language does not, that language is
+  behind: `sor status` says `code not updated yet in py, ts`, the lock refuses until the test code is rebuilt, `--allow-behind` allows it and `--already-fits`
+  clears it (the result is given as usual). A test that is `manual:` and has marked code behaves the same. That is the rule "a test has lines like a clause", not a
+  separate decision; it was confirmed on a throwaway project and is pinned by tests.
+- **`sor status` names the lines** of a test that needs a result for each language (`part/test:name@py`), and its example is a line, which the lock accepts.
 - **Evidence fingerprints** of a test with test code in a targeted project change once: its `code` is now the digest of its lines. Stage 7 redoes them.
 
 ## Still open
