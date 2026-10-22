@@ -169,21 +169,28 @@ def smoke(zip_path):
         for event, groups in hooks.items():
             for group in groups:
                 for hook in group['hooks']:
-                    commands[event] = hook['command']
+                    commands[(event, group.get('matcher', ''))] = hook['command']
                     expect('${CLAUDE_PLUGIN_ROOT}' in hook['command'], '%s hook finds the tools through CLAUDE_PLUGIN_ROOT' % event)
         payload = json.dumps({'session_id': 'smoke', 'cwd': project})
-        result = run(commands['SessionStart'], project, stdin=payload, env=env, shell=True)
+        result = run(commands[('SessionStart', '')], project, stdin=payload, env=env, shell=True)
         expect(result.returncode == 0 and 'Spec of Record' in result.stdout, 'session-start hook speaks in a project with sor/', result)
         empty = os.path.join(work, 'no spec here')
         os.makedirs(empty)
         env['CLAUDE_PROJECT_DIR'] = empty
-        result = run(commands['SessionStart'], empty, stdin=json.dumps({'session_id': 'smoke', 'cwd': empty}), env=env, shell=True)
+        result = run(commands[('SessionStart', '')], empty, stdin=json.dumps({'session_id': 'smoke', 'cwd': empty}), env=env, shell=True)
         expect(result.returncode == 0 and not result.stdout.strip(), 'session-start hook is silent without sor/', result)
         env['CLAUDE_PROJECT_DIR'] = project
         edit = json.dumps({'session_id': 'smoke', 'cwd': project, 'tool_name': 'Edit',
                            'tool_input': {'file_path': os.path.join(project, 'sor', 'alpha.md'), 'old_string': 'a', 'new_string': 'b'}})
-        result = run(commands['PreToolUse'], project, stdin=edit, env=env, shell=True)
+        result = run(commands[('PreToolUse', 'Edit|Write|MultiEdit')], project, stdin=edit, env=env, shell=True)
         expect(result.returncode == 0, 'pre-edit hook runs on a spec edit', result)
+        bash = commands[('PreToolUse', 'Bash')]
+        lock = json.dumps({'session_id': 'smoke', 'cwd': project, 'tool_name': 'Bash', 'tool_input': {'command': 'sor lock alpha --allow-behind ts'}})
+        result = run(bash, project, stdin=lock, env=env, shell=True)
+        expect(result.returncode == 0 and '"permissionDecision": "ask"' in result.stdout, 'pre-bash hook asks before a lock with --allow-behind', result)
+        grep = json.dumps({'session_id': 'smoke', 'cwd': project, 'tool_name': 'Bash', 'tool_input': {'command': 'grep -rn allow-behind docs'}})
+        result = run(bash, project, stdin=grep, env=env, shell=True)
+        expect(result.returncode == 0 and not result.stdout.strip(), 'pre-bash hook is silent for a command that only mentions the flag', result)
     finally:
         shutil.rmtree(work, ignore_errors=True)
     print('smoke test passed')

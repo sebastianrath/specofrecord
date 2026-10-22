@@ -18,7 +18,7 @@
     sor release [IDS|--all]       give them up again
     sor markers [ID | FILE:LINE] [--json]  where a clause's code is, or which clauses a line serves
     sor show PART|ITEM            the clauses with their code underneath: one view to read
-    sor hook pre-edit|post-read|session-start   Claude Code hooks (JSON on stdin; the session-start note lists the parts), see sorlib/hook.py
+    sor hook pre-edit|post-read|session-start|pre-bash   Claude Code hooks (JSON on stdin; the session-start note lists the parts), see sorlib/hook.py
 
 Run from a project folder (the one holding sor/), or pass -C <folder>.
 Exit codes: 0 clean · 1 work pending (status), or an environment not proven (verify) · 2 problems or drift, or lock refused · 3 claim refused.
@@ -923,7 +923,7 @@ def build_parser():
                    help='machine-readable; without a target: every item, reference and region')
     s.set_defaults(fn=cmd_markers)
     s = sub.add_parser('hook', help='Claude Code hooks; reads the hook JSON on stdin')
-    s.add_argument('which', choices=['pre-edit', 'post-read', 'session-start'])
+    s.add_argument('which', choices=['pre-edit', 'post-read', 'session-start', 'pre-bash'])
     s.set_defaults(fn=lambda a: hook.run(a.which))
     s = sub.add_parser('show')
     s.add_argument('target', help='a part id (camera, render/culling, ROOT for the root) or an item id')

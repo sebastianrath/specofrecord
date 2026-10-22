@@ -940,6 +940,25 @@ Decided by the owner on 2026-10-22: a clause that applies to a language (`Target
   `Targets: py` on its part avoids; `Targets:` on a single clause was left out (see Still open).
 - **The message** says to add the code or limit the part, and names `--allow-behind <language>` only for when the user has said it comes later.
 
+## `--allow-behind` asks the user first (2026-10-22)
+Decided by the owner on 2026-10-22, because the flag now covers "no code yet" as well and becomes a normal way out of a refusal.
+- **A hook on Bash** (`sor hook pre-bash`, wired in the plugin's `hooks.json` and in this repository's `.claude/settings.json`) returns `ask` for a `sor lock`
+  that carries `--allow-behind`, in the plain form, as `--allow-behind=ts`, as the shortest prefix argparse takes (`--allow-b`), and behind `&&`, `|`, `;`, a
+  new line, `$( )`, `env`, `timeout` and a Python launcher, and inside `bash -c` and `eval`. The reason names the clauses and the languages.
+- **It reads the command, not the text.** The program of a command has to be `sor` or `sor.py`, so a grep for the flag, a commit message and an
+  `echo` pass: the agent greps for it in the docs all the time, and a prompt for each would teach the user to click through. A line it cannot read (an
+  open quote) that holds `lock` and the flag counts, because a guard that errs the other way would not guard.
+- **The cost is paid only by a mention.** The registered command first looks at the text in the shell (about 15 ms for every other Bash call);
+  Python (about 120 ms) starts only for a command that contains `allow-b`.
+- **What it does not cover:** a person's terminal (deliberately), another agent than Claude Code, a script that Claude writes and then runs, and `ssh`. I
+  did not verify how Claude Code's bypass-permissions mode treats a hook's `ask`; the documentation excerpt I read did not say.
+- **Changing this repository's `.claude/settings.json` changes the sessions held in it** (new sessions at least), so every Bash call there now runs the
+  filter, and a `sor lock --allow-behind` run by hand through Claude here asks.
+- **A gate in CI** is documented in `reference/ci-evidence.md`: `sor status` exits 1 for anything pending, so it belongs on the release branch.
+- **Consequences of the refusal rule worth knowing.** The first lock of a project that declares `Targets: py, ts` from the start and builds Python first
+  refuses every Python-only clause, one line each, so the agent has to stop and ask at that very lock. A summary line instead of one per clause could
+  come later.
+
 ## Still open
 - The tool is not under Spec of Record. Its hashing, marker and lock rules could be clauses with `Targets: py, js`, so that a change to a clause
   leaves the other language behind and a lock refuses until both follow (`proposals/multi-target.md`). Until then the vectors and the

@@ -21,7 +21,7 @@ def run(fn, *args):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 3 and sys.argv[1] == 'hook' and sys.argv[2] in ('pre-edit', 'post-read', 'session-start'):
+    if len(sys.argv) == 3 and sys.argv[1] == 'hook' and sys.argv[2] in ('pre-edit', 'post-read', 'session-start', 'pre-bash'):
         # A hook runs on every edit and read, in every project: skip the CLI (it pulls in the test
         # runner, about 150 ms) and load only the hook.
         for stream in (sys.stdout, sys.stderr):   # what sorlib.cli.main does for every other command

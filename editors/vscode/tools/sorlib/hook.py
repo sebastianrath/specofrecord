@@ -4,11 +4,14 @@
                           code of a clause that has not changed since the last lock
     sor hook post-read   PostToolUse on Read: adds the clauses behind the regions just read
     sor hook session-start   SessionStart: a note saying this project has a spec, when it has, and a short index of its parts
+    sor hook pre-bash    PreToolUse on Bash: asks the user before a `sor lock` that carries --allow-behind runs
 
-Both read the hook's JSON on stdin. Files outside a project, or outside its code, pass.
+They read the hook's JSON on stdin. Files outside a project, or outside its code, pass.
 """
 import json
 import os
+import re
+import shlex
 import shutil
 import sys
 import tempfile
@@ -225,6 +228,113 @@ def pre_edit(payload):
         f'`{CMD} show <id>` shows a clause with its code; `{CMD} status` lists what may change now.')
 
 
+SHELL_OPERATOR = re.compile(r'^[();&|<>]+$')   # what shlex makes of `&&`, `||`, `;`, `|`, parentheses and redirections
+LOCK_FLAGS_WITH_A_VALUE = ('--as', '--results', '--confirm')
+
+
+def is_allow_behind(word):
+    """Whether a word is the option --allow-behind, also as `--allow-behind=ts` and as the shortest prefix argparse takes for it."""
+    name = word.split('=', 1)[0]
+    return len(name) >= len('--allow-b') and '--allow-behind'.startswith(name)
+
+
+PREFIXES = ('env', 'time', 'nohup', 'command', 'exec', 'sudo', 'nice', 'timeout')   # words that run the next word as a program
+SHELLS = ('bash', 'sh', 'zsh', 'dash', 'ksh', 'eval')                               # programs whose argument is a command line
+
+
+def program_index(words):
+    """Where the program of a command is: past `VAR=x` assignments, the words in PREFIXES and a Python launcher with its options. A word
+    that merely appears among the arguments of another program (`echo sor lock ...`) is not one."""
+    i = 0
+    while i < len(words):
+        base = os.path.basename(words[i])
+        if re.match(r'^[A-Za-z_][A-Za-z0-9_]*=', words[i]):
+            i += 1
+        elif base in PREFIXES:
+            i += 2 if base == 'timeout' else 1
+        else:
+            break
+    if i < len(words) and re.match(r'^(python[0-9.]*|py)(\.exe)?$', os.path.basename(words[i])):
+        i += 1
+        while i < len(words) and words[i].startswith('-'):
+            i += 1
+    return i
+
+
+def lock_allowance(words):
+    """(ids, languages) when these words are a `sor ... lock` that carries --allow-behind, else None."""
+    i = program_index(words)
+    if i >= len(words) or os.path.basename(words[i]) not in ('sor', 'sor.py') or 'lock' not in words[i + 1:]:
+        return None
+    args = words[words.index('lock', i + 1) + 1:]
+    ids, languages, allowed, k = [], [], False, 0
+    while k < len(args):
+        a = args[k]
+        if is_allow_behind(a):
+            allowed = True
+            value = a.split('=', 1)[1] if '=' in a else (args[k + 1] if k + 1 < len(args) else '')
+            languages += [t for t in value.split(',') if t]
+            k += 1 if '=' in a else 2
+        elif a in LOCK_FLAGS_WITH_A_VALUE:
+            k += 2
+        else:
+            if not a.startswith('-') and not a.isdigit():   # a number is what is left of `2>&1`
+                ids.append(a)
+            k += 1
+    return (ids, languages) if allowed else None
+
+
+def lock_allowances(command, depth=0):
+    """[(ids, languages)] of every `sor lock --allow-behind` in a shell command line: the commands joined by `&&`, `||`, `;`, `|` or a new
+    line, and what a quoted argument holds (`bash -c "..."`). A word `lock` and the option in a command that cannot be read (an open quote) count,
+    for a guard that errs the other way would not guard."""
+    found = []
+    for line in command.split('\n'):
+        try:
+            lexer = shlex.shlex(line, posix=True, punctuation_chars=True)
+            lexer.whitespace_split = True
+            words = list(lexer)
+        except ValueError:
+            if re.search(r'\block\b', line) and re.search(r'--allow-b', line):
+                found.append(([], []))
+            continue
+        segments, current = [], []
+        for w in words:
+            if SHELL_OPERATOR.match(w):
+                segments, current = segments + ([current] if current else []), []
+            else:
+                current.append(w)
+        for segment in segments + ([current] if current else []):
+            call = lock_allowance(segment)
+            if call:
+                found.append(call)
+            elif depth < 3:
+                i = program_index(segment)
+                if i < len(segment) and os.path.basename(segment[i]) in SHELLS:   # `bash -c "sor lock ..."`: its argument is a command line
+                    for w in segment[i + 1:]:
+                        if ' ' in w:
+                            found += lock_allowances(w, depth + 1)
+    return found
+
+
+def pre_bash(payload):
+    """Asks the user before a `sor lock --allow-behind` runs: the flag lets a language stay behind a clause, or lack code for it, and that is the
+    user's call. A command that merely mentions the flag (a grep, a document) passes. This guards Claude Code only; a person's terminal is not
+    touched."""
+    if payload.get('tool_name') not in (None, 'Bash'):
+        return None
+    calls = lock_allowances((payload.get('tool_input') or {}).get('command') or '')
+    if not calls:
+        return None
+    parts = []
+    for ids, languages in calls:
+        what = ', '.join(ids) if ids else 'what it claimed'
+        who = ', '.join(languages) if languages else 'a language'
+        parts.append(f'`{CMD} lock` of {what} with --allow-behind: {who} would stay behind the clause or have no code for it')
+    reason = '; '.join(parts) + '. Allow it only if you have said that this language comes later.'
+    return {'hookSpecificOutput': {'hookEventName': 'PreToolUse', 'permissionDecision': 'ask', 'permissionDecisionReason': reason}}
+
+
 def deny(reason):
     return {'hookSpecificOutput': {'hookEventName': 'PreToolUse', 'permissionDecision': 'deny',
                                    'permissionDecisionReason': reason}}
@@ -319,7 +429,7 @@ def session_start(payload):
     return {'hookSpecificOutput': {'hookEventName': 'SessionStart', 'additionalContext': ctx}}
 
 
-HOOKS = {'pre-edit': pre_edit, 'post-read': post_read, 'session-start': session_start}
+HOOKS = {'pre-edit': pre_edit, 'post-read': post_read, 'session-start': session_start, 'pre-bash': pre_bash}
 
 
 def run(which):

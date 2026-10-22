@@ -34,6 +34,13 @@ provide together, so `linux+db` is one machine with both. A name is lowercase le
    every environment of every deferred test has a current pass. Exit 1: one is missing, stale or failed. Exit 2: an evidence file
    or a `runs on:` line is wrong.
 
+## A gate for pending changes
+`sor status` exits 0 when the clauses, the code and the lock agree, 1 when something is pending (a clause changed and its code not built, a language
+`behind`) and 2 when there is a problem or drift. A job that runs `python3 tools/sor.py status` fails the build on any of them, so a language that was
+let stay behind with `--allow-behind` cannot ship. Use it on the branch you release from: exit 1 also covers ordinary unlocked work, so a feature
+branch would fail all the time. A clause that has no code in a language that applies to it does not show up in the exit code; `sor status` and
+`sor check` print it as a note, and `sor check --strict` fails on that note, but also on every open question and size note.
+
 ## Good to know
 - A result counts only for the fingerprint it was made for: the test (its rows and values too), what it refers to, and the text, rows,
   values and code of every clause it proves, the code marked with a row included. Change any of them and the result is stale. There
