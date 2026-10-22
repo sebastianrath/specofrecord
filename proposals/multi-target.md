@@ -1,6 +1,6 @@
 # Proposal: more than one code target
 
-Status: Phases 0, 1, 2 and the first slice of 3 are built and merged. Stage 1 of the rest (the note respects `Targets:`, `sor status` prints it) and stage 2 (a lock asks for code in every language that applies) are built, and so are the hook that asks before `--allow-behind` (stage 3) the pending line of the session-start note (stage 4a) the claim lifetime (stage 4b) lock format 3 with `--already-fits` (stage 5a), a lock that stops when what it read has moved, and a result for each language of a test (stage 5b), a claim and a lock of one language of a clause (stage 6), evidence per language for a test that has test code in a language (stage 7), and the editor extension's part of it (stage 8). Open: coverage per target, per-language fingerprints in `sor test --list --json`, and `Targets:` for a single clause. The decisions for the owner were made on 2026-10-21 (see the end), and nothing else is built. Written the same day after reading the tool and checking the points marked "shown" in a temporary project.
+Status: Phases 0, 1, 2 and the first slice of 3 are built and merged. Stage 1 of the rest (the note respects `Targets:`, `sor status` prints it) and stage 2 (a lock asks for code in every language that applies) are built, and so are the hook that asks before `--allow-behind` (stage 3) the pending line of the session-start note (stage 4a) the claim lifetime (stage 4b) lock format 3 with `--already-fits` (stage 5a), a lock that stops when what it read has moved, and a result for each language of a test (stage 5b), a claim and a lock of one language of a clause (stage 6), evidence per language for a test that has test code in a language (stage 7), and the editor extension's part of it (stage 8). Open: coverage per target, and per-language fingerprints in `sor test --list --json`. The decisions for the owner were made on 2026-10-21 (see the end), and nothing else is built. Written the same day after reading the tool and checking the points marked "shown" in a temporary project.
 
 ## The goal
 One spec, code in more than one place: `src_py/` and `src_ts/`, or `src/py/` and `src/ts/`. Tests, environments and the evidence gate have to work with that. A first use is the tool itself, in Python and in TypeScript, so a VS Code user needs no Python.
@@ -105,9 +105,10 @@ The risk is that the two copies disagree on a hash. So the hashing and normaliza
 4. **Test results are per target** where the test has test code, and each stage gets one commit.
 5. **The tool offers mechanisms and never decides by who calls it.** Whether one agent or several work on a clause is the developer's instruction to the agents.
 
-Still open, asked of the owner: whether a one-language lock may ever rewrite the clause's text line (recommended: no), whether `--already-fits <language>` is
-added to `sor lock` and recorded on the language's line in lock format 3, which further guards `--allow-behind` gets, and whether `Targets:` may be written
-on a single clause.
+The questions that were still open that day were decided too, on 2026-10-22: a lock of one language never rewrites the clause's text line, `--already-fits <language>` is
+added to `sor lock` and recorded on the language's line in lock format 3, `--allow-behind` is guarded by a hook that asks each time (and a CI gate described in the
+reference file), and `Targets:` stays on parts: a clause for one language goes in a part with `Targets: py`, and a difference between platforms is free text in the
+clause (`DECISIONS.md`, "`Targets:` stays on parts").
 
 ## Decisions (made on 2026-10-21)
 1. **Lock shape:** separate lines per (clause, target), each with `built`. Not a dict inside one entry.

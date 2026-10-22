@@ -937,7 +937,7 @@ Decided by the owner on 2026-10-22: a clause that applies to a language (`Target
 - **The flag means more.** `--allow-behind T` now also covers "no code yet". The language has no line in the lock, so it is never listed as behind; what keeps
   it visible is the note of `sor status`, worked out from the files (no lock format change).
 - **Cost.** A clause that was allowed to lack a language is asked again every time it changes, with the same flag. That is what a clause limited with
-  `Targets: py` on its part avoids; `Targets:` on a single clause was left out (see Still open).
+  `Targets: py` on its part avoids; `Targets:` on a single clause was decided against (see "`Targets:` stays on parts").
 - **The message** says to add the code or limit the part, and names `--allow-behind <language>` only for when the user has said it comes later.
 
 ## `--allow-behind` asks the user first (2026-10-22)
@@ -1085,7 +1085,7 @@ one clause. The answer is that each language is its own claim and its own lock l
   and the sharing clause is `shared`, as it is for a changed clause.
 - **Nudges.** A lock of one language says which other languages of the clause are still behind or have no code, and how to finish them. `sor release` of a language
   says when it has code that is not locked. Nothing is enforced: claims stay advice, and `sor status` and the session-start note go on listing what is pending.
-- **Not done.** `Targets:` per single clause; evidence per target (stage 7); the editor extension (stage 8).
+- **Decided against.** `Targets:` on a single clause (see "`Targets:` stays on parts"). Evidence per language (stage 7) and the editor extension (stage 8) came after this entry.
 
 ## Evidence is per language for a test that has test code in a language (2026-10-22)
 Stage 7 of `proposals/multi-target.md`, decided by the owner earlier as "results per target where test code exists".
@@ -1120,6 +1120,15 @@ Stage 8 of `proposals/multi-target.md`, in `editors/vscode`, an extension that i
   `test/regions.js`; the tests that say `manual:` stay unconfirmed, as they were.
 - **Version 0.9.9, not published.** Its bundled tool reads lock format 3 and the claims of one language, which the installed 0.9.8 refuses. Packaging and publishing are the owner's.
 - **Not done.** Coverage per target; the extension asks the tool for nothing per language beyond `targetName`.
+
+## `Targets:` stays on parts (2026-10-22)
+Asked by the owner whether `Targets:` on a single clause matters, and why a difference between platforms cannot just be free text in the clause. It does not matter enough.
+- **A difference between platforms is free text.** "Do this on Windows, and the other thing on macOS" is a clause as it is. Windows and macOS are environments, not
+  targets (a target is a language or a folder where code is delivered): the code does both, and a test that only makes sense on one says `runs on: windows`.
+- **What the setting would still give is one clause for one language,** for example a Python-only clause in a project with `Targets: py, ts`. Without it that clause
+  is refused at lock with "no code in ts" unless `--allow-behind ts` (which the hook asks about each time), and the note of `sor status` keeps naming it.
+- **The way out that exists is a part.** A clause for one language goes in a part with `Targets: py`. The price is one more file for such clauses, which the owner
+  accepted. It is not built, not planned, and not listed as open any more.
 
 ## Review of stages 6 to 8 (2026-10-22)
 A review of the code of stages 6 to 8, with each finding reproduced before it was fixed.

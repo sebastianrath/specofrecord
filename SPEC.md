@@ -352,7 +352,8 @@ note as a line of text after its groups: it is not a pending change, changes no 
 
 **`Targets:`** in the root file (`Targets: py, ts`) says which targets the clauses apply to, and the lock then keeps a clause's code per
 target (§11). A part may say `Targets: py` to override it, and the parts inside it follow; a part has nothing to override until the root
-file has the default. A target that applies to a clause is **behind** when its code was accepted for an older text of the clause, which
+file has the default. There is no `Targets:` for a single clause: a clause that is for one language goes in a part with `Targets: py`, and a difference between
+platforms (Windows and macOS are environments, §8) is written in the clause as text. A target that applies to a clause is **behind** when its code was accepted for an older text of the clause, which
 is what happens to a language nobody rebuilt after the clause changed, or after a person changed the code of another language and the
 clause was brought in line with it. `sor status` lists what is behind with the recompile group, naming the targets, and `sor lock`
 refuses to lock a clause while a target that applies to it would stay behind. `sor lock --allow-behind ts` locks it anyway, and `ts`
