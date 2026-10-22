@@ -9,8 +9,9 @@ Both checks pass: `node test/grammar.js` (34 scope checks) and `node test/run.js
 1. **What the index calls a marker line.** marker-lines says the lines "come from the index", but the index
    has regions, not marker lines. Found by reading the JSON: for kind `code`/`glue` the region `start` and `end`
    are the opener and `@clause end` lines themselves. I take both lines of each non-`line` region and keep them only
-   if the text is an own-line comment (`//`, `#`, `--`, `;`, `/*`, `<!--` followed by `@clause`, or the old `@fact`). The comment list is my guess;
-   the test only needs `//` and `<!--`. This means the extension looks at line text, a small step beyond "reads no markers itself".
+   if the text is an own-line comment followed by `@clause`: one punctuation character repeated (`//`, `#`, `--`, `;`, `%`, `!`, `'`, `::`), an opener
+   (`/*`, `(*`, `<!--`) or `rem`, as the tool accepts them in the languages it knows. `test/regions.js` checks the rule on lines that are markers and lines that are not.
+   This means the extension looks at line text, a small step beyond "reads no markers itself".
 2. **Which lines the hiding spares.** The rules say a fold opens when the cursor touches "the marker or the line above".
    The test (hidden lines must equal all marker lines outside the selection) fails when the cursor sits on the line above
    and I also spare the marker. So the hiding spares only a marker the selection is on. Folds still open for the line above;

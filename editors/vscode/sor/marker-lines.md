@@ -5,8 +5,8 @@ Why: hide the `// @clause …` comment lines in generated code, without ever cha
 - **setting** — `sor.hideMarkerLines` is on by default; "Spec of Record: Toggle marker lines" flips it.
 - **which** — only lines that are a marker on their own are hidden (`@clause <id>`, `@clause end`, a
   marker at the top of a file); a marker at the end of a code line is never hidden. The comment may
-  start the way the tool accepts it in the file's language: one to four punctuation characters
-  (`//`, `#`, `--`, `;`, `%`, `!`, `'`, `(*`, `/*`, `<!--`, `::`) or `rem`.
+  start the way the tool accepts it in the file's language: one punctuation character, repeated
+  (`//`, `#`, `--`, `;`, `%`, `!`, `'`, `::`), an opener (`/*`, `(*`, `<!--`) or `rem`.
 - **fold** — a hidden marker folds into the line above, so line numbers skip and the line above
   ends with "…"; a run of markers is one fold.
 - **blank-rows** — a marker that cannot fold (after a line that closes another fold, or on line

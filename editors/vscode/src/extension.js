@@ -20,7 +20,7 @@ const cp = require('child_process');
 // @clause end
 
 // @clause marker-lines/which
-const MARKER_RE = /^\s*(?:[^\w\s]{1,4}|[Rr][Ee][Mm]\b)\s*@clause\b/;
+const MARKER_RE = /^\s*(?:([^\w\s])\1*|\/\*+|<!--+|\(\*+|[Rr][Ee][Mm])\s*@clause\b/;
 // @clause end
 // @clause lenses/clause-lens lenses/jump
 /** Where a region is, as the lens and the list of regions say it: `out/index.html:26-28`. */

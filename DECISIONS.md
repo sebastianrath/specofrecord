@@ -1102,6 +1102,24 @@ Stage 7 of `proposals/multi-target.md`, decided by the owner earlier as "results
 - **Not done.** `sor test --list --json` still has one `fingerprint` for a test (the whole one). A job in a language that runs the test code of one language alone
   gives the results of that language, and nothing in the tool stops a job from giving results for a language it did not run: evidence is as trustworthy as the job.
 
+## The editor extension knows more than one language (2026-10-22)
+Stage 8 of `proposals/multi-target.md`, in `editors/vscode`, an extension that is itself a Spec of Record project: the clauses changed first, then the code, then the lock.
+- **`behind` is recompile.** The extension did not know the status, so a clause whose language was built for an older text had no gutter mark, no flag on its lens, no
+  word in the hover and no count in the status bar. It maps like new, changed and removed.
+- **A marker line may start with any comment starter.** The extension hid a marker line only after `//`, `#`, `--`, `;`, `/*` or `<!--`. The rule is now one punctuation
+  character repeated (`//`, `---`, `%`, `!`, `'`, `::`), an opener (`/*`, `(*`, `<!--`) or `rem`. A first version took one to four punctuation characters of any
+  kind; mutation checks showed it hid `}// @clause end` (code followed directly by a marker) and stopped at four dashes, so it was tightened and the real VS Code
+  run was repeated (27 of 27 again). A comment starter a target declares that is not one of these shapes is still not hidden. It is only asked on the first and last
+  line of a region the tool named.
+- **The lens and the list of regions name the language only when there are several.** `2 code regions (py, ts)` and `py x/y` in the list; code in one target looks as before.
+- **Tested without VS Code.** `test/regions.js` cuts the code of a clause out of `src/extension.js` (between its `@clause` lines) and runs it alone, so the test reads the text the
+  clause marks. The extension's own clause that its code is one file stays true.
+- **The real integration test was run, on the owner's yes.** `npm ci` in `editors/vscode` (a git-ignored `node_modules`) and `test/run.js` on a copy of the solar-system
+  example with the installed VS Code: 27 checks passed (exit 0) before the change and the same 27 after. The results given to the lock are those of that run and of
+  `test/regions.js`; the tests that say `manual:` stay unconfirmed, as they were.
+- **Version 0.9.9, not published.** Its bundled tool reads lock format 3 and the claims of one language, which the installed 0.9.8 refuses. Packaging and publishing are the owner's.
+- **Not done.** Coverage per target; the extension asks the tool for nothing per language beyond `targetName`.
+
 ## Still open
 - The tool is not under Spec of Record. Its hashing, marker and lock rules could be clauses with `Targets: py, js`, so that a change to a clause
   leaves the other language behind and a lock refuses until both follow (`proposals/multi-target.md`). Until then the vectors and the

@@ -55,13 +55,14 @@ check('a status the extension does not know counts as in sync', () => {
 const { MARKER_RE } = load('marker-lines/which', 'MARKER_RE');
 check('a marker line is a marker of its own after any comment starter', () => {
   for (const l of ['// @clause a', '  # @clause end', '-- @clause a b', '; @clause x', '% @clause x', '! @clause x', "' @clause x", '(* @clause x',
-    ':: @clause x', 'rem @clause x', 'REM @clause x', '/* @clause x', '<!-- @clause x', '//@clause x', '\t/// @clause x']) {
+    ':: @clause x', 'rem @clause x', 'REM @clause x', '/* @clause x', '<!-- @clause x', '//@clause x', '\t/// @clause x', '------ @clause x',
+    '/** @clause x', '(** @clause x']) {
     assert.ok(MARKER_RE.test(l), `${l} should be a marker line`);
   }
 });
 check('code that ends with a marker, and other comments, are not', () => {
   for (const l of ['x = 1 // @clause a', 'const a = 1; // @clause a', 'foo(); % @clause a', '// about @clause', '// @clauses', 'REMARK @clause x',
-    '@clause a', 'print("// @clause a")', '']) {
+    '@clause a', 'print("// @clause a")', '', '}// @clause end', ');// @clause a', '#! @clause a', 'remark@clause x']) {
     assert.ok(!MARKER_RE.test(l), `${l} should not be a marker line`);
   }
 });
