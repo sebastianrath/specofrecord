@@ -56,12 +56,13 @@ def result_names(project, now, key):
     return [f'{key}@{t}' for t in languages] or [key]
 
 
-def fingerprints(project, scan, keys=None):
+def fingerprints(project, scan, keys=None, snap=None):
     """{key: fingerprint} for the tests asked for (all of them by default), and for a test with test code in some languages also for each
     of them (`test@py`). The hash covers the test's own text, what it refers to, its own rows and values, the code marked with it (a test in
     your own framework), and for every clause it proves the clause's text, its code, and the text and code of its rows and values, so a
-    result is stale as soon as any of them changes. The one of a language covers the code in that language only."""
-    now = lockfile.snapshot(project, scan)
+    result is stale as soon as any of them changes. The one of a language covers the code in that language only. `snap`: the snapshot of the
+    project, when the caller has one (it hashes all the code)."""
+    now = snap or lockfile.snapshot(project, scan)
     ids = {i.id for i in project.all_items()}
     parts = {}   # item id -> [(key, text hash, code hash)] of its rows and values
     entries = {}   # item id -> [(key, text hash, entry)] of the same
@@ -205,8 +206,8 @@ def build(project, scan, job, provides, results, src=None):
     notes, errors = [], []
     deferred = {k: project.items[k] for k in lockfile.deferred_tests(project)}
     prov = frozenset(provides)
-    fps = fingerprints(project, scan, {k.partition('@')[0] for k in results} & set(deferred))
     now = lockfile.snapshot(project, scan)
+    fps = fingerprints(project, scan, {k.partition('@')[0] for k in results} & set(deferred), now)
     out, quiet, nowhere = {}, [], []
     for key, status in sorted(results.items()):
         base = key.partition('@')[0]
@@ -260,13 +261,13 @@ def collect(paths):
     return out, errors
 
 
-def verify(project, scan, evidence):
+def verify(project, scan, evidence, snap=None):
     """[row]: for each deferred test and each environment it must pass in, whether a current result proves it. A row is
     {id, environments: [{needs: [names], status, jobs}]} and the status is pass, fail (a current result says so), stale (only
     results for an older fingerprint) or missing. A current failure beats a current pass: it is not averaged away."""
     deferred = {k: project.items[k] for k in lockfile.deferred_tests(project)}
-    fps = fingerprints(project, scan, set(deferred))
-    snap = lockfile.snapshot(project, scan)
+    snap = snap or lockfile.snapshot(project, scan)
+    fps = fingerprints(project, scan, set(deferred), snap)
     rows = []
     for test in sorted(deferred):
         for key in result_names(project, snap, test):   # the test, or each language it has test code in
@@ -283,23 +284,23 @@ def verify(project, scan, evidence):
     return rows
 
 
-def expected(project, scan):
+def expected(project, scan, snap=None):
     """{key: test} of every result a job may write: for a test that says `runs on:` its own key, or one for each language it has test code in."""
-    snap = lockfile.snapshot(project, scan)
+    snap = snap or lockfile.snapshot(project, scan)
     return {key: test for test in lockfile.deferred_tests(project) for key in result_names(project, snap, test)}
 
 
-def unknown(project, scan, evidence):
+def unknown(project, scan, evidence, snap=None):
     """[(job, key)]: results for tests that no longer exist or no longer say `runs on:`. Information, never a failure."""
-    keys = expected(project, scan)
+    keys = expected(project, scan, snap)
     deferred = set(keys.values())
     return sorted((d['job'], k) for _, d in evidence for k in d['results'] if k not in keys and k not in deferred)
 
 
-def renamed(project, scan, evidence):
+def renamed(project, scan, evidence, snap=None):
     """[(job, test, [keys])]: results a job wrote for a test as one, when the test now takes a result for each language (it has test code in
     them). They are not taken for the test, and `sor verify` says so: the job has to write the keys it names."""
-    keys = expected(project, scan)
+    keys = expected(project, scan, snap)
     by_test = {}
     for key, test in keys.items():
         by_test.setdefault(test, []).append(key)

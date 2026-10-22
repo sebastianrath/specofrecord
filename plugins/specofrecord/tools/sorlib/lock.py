@@ -388,6 +388,13 @@ def own_test(key):
     return f'{part}/test:{name}' if part else f'test:{name}'
 
 
+def language_keys(project, clause):
+    """The lock keys that a claim or a lock of one language of a clause covers (SPEC §16), the clause first: the clause, its own test and its
+    rows, for a row can have code of its own in a language. What each of them holds in that language is its line `key@language`."""
+    item = project.items.get(clause)
+    return [clause, own_test(clause)] + ([r.id for r in item.rows.values()] if isinstance(item, Item) else [])
+
+
 class Finding:
     """One line of `sor status`."""
 
@@ -723,6 +730,8 @@ def accept(project, scan, results, allow_incomplete, findings=(), old=None, conf
             reasons.append(f'results: {key} is not a test')
             continue
         lines = {t: line for t, line in (entry.get('targets') or {}).items() if 'result' in line}
+        if not lines and entry.get('result') in ('manual', 'checked', 'deferred'):
+            continue   # a person or a CI job settles it: a result given for it, bare or for a language, is not read (the lock says so for `runs on:`)
         language, why = result_language(key, sorted(lines))
         if why:
             reasons.append(why)
@@ -781,14 +790,14 @@ def language_view(entry, target):
 
 
 def accept_language(project, scan, results, allow_incomplete, findings, old, wanted, already_fits=()):
-    """What `sor lock K@t` writes (SPEC §16): the line of one language of a clause, the line of the clause's own test in that language, and the
-    glue of that language's files. The clause's text and every other language's line stay as the lock has them, so this lock and a lock of
+    """What `sor lock K@t` writes (SPEC §16): the line of one language of a clause, the lines of its own test and of its rows in that language, and
+    the glue of that language's files. The clause's text and every other language's line stay as the lock has them, so this lock and a lock of
     another language of the clause cannot step on each other. `wanted`: [(clause, language)]. Returns
-    ({(key, language): line}, {glue key: entry}, [reasons], [what --already-fits confirmed])."""
+    ({(key, language): line}, {glue key: entry}, [reasons])."""
     old = upgrade(old, scan) if old else {}
     entries = snapshot(project, scan)
     built_for(project, entries, old)
-    reasons, lines, glue, confirmed = [], {}, {}, []
+    reasons, lines, glue, confirmed = [], {}, {}, []   # `confirmed`: what --already-fits cleared, to refuse a flag that cleared nothing
     drifting = {f.key: f for f in findings if f.status == 'drift'}
     owners, old_basis = owner_parts(project), bases(project, old)
 
@@ -797,10 +806,10 @@ def accept_language(project, scan, results, allow_incomplete, findings, old, wan
 
     units, seen = [], set()
     for clause, t in wanted:
-        for key, asked in ((clause, True), (own_test(clause), False)):
+        for key in language_keys(project, clause):   # the clause, its own test and its rows, each with the line it has in that language
             if (key, t) not in seen and key in entries:
                 seen.add((key, t))
-                units.append((key, t, clause, asked))
+                units.append((key, t, clause, key == clause))
     needing = []
     for key, t, clause, asked in units:
         name, new, prev = f'{key}@{t}', entries[key], old.get(key)
@@ -879,7 +888,7 @@ def accept_language(project, scan, results, allow_incomplete, findings, old, wan
             g = f'glue:{r.file}'
             if g in entries and entries[g] != old.get(g):
                 glue[g] = entries[g]
-    return lines, glue, reasons, confirmed
+    return lines, glue, reasons
 
 
 def is_manual(test):

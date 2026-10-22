@@ -207,10 +207,12 @@ def pre_edit(payload):
     if enforcing():
         a, b = after.code_hashes(), before.code_hashes()
         touched = {k for k in set(a) | set(b) if a.get(k) != b.get(k) and not k.startswith('glue:')}
-        # the regions of this file only: a claim of one language holds the regions of its own files, and the same clause in another file is not
-        # what is being edited; code is not the text of the clause, which a claim of one language pins
-        here = {(f, ids) for f, ids in claims.regions_of(after, touched) if f == rel}
-        refusal = claim_refusal(project, payload, touched, here, text=False)
+        regions = claims.regions_of(after, touched)
+        if project.targeted():
+            # a claim of one language holds the regions of its own files, and the same clause in another file is not what is being edited; a project
+            # that keeps its code in one place has no such claims and is asked as it always was. Code is not the text of the clause, which they pin.
+            regions = {(f, ids) for f, ids in regions if f == rel}
+        refusal = claim_refusal(project, payload, touched, regions, text=False)
         if refusal:
             return refusal
     was, _ = lockfile.status(project, before, lock)

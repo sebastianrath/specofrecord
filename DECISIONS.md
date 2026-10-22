@@ -1120,6 +1120,21 @@ Stage 8 of `proposals/multi-target.md`, in `editors/vscode`, an extension that i
 - **Version 0.9.9, not published.** Its bundled tool reads lock format 3 and the claims of one language, which the installed 0.9.8 refuses. Packaging and publishing are the owner's.
 - **Not done.** Coverage per target; the extension asks the tool for nothing per language beyond `targetName`.
 
+## Review of stages 6 to 8 (2026-10-22)
+A review of the code of stages 6 to 8, with each finding reproduced before it was fixed.
+- **A language covers the rows of its clause.** `sor lock greet/hello@ts` ignored the rows of the clause that have code of their own in TypeScript: it said
+  "nothing to lock" while the row's line was behind, and the claim did not hold the row's TypeScript region. `lock.language_keys` is now the one place that says
+  what one language of a clause covers (the clause, its own test, its rows); the claim, its pins, the files stamped, the problems that block and the lock all use it.
+- **The claim pins the test and the rows, not only the clause.** Another session could edit the text of the clause's own test while `greet/hello@py` was claimed,
+  and the lock of that claim was then refused. The pins are the keys of `language_keys`.
+- **A result for a test that CI or a person settles is not read.** `sor lock --results` refused `greet/test:hello@py` of a test that says `runs on:` with "no test code
+  per language", after saying that it ignored the result. The same results file feeds `sor evidence`, so it is ignored for a language as it was for the plain id.
+- **The edit hook looks at every region of the touched clauses again in a project that keeps its code in one place.** Limiting it to the edited file was needed for
+  the claims of one language only, and it made an untargeted project allow an edit that main refuses (a clause with a region of its own and one shared with a clause
+  that another agent claimed). Reproduced against main's tool.
+- **`claims._one` returned three values to a caller that passes them on to `conflicts`**, whose third argument is no longer `pins`. It returns two.
+- **`sor verify` takes one snapshot** of the project instead of four.
+
 ## Still open
 - The tool is not under Spec of Record. Its hashing, marker and lock rules could be clauses with `Targets: py, js`, so that a change to a clause
   leaves the other language behind and a lock refuses until both follow (`proposals/multi-target.md`). Until then the vectors and the

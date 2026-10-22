@@ -320,7 +320,7 @@ def cmd_rehash(args, project, scan):
 def language_files(project, scan, clause, target):
     """The files a lock of one language of a clause reads: the spec files the clause and its test live in, and the files of that language
     that hold their code. The files of the other languages are not among them: a change there is not what this lock is about."""
-    keys = {clause, lockfile.own_test(clause)}
+    keys = set(lockfile.language_keys(project, clause))
     code = {r.file for r in scan.regions}
     return (scope_files(project, scan, keys) - code) | \
         {r.file for r in scan.regions if project.target_of(r.file) == target and any(k in keys for k in r.keys)}
@@ -334,7 +334,7 @@ def moved_files(project, scan, scope, before, wanted=(), glue=()):
     spec = project.spec_dir + os.sep
     regions = scan.regions if scope is None else [r for r in scan.regions if any(k in scope or k in glue for k in r.keys)]
     for clause, target in wanted:
-        keys = {clause, lockfile.own_test(clause)}
+        keys = set(lockfile.language_keys(project, clause))
         regions = regions + [r for r in scan.regions if project.target_of(r.file) == target and any(k in keys for k in r.keys)]
     relevant = {p for p in set(before) | set(now) if p.startswith(spec)} | {os.path.join(project.root, r.file) for r in regions}
     return sorted(os.path.relpath(p, project.root).replace(os.sep, '/') for p in relevant if before.get(p) != now.get(p))
@@ -409,7 +409,7 @@ def cmd_lock(args):
             files |= language_files(project, scan, c, t)
         found = problems(project, scan)
         here = [p for p in found if p.where.split(':')[0] in files]
-        cover = set(scope) | {k for c, _ in wanted for k in (c, lockfile.own_test(c))}
+        cover = set(scope) | {k for c, _ in wanted for k in lockfile.language_keys(project, c)}
         apart = [p for p in here if p.kind in ITEM_LOCAL and item_at(project, p.where) and not covered(item_at(project, p.where), cover)]
         reasons += [with_holder(project, me, p) for p in here if p not in apart]
         outside = [p for p in found if p.where.split(':')[0] not in files]
@@ -421,7 +421,7 @@ def cmd_lock(args):
         held = claims.others(project, me, scope, claims.regions_of(scan, scope))
         for c, t in wanted:   # the claim of one language holds its own lines and files: a claim of the same language, or of the whole clause, is in the way
             held += [x for x in claims.others(project, me, claims.line_keys(project, c, t),
-                                              claims.regions_in(project, scan, {c, lockfile.own_test(c)}, t), text=False) if x not in held]
+                                              claims.regions_in(project, scan, lockfile.language_keys(project, c), t), text=False) if x not in held]
     else:
         reasons = [str(p) for p in problems(project, scan)]
         held = claims.others(project, me)
@@ -482,7 +482,7 @@ def cmd_lock(args):
     entries, more = lockfile.accept(project, scan, results, args.allow_incomplete, findings, old, confirm, scope, allow_behind, () if wanted and not ids else already_fits)
     lines, glue = {}, {}
     if wanted:
-        lines, glue, more_lines, confirmed = lockfile.accept_language(project, scan, results, args.allow_incomplete, every, old, wanted, set(already_fits))
+        lines, glue, more_lines = lockfile.accept_language(project, scan, results, args.allow_incomplete, every, old, wanted, set(already_fits))
         more += more_lines
     gave = sorted(k for k, v in results.items() if entries.get(k.partition('@')[0], {}).get('result') == 'deferred' and (scope is None or k.partition('@')[0] in scope))
     if gave:
@@ -513,7 +513,7 @@ def cmd_lock(args):
                 print('lock refused:\n  the lock changed while this one was being worked out (another `sor lock` finished in between): '
                       'run it again')
                 return 2
-            read_keys = {(k, t) for c, t in wanted for k in (c, lockfile.own_test(c))}
+            read_keys = {(k, t) for c, t in wanted for k in lockfile.language_keys(project, c)}
             if any(lockfile.language_view(current.get(k), t) != lockfile.language_view(seen.get(k), t) for k, t in read_keys) \
                     or any(current.get(g) != seen.get(g) for g in glue):
                 print('lock refused:\n  the lock changed while this one was being worked out (another `sor lock` finished in between): '
@@ -554,9 +554,10 @@ def cmd_lock(args):
                    and old.get(k, {}).get('result') != 'deferred' and (scope is None or k in scope))
     if newly:   # a line in the spec is all it takes to leave a test to CI: say which tests that is
         print(f'now left to CI, because they say `runs on:`: {", ".join(newly)}')
+    written = {key for key, _ in lines}
     fresh = [(k, [t for t, line in (e.get('targets') or {}).items() if line.get('fits')
                   and not (((old.get(k) or {}).get('targets') or {}).get(t) or {}).get('fits')])
-             for k, e in sorted(entries.items()) if scope is None or k in scope or k in {key for key, _ in lines}]
+             for k, e in sorted(entries.items()) if scope is None or k in scope or k in written]
     for k, langs in fresh:
         if langs:
             print(f'confirmed to fit the clause, not rebuilt: {k} in {", ".join(langs)} (the lock says so on the line, and `sor status` keeps a note)')
@@ -973,9 +974,10 @@ def cmd_verify(args):
         for e in errors:
             print('  ' + e)
         return 2
-    rows = evidence.verify(project, scan, files)
-    stray = evidence.unknown(project, scan, files)
-    renamed = evidence.renamed(project, scan, files)
+    snap = lockfile.snapshot(project, scan)   # hashes all the code: once for the whole gate
+    rows = evidence.verify(project, scan, files, snap)
+    stray = evidence.unknown(project, scan, files, snap)
+    renamed = evidence.renamed(project, scan, files, snap)
     if rows and not files and not args.json:
         print('note: no evidence files (*.json) found in ' + (', '.join(paths) if paths else 'the evidence folder, which does not exist'))
     bad = [r for r in rows if any(e['status'] != 'pass' for e in r['environments'])]

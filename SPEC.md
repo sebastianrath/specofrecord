@@ -791,15 +791,15 @@ What the tool does about it:
   stops, writing nothing, and says to run it again when the lock has changed for what it was locking (anything for a lock of the whole project), when a
   spec file or a code file of what it locks has changed (the files are stamped before they are read), or when another agent claimed meanwhile (whole project).
 - **One language of a clause.** In a project that says its targets (§9) an id may carry a language, `greet/hello@py`, so that two agents work on one
-  clause, one per language. `sor claim greet/hello@py` holds the clause's lock line in that language, the line of its own test in that language and the code
-  regions marked with them in the files of that language, and nothing of the other languages. The claim also relies on the clause's text, which it does
-  not hold but does not let anyone change (`pins` in the claims file): it conflicts with a claim of the whole clause, with a claim of the same language and with an edit
-  of the clause's text (the edit hook names the holder), and not with a claim of another language of the clause or an edit of that language's code. A claim of the
+  clause, one per language. `sor claim greet/hello@py` holds the clause's lock line in that language, the lines of its own test and of its rows in that language and the code
+  regions marked with them in the files of that language, and nothing of the other languages. The claim also relies on the text of the clause, of its test
+  and of its rows, which it does not hold but does not let anyone change (`pins` in the claims file): it conflicts with a claim of the whole clause, with a claim of the same language and with an edit
+  of the clause's text (the edit hook names the holder), and not with a claim of another language of the clause or an edit of the code of another language. A claim of the
   whole clause, or of the part that holds it, holds every language. An id with an `@` that names no clause, or a language that does not apply to it, is refused with
   the reason (`fr is not a language of greet/bye (it has py, ts)`), and in a project without `Targets:` it names nothing. `sor release greet/hello@py` gives it up
   and says when that language has code that is not locked, as a note.
-- **Locking one language.** `sor lock greet/hello@py` (a plain `sor lock` does the same for a claim of it) writes the lock line of that language, the line of
-  the clause's own test in that language, and the glue of that language's files, and nothing else. It never rewrites the clause's own line (its text and
+- **Locking one language.** `sor lock greet/hello@py` (a plain `sor lock` does the same for a claim of it) writes the lock line of that language, the lines of
+  the clause's own test and of its rows in that language, and the glue of that language's files, and nothing else. It never rewrites the clause's own line (its text and
   references), and it keeps every other language's line as the lock has it at that moment, so it and a lock of another language of the clause cannot step on each
   other. The line says which text the code was built for, so the clause has to be locked as it reads now: when the clause or its test changed since the last lock,
   or was never locked, the lock is refused and says to lock the clause first (`sor lock greet/hello`, with `--allow-behind` for a language not rebuilt yet). It is

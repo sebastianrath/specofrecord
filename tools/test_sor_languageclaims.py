@@ -19,6 +19,7 @@ import test_sor as base                      # noqa: E402
 import test_sor_flows as flows               # noqa: E402
 import test_sor_targets_lock as targeted     # noqa: E402
 from sorlib import claims, hook              # noqa: E402
+from sorlib.markers import Scan             # noqa: E402
 from sorlib.model import Project             # noqa: E402
 
 write, read = base.write, base.read
@@ -85,7 +86,7 @@ class TestWhatALanguageClaimHolds(Claimed):
         self.assertTrue(self.take('greet/hello@py', agent='a', session='A'))
         (c,) = self.held_by('a')
         self.assertEqual(c['keys'], ['greet/hello@py', 'greet/test:hello@py'])
-        self.assertEqual(c['pins'], ['greet/hello'])
+        self.assertEqual(c['pins'], ['greet/hello', 'greet/test:hello'])        # the text of the clause and of its test: what the code is built for
         self.assertEqual(c['regions'], [['src_py/greet.py', ['greet/hello']]])
 
     def test_a_clause_as_a_whole_holds_a_line_for_each_language_and_pins_nothing(self):
@@ -101,6 +102,26 @@ class TestWhatALanguageClaimHolds(Claimed):
         ok, res = self.claim(['greet/hello@py'], 'b', session='B')
         self.assertFalse(ok)
         self.assertIn('greet/hello@py', claims.describe(res['holders'][0]))
+
+
+class TestWhatABlockedClaimNames(Claimed):
+    def test_a_clause_held_only_through_a_pin_is_named_as_blocked(self):
+        self.take('greet/hello@py', agent='a', session='A')
+        path = os.path.join(self.spec, '.sor-claims.json')
+        data = json.loads(read(path))
+        data['claims'][0]['keys'] = ['nothing-else']        # nothing but the pin on the text of the clause is left to meet the claim
+        data['claims'][0]['regions'] = []
+        write(self.dir, 'sor/.sor-claims.json', json.dumps(data))
+        ok, res = self.claim(['greet/hello', 'greet/bye'], 'b', session='B')
+        self.assertFalse(ok)
+        self.assertEqual(res['blocked'], ['greet/hello'])
+
+    def test_what_one_asked_id_holds_is_its_keys_and_its_regions(self):
+        project = Project(self.dir)
+        scan = Scan(project)
+        keys, regions = claims._one(project, scan, set(), 'greet/hello@ts')
+        self.assertEqual(sorted(keys), ['greet/hello@ts', 'greet/test:hello@ts'])
+        self.assertEqual(regions, {('src_ts/greet.ts', ('greet/hello',))})
 
 
 class TestWhichIdsAreALanguage(Claimed):
@@ -155,6 +176,11 @@ class TestTheEditHookAndALanguageClaim(Claimed):
         self.assertIn('Someone else is working on this', self.said(result))
         self.assertIn('greet/hello@py', self.said(result))
 
+    def test_another_session_cannot_edit_the_text_of_the_clauses_own_test_either(self):
+        result = self.edit(self.spec_file, '- **hello** - looks right.', '- **hello** - looks right twice.')
+        self.assertIn('Someone else is working on this', self.said(result))
+        self.assertIn('greet/hello@py', self.said(result))
+
     def test_another_session_cannot_edit_the_code_of_that_language(self):
         result = self.edit(os.path.join(self.dir, 'src_py', 'greet.py'), '"Hello"', '"Hi"')
         self.assertIn('Someone else is working on this', self.said(result))
@@ -205,6 +231,18 @@ class TestAProjectWithoutLanguagesIsAsBefore(flows.Flow):
         (c,) = self.claims_file()
         self.assertNotIn('pins', c)
         self.assertEqual([k for k in c['keys'] if '@' in k], [])
+
+    def test_the_edit_hook_still_looks_at_every_region_of_the_clause_it_touches(self):
+        self.greet_project(lock=False)
+        write(self.dir, 'out/app.js', '// @clause glue\n"use strict";\n// @clause end\n// @clause greet/hello\nconsole.log("Hello");\n// @clause end\n')
+        write(self.dir, 'out/shared.js', '// @clause greet/hello greet/bye\nconsole.log("shared");\n// @clause end\n')
+        flows.accepted(self.dir)
+        with mock.patch.dict(os.environ, {'SOR_ENFORCE_CLAIMS': '1'}):
+            self.assertTrue(self.claim(['greet/bye'], 'x', session='X')[0])         # holds the region it shares with hello, in another file
+            spec = os.path.join(self.spec, 'greet.md')
+            flows.replace_in(spec, '{text: Hello}', '{text: Hi}')                    # hello is not held, so its clause may change
+            said = flows.reason(hook.pre_edit(dict(flows.edit(os.path.join(self.dir, 'out', 'app.js'), 'Hello', 'Hi'), session_id='Y')))
+        self.assertIn('Someone else is working on this', said or '')
 
 
 if __name__ == '__main__':

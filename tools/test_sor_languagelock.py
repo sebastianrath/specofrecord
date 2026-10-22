@@ -420,6 +420,68 @@ class TestGlue(Locked):
         self.assertEqual({f['key'] for f in self.findings('new')}, {'glue:src_py/bye.py'})
 
 
+class RowsFixture(Locked):
+    """greet/hello is a table whose fr row has code of its own in both languages, marked with the row."""
+    ROWS = ['- **hello** - The greeting per language.', '  | lang | text |', '  | en | Hello |', '  | fr | Salut |', '- **bye** - The farewell is "Bye".']
+
+    def row_code(self, word='Salut'):
+        write(self.dir, 'src_py/greet.py', self.PY + f'FR = "{word}"  # @clause greet/hello/fr\n')
+        write(self.dir, 'src_ts/greet.ts', self.TS + f'export const FR = "{word}";  // @clause greet/hello/fr\n')
+
+    def setUp(self):
+        super().setUp()
+        self.build(rules=self.ROWS)                      # a fresh spec and lock, with the row marked from the first lock
+        self.row_code()
+        self.lock_all('--allow-behind', 'ts')
+
+    def cell_changed_and_python_rebuilt(self):
+        flows.replace_in(self.spec_file, '| fr | Salut |', '| fr | Bonjour |')
+        write(self.dir, 'src_py/greet.py', self.PY + 'FR = "Bonjour"  # @clause greet/hello/fr\n')
+        self.assertEqual(self.sor('lock', 'greet/hello', 'greet/hello/fr', '--allow-behind', 'ts')[0], 0)
+
+
+
+class TestTheRowsOfAClause(RowsFixture):
+    def test_a_claim_of_a_language_holds_the_rows_line_and_code_in_it(self):
+        self.assertTrue(self.claim(['greet/hello@ts'], 'a', session='A')[0])
+        (c,) = self.claims_file()
+        self.assertIn('greet/hello/fr@ts', c['keys'])
+        self.assertIn(['src_ts/greet.ts', ['greet/hello/fr']], c['regions'])
+        self.assertNotIn(['src_py/greet.py', ['greet/hello/fr']], c['regions'])
+        self.assertFalse(self.claim(['greet/hello/fr'], 'b', session='B')[0])         # the row as such is in the way
+        self.assertTrue(self.claim(['greet/hello@py'], 'b', session='B')[0])          # the other language is not
+
+    def test_the_lock_of_a_language_locks_the_line_of_a_row_that_is_behind_in_it(self):
+        self.cell_changed_and_python_rebuilt()
+        write(self.dir, 'src_ts/greet.ts', self.TS + 'export const FR = "Bonjour";  // @clause greet/hello/fr\n')
+        self.assertEqual([(f['status'], f['key']) for f in self.findings()], [('behind', 'greet/hello/fr')])
+        code, out, _ = self.sor('lock', 'greet/hello@ts')
+        self.assertEqual(code, 0, out)
+        self.assertIn('locked greet/hello/fr@ts', out)
+        self.assertNotIn('nothing to lock', out)
+        self.assertEqual(self.findings(), [])
+        self.assertEqual(self.lines('greet/hello/fr')['greet/hello/fr@ts']['built'], self.raw()['greet/hello/fr']['text'])
+
+    def test_a_row_that_is_behind_and_has_not_changed_is_refused_like_the_clause(self):
+        self.cell_changed_and_python_rebuilt()
+        code, out, _ = self.sor('lock', 'greet/hello@ts')
+        self.assertEqual(code, 2, out)
+        self.assertIn('behind  greet/hello/fr@ts', out)
+
+    def test_a_row_that_is_new_since_the_last_lock_is_locked_with_the_clause_first(self):
+        flows.replace_in(self.spec_file, '  | fr | Salut |', '  | fr | Salut |\n  | de | Hallo |')
+        write(self.dir, 'src_ts/greet.ts', self.TS + 'export const FR = "Salut";  // @clause greet/hello/fr\nexport const DE = "Hallo";  // @clause greet/hello/de\n')
+        code, out, _ = self.sor('lock', 'greet/hello@ts')
+        self.assertEqual(code, 2, out)
+        self.assertIn('is not locked as it reads now', out)
+
+    def test_another_session_cannot_change_the_text_of_a_row_the_claim_relies_on(self):
+        with mock.patch.dict(os.environ, {'SOR_ENFORCE_CLAIMS': '1'}):
+            self.assertTrue(self.claim(['greet/hello@ts'], 'a', session='A')[0])
+            result = hook.pre_edit(dict(flows.edit(self.spec_file, '| fr | Salut |', '| fr | Bonjour |'), session_id='B'))
+        self.assertIn('Someone else is working on this', flows.reason(result) or '')
+
+
 class TestProblemsInTheFiles(Locked):
     def setUp(self):
         super().setUp()
@@ -724,6 +786,40 @@ class TestThisLanguageChangesMeanwhile(Meanwhile):
         self.assertEqual(code, 2, out)
         self.assertIn('the lock changed while this one was being worked out', out)
         self.assertIn(AGAIN, out)
+
+
+class TestRowCodeInAFileOfItsOwn(LocksWhile, RowsFixture):
+    """The code of the fr row in TypeScript is in src_ts/rows.ts, a file that holds nothing of the clause itself."""
+
+    def setUp(self):
+        super().setUp()
+        write(self.dir, 'src_ts/greet.ts', self.TS)
+        write(self.dir, 'src_ts/rows.ts', 'export const FR = "Salut";  // @clause greet/hello/fr\n')
+        self.assertEqual(self.sor('lock', 'greet/hello', 'greet/hello/fr', '--allow-behind', 'ts')[0], 0)
+        flows.replace_in(self.spec_file, '| fr | Salut |', '| fr | Bonjour |')
+        write(self.dir, 'src_py/greet.py', self.PY + 'FR = "Bonjour"  # @clause greet/hello/fr\n')
+        self.assertEqual(self.sor('lock', 'greet/hello', 'greet/hello/fr', '--allow-behind', 'ts')[0], 0)
+        write(self.dir, 'src_ts/rows.ts', 'export const FR = "Bonjour";  // @clause greet/hello/fr\n')
+
+    def test_a_problem_in_that_file_stops_the_lock(self):
+        write(self.dir, 'src_ts/rows.ts', 'export const FR = "Bonjour";  // @clause greet/hello/fr\nexport const LOOSE = 1;\n')
+        code, out, _ = self.sor('lock', 'greet/hello@ts')
+        self.assertEqual(code, 2, out)
+        self.assertIn('unmarked  src_ts/rows.ts', out)
+
+    def test_that_file_changing_meanwhile_stops_the_lock(self):
+        def row_file_changes():
+            write(self.dir, 'src_ts/rows.ts', 'export const FR = "Bonjour";  // @clause greet/hello/fr\nexport const MORE = 1;  // @clause greet/hello/fr\n')
+        before = flows.lock_bytes(self.dir)
+        code, out, _ = self.lock_while(row_file_changes, 'greet/hello@ts')
+        self.assertEqual(code, 2, out)
+        self.assertIn('src_ts/rows.ts changed while this one was being worked out', out)
+        self.assertEqual(flows.lock_bytes(self.dir), before)
+
+    def test_the_lock_takes_the_row_in_its_file(self):
+        code, out, _ = self.sor('lock', 'greet/hello@ts')
+        self.assertEqual(code, 0, out)
+        self.assertIn('locked greet/hello/fr@ts', out)
 
 
 if __name__ == '__main__':

@@ -10,6 +10,7 @@ import json
 import os
 import sys
 import unittest
+from unittest import mock
 
 sys.dont_write_bytecode = True
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -18,6 +19,7 @@ sys.path.insert(0, HERE)
 import test_sor as base                      # noqa: E402
 import test_sor_targets_lock as targeted     # noqa: E402
 from sorlib import evidence                  # noqa: E402
+from sorlib import lock as lockfile          # noqa: E402
 from sorlib.markers import Scan             # noqa: E402
 from sorlib.model import Project             # noqa: E402
 
@@ -219,6 +221,43 @@ class TestTheGateOverLanguages(PerLanguage):
         self.assertIn(f'{TEST}@py', out)
         self.assertIn(f'{TEST}@ts', out)
         self.assertIn('2 deferred test(s)', out)
+
+
+class TestOneResultsFileForTheLockAndTheEvidence(PerLanguage):
+    def test_the_lock_leaves_the_results_per_language_of_a_deferred_test_to_the_evidence(self):
+        path = write(self.dir, 'results.json', json.dumps({f'{TEST}@py': 'pass', f'{TEST}@ts': 'pass'}))
+        code, out, _ = self.sor('lock', '--all', '--results', path, '--allow-behind', 'ts')
+        self.assertEqual(code, 0, out)
+        self.assertIn(f'a result for {TEST}@py, {TEST}@ts is not recorded in the lock', out)
+        self.assertNotIn('no test code per language', out)
+        out_file = os.path.join(self.dir, 'evidence', 'ci.json')
+        code, text, _ = self.sor('evidence', '--job', 'ci', '--provides', 'linux', '--results', path, '--out', out_file)
+        self.assertEqual(code, 0, text)                                    # and the same file is what the job gives sor evidence
+        with open(out_file, encoding='utf8') as fh:
+            self.assertEqual(sorted(json.load(fh)['results']), [f'{TEST}@py', f'{TEST}@ts'])
+
+    def test_a_language_that_has_no_test_code_is_ignored_too_for_a_test_left_to_ci(self):
+        path = write(self.dir, 'results.json', json.dumps({f'{TEST}@go': 'pass'}))
+        self.assertEqual(self.sor('lock', '--all', '--results', path, '--allow-behind', 'ts')[0], 0)
+
+
+class TestTheGateHashesTheProjectOnce(PerLanguage):
+    def test_the_functions_of_the_gate_read_the_snapshot_they_are_given(self):
+        project = Project(self.dir)
+        scan = Scan(project)
+        with mock.patch.object(lockfile, 'snapshot', wraps=lockfile.snapshot) as snapshot:
+            snap = lockfile.snapshot(project, scan)
+            rows = evidence.verify(project, scan, [], snap)
+            evidence.unknown(project, scan, [], snap)
+            evidence.renamed(project, scan, [], snap)
+            evidence.fingerprints(project, scan, None, snap)
+        self.assertEqual(snapshot.call_count, 1)
+        self.assertEqual([r['id'] for r in rows], [f'{TEST}@py', f'{TEST}@ts'])
+
+    def test_sor_verify_takes_one_snapshot_for_the_evidence_and_one_for_the_checks_of_the_spec(self):
+        with mock.patch.object(lockfile, 'snapshot', wraps=lockfile.snapshot) as snapshot:
+            self.sor('verify')
+        self.assertLessEqual(snapshot.call_count, 2)
 
 
 class TestEvidenceFromBeforeTheTestTookALanguage(PerLanguage):

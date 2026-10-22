@@ -28,6 +28,7 @@ import re
 import time
 from types import SimpleNamespace
 
+from . import lock as lockfile
 from .invoke import getenv
 from .model import PART_FILE_NAME, SPEC_DIR, has_spec
 
@@ -216,16 +217,9 @@ def line_problem(project, ident):
     return f'{ident}: {target} is not a language of {base} (it has {", ".join(applies) or "none"})'
 
 
-def own_test_key(key):
-    """The key of the test that is named after a clause: `greet/hello` -> `greet/test:hello`."""
-    part, _, name = key.rpartition('/')
-    return f'{part}/test:{name}' if part else f'test:{name}'
-
-
 def line_keys(project, base, target):
-    """The keys a claim of one language of a clause holds: its line, and the line of the clause's own test when it has one."""
-    test = own_test_key(base)
-    return {f'{base}@{target}'} | ({f'{test}@{target}'} if test in project.items else set())
+    """The keys a claim of one language of a clause holds: its line, and the lines of its own test and of its rows when they have any."""
+    return {f'{k}@{target}' for k in lockfile.language_keys(project, base) if k == base or k in project.items}
 
 
 def regions_in(project, scan, bases, target):
@@ -404,12 +398,12 @@ def unheld(project, scan, universe, pids, agent, session=None):
 
 
 def _one(project, scan, universe, ident):
-    """(keys, regions, pins) of one asked id."""
+    """(keys, regions) of one asked id."""
     keys = footprint(project, universe, [ident])[0]
     lang = line_id(project, ident)
     if lang:
-        return keys, regions_in(project, scan, {lang[0], own_test_key(lang[0])}, lang[1]), {lang[0]}
-    return keys, regions_of(scan, keys), set()
+        return keys, regions_in(project, scan, lockfile.language_keys(project, lang[0]), lang[1])
+    return keys, regions_of(scan, keys)
 
 
 def claim(project, scan, universe, ids, agent, ttl=DEFAULT_TTL, session=None):
@@ -450,9 +444,9 @@ def _claim(project, scan, universe, ids, agent, ttl, session):
     for ident in ids:   # a clause holds all its code, one language of it only that language's
         lang = line_id(project, ident)
         if lang:
-            bases = {lang[0], own_test_key(lang[0])}
+            bases = set(lockfile.language_keys(project, lang[0]))
             regions |= regions_in(project, scan, bases, lang[1])
-            pins.add(lang[0])
+            pins |= bases   # the text of the clause, of its test and of its rows: what the code of that language is built for
             plain |= bases
         else:
             regions |= regions_of(scan, footprint(project, universe, [ident])[0])
@@ -472,7 +466,7 @@ def _claim(project, scan, universe, ids, agent, ttl, session):
                   'until': NEVER if ttl is None else now + ttl, 'idle': ttl, 'last': now,
                   'regions': [[f, list(ks)] for f, ks in sorted(regions)], 'session': session}
         if pins:
-            record['pins'] = sorted(pins)   # the clauses whose text this claim relies on (a claim of one language of them)
+            record['pins'] = sorted(pins)   # the keys whose text this claim relies on (a claim of one language of a clause)
         if mine:
             record['since'] = mine[0]['since']
         # what this claim covers is no news any more: the agent's own expired claims on it go, other agents' stay
