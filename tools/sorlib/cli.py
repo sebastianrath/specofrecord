@@ -879,7 +879,7 @@ def build_parser():
                    help='lock although some tests did not pass; they are recorded as such')
     s.add_argument('--allow-behind', metavar='TARGETS',
                    help='lock a clause although its code in these targets (comma-separated) was accepted for an older text of the '
-                        'clause; they stay listed as behind until their code changes')
+                        'clause (they stay listed as behind until their code changes), or the clause has no code there')
     s.add_argument('--rehash', action='store_true',
                    help='rewrite the code hashes made with an older rule (no change is accepted, nothing else is rewritten)')
     s.set_defaults(fn=cmd_lock)

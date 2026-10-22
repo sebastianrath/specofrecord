@@ -349,7 +349,7 @@ class TestWhichTargetsApply(Targeted):
                 self.build(part_targets=part_targets)
                 write(self.dir, 'src_py/greet.py', self.PY + bye_py)
                 write(self.dir, 'src_ts/greet.ts', self.TS)
-                self.lock_all()
+                self.lock_all(*(('--allow-behind', 'ts') if reported else ()))   # the lock refuses a clause with no code in a language that applies
                 code, status, _ = self.sor('status')
                 self.assertEqual(code, 0, status)
                 code, check, _ = self.sor('check')
@@ -374,6 +374,114 @@ class TestWhichTargetsApply(Targeted):
         self.assertTrue(any('default in the root file' in p.text for p in found))
         self.build()
         self.assertEqual([p for p in Project(self.dir).check() if p.kind == 'targets'], [])
+
+
+class TestAClauseWithNoCodeInALanguageThatApplies(Targeted):
+    """`sor lock` asks a clause that is new, changed or built now to have code in every language that applies to it. The note of
+    `sor check` and `sor status` counts the same way, and what stays unbuilt shows there."""
+    BYE_PY = '# @clause greet/bye\nBYE = "Bye"\n# @clause end\n'
+    BYE_TS = '// @clause greet/bye\nexport const BYE = "Bye";\n// @clause end\n'
+    NOTE = '1 clause(s) have code in py but none in ts: greet/bye'
+
+    def setUp(self):
+        super().setUp()
+        self.lock_all()                                  # hello has code in both languages, bye has none yet
+        write(self.dir, 'src_py/bye.py', self.BYE_PY)    # and now bye is built in Python only
+
+    def test_a_clause_built_in_one_language_is_refused_and_allowing_it_leaves_a_note(self):
+        self.assertEqual([f['key'] for f in self.findings('built')], ['greet/bye'])
+        before = flows.lock_bytes(self.dir)
+        code, out, _ = self.sor('lock', 'greet/bye')
+        self.assertEqual(code, 2, out)
+        self.assertIn('no code  greet/bye  it applies to ts', out)
+        self.assertNotIn('--allow-behind ts', out)                         # no flag ready to copy: it is the user's call
+        self.assertEqual(flows.lock_bytes(self.dir), before)
+        code, out, _ = self.sor('lock', 'greet/bye', '--allow-behind', 'ts')
+        self.assertEqual(code, 0, out)
+        code, status, _ = self.sor('status')
+        self.assertEqual(code, 0, status)
+        self.assertIn(self.NOTE, status)
+        self.assertIn(self.NOTE, self.sor('check')[1])                     # the refusal and the note agree on what lacks code
+
+    def test_a_clause_that_is_new_is_asked_too(self):
+        self.build(rules=['- **hello** - The greeting is "Hello".', '- **bye** - The farewell is "Bye".', '- **extra** - Says it twice.'])
+        write(self.dir, 'src_py/extra.py', '# @clause greet/extra\nEXTRA = 2\n# @clause end\n')
+        code, out, _ = self.sor('lock', '--all')
+        self.assertEqual(code, 2, out)
+        self.assertIn('no code  greet/extra', out)
+
+    def test_a_later_change_to_an_allowed_clause_is_asked_again(self):
+        self.assertEqual(self.sor('lock', 'greet/bye', '--allow-behind', 'ts')[0], 0)
+        flows.replace_in(self.spec_file, 'The farewell is "Bye".', 'The farewell is "Goodbye".')
+        write(self.dir, 'src_py/bye.py', self.BYE_PY.replace('Bye', 'Goodbye'))
+        code, out, _ = self.sor('lock', 'greet/bye')
+        self.assertEqual(code, 2, out)
+        self.assertIn('no code  greet/bye', out)
+
+    def test_adding_the_code_is_the_way_out(self):
+        write(self.dir, 'src_ts/bye.ts', self.BYE_TS)
+        self.assertEqual(self.sor('lock', 'greet/bye')[0], 0)
+        self.assertNotIn('none in ts', self.sor('status')[1])
+
+    def test_a_flag_that_names_another_language_does_not_allow_it(self):
+        self.build(targets='py, ts')
+        write(self.dir, 'src_py/bye.py', self.BYE_PY)
+        code, out, _ = self.sor('lock', 'greet/bye', '--allow-behind', 'py')
+        self.assertEqual(code, 2, out)
+        self.assertIn('no code  greet/bye  it applies to ts', out)
+
+    def test_nothing_is_asked_where_nothing_is_missing(self):
+        # a part that is only for Python
+        self.build(part_targets='py')
+        write(self.dir, 'src_py/greet.py', self.PY + self.BYE_PY)
+        self.assertEqual(self.sor('lock', '--all')[0], 0)
+        self.assertNotIn('none in ts', self.sor('check')[1])
+        # a project that never said its targets
+        self.build(targets=None)
+        write(self.dir, 'src_py/greet.py', self.PY + self.BYE_PY)
+        self.assertEqual(self.sor('lock', '--all')[0], 0)
+        # a lock of another clause while this one is pending
+        self.build()
+        write(self.dir, 'src_py/greet.py', self.PY + self.BYE_PY)
+        write(self.dir, 'src_ts/greet.ts', self.TS)
+        self.assertEqual(self.sor('lock', 'greet/hello')[0], 0)
+
+    def test_only_the_clauses_in_the_scope_are_asked(self):
+        # the command line cuts the findings down to the scope; accept() does not rely on that
+        project = Project(self.dir)
+        scan = Scan(project)
+        old = lockfile.read(project)
+        findings, _ = lockfile.status(project, scan, old)
+        self.assertEqual([f.key for f in findings], ['greet/bye'])
+        _, reasons = lockfile.accept(project, scan, {}, True, findings, old, scope={'greet/hello'})
+        self.assertEqual([r for r in reasons if r.startswith('no code')], [])
+        _, reasons = lockfile.accept(project, scan, {}, True, findings, old, scope={'greet/bye'})
+        self.assertEqual(len([r for r in reasons if r.startswith('no code  greet/bye')]), 1)
+
+    def test_a_review_of_an_allowed_clause_is_not_asked(self):
+        # bye refers to hello; hello changes in both languages and is locked, so bye is flagged for review, not changed
+        self.build(rules=['- **hello** - The greeting is "Hello".', '- **bye** - The farewell follows {hello}.'])
+        write(self.dir, 'src_py/greet.py', self.PY + self.BYE_PY)
+        write(self.dir, 'src_ts/greet.ts', self.TS)
+        self.assertEqual(self.sor('lock', '--all', '--allow-behind', 'ts')[0], 0)
+        self.change_clause()
+        write(self.dir, 'src_py/greet.py', (self.PY + self.BYE_PY).replace('Hello', 'Hi'))
+        write(self.dir, 'src_ts/greet.ts', self.TS.replace('Hello', 'Hi'))
+        self.assertEqual(self.sor('lock', 'greet/hello')[0], 0)
+        self.assertEqual([(f['status'], f['key']) for f in self.findings()], [('stale', 'greet/bye')])
+        self.assertEqual(self.sor('lock', 'greet/bye')[0], 0)
+
+    def test_a_project_that_adds_a_second_language_is_not_refused_for_what_it_locked_before(self):
+        self.build(targets=None)
+        write(self.dir, 'src_py/greet.py', self.PY + self.BYE_PY)
+        write(self.dir, 'src_ts/greet.ts', self.TS)
+        self.lock_all()
+        before = flows.lock_bytes(self.dir).decode('utf8')
+        self.build(targets='py, ts')
+        write(self.dir, 'sor/sor-lock.json', before)                      # the build wiped sor/, lock included
+        self.assertEqual([(f['status'], f['key']) for f in self.findings()], [('changed', 'ROOT')])
+        self.assertEqual(self.sor('lock', '--all')[0], 0)
+        self.assertIn(self.NOTE, self.sor('status')[1])                    # and the note says what it lacks
 
 
 class TestStatusAndKeys(Targeted):

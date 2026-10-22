@@ -555,11 +555,31 @@ def behind_after(project, entries, keys, owners, allowed):
     return out
 
 
+CODE_BUILT = ('new', 'changed', 'built')   # the findings of a clause that is new, changed, or built now after being locked without code
+
+
+def no_code_after(project, scan, findings, keys, allowed):
+    """[(key, [targets])] of the clauses among `keys` that are being locked with a change of their own (CODE_BUILT) and have code in
+    some target but none in a target that applies to them (`Targets:`), and that are not allowed to. Only a project that says its
+    targets is asked, and only a clause with a change of its own: a project that adds a second target does not find every clause it
+    has locked refused, a bug fix in old code is not told to add the other language, and what stays unbuilt shows in the note
+    of `sor status` (`lint.no_code_for_target`), which counts the same way."""
+    if not project.targeted():
+        return []
+    have = scan.targets_with_code()
+    out = []
+    for key in sorted({f.key for f in findings if f.status in CODE_BUILT} & set(have) & set(keys)):
+        late = sorted(t for t in project.targets_applying_to(key) if t not in have[key] and t not in allowed)
+        if late:
+            out.append((key, late))
+    return out
+
+
 def accept(project, scan, results, allow_incomplete, findings=(), old=None, confirm=(), scope=None, allow_behind=()):
     """The entries `sor lock` would write, or the reasons it refuses. `confirm` names manual
     tests a person has just checked; earlier confirmations carry over while they still stand.
     `scope`: lock keys to accept; every other key keeps its entry from `old` (SPEC §11).
-    `allow_behind`: targets that may stay behind the clause (`sor lock --allow-behind`)."""
+    `allow_behind`: targets that may stay behind the clause, or lack code for it (`sor lock --allow-behind`)."""
     old = upgrade(old, scan) if old else old
     entries = snapshot(project, scan)
     built_for(project, entries, old)
@@ -592,6 +612,10 @@ def accept(project, scan, results, allow_incomplete, findings=(), old=None, conf
         reasons.append(f'behind  {key}  its code in {", ".join(late)} was accepted for an older text of the clause: rebuild it '
                        f'(change that code). Only when the user has said that {", ".join(late)} is rebuilt later, lock again with '
                        '--allow-behind <language>; it then stays listed as behind')
+    for key, late in no_code_after(project, scan, findings, entries if scope is None else scope, set(allow_behind)):
+        reasons.append(f'no code  {key}  it applies to {", ".join(late)} (`Targets:`) and has no code there: add the code, or limit its part '
+                       f'with `Targets:`. Only when the user has said that {", ".join(late)} comes later, lock again with '
+                       '--allow-behind <language>; the note of `sor status` keeps listing it')
     still = checked_manual(project, scan, old or {})
     for key in confirm:
         if scope is not None and key not in scope:

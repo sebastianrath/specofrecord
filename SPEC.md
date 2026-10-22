@@ -342,6 +342,9 @@ is what happens to a language nobody rebuilt after the clause changed, or after 
 clause was brought in line with it. `sor status` lists what is behind with the recompile group, naming the targets, and `sor lock`
 refuses to lock a clause while a target that applies to it would stay behind. `sor lock --allow-behind ts` locks it anyway, and `ts`
 stays listed as behind until its code changes: nothing else clears it, and nothing lets an agent say that a language already fits.
+`sor lock` also refuses a clause that is new, changed or built now, has code in some target and none in a target that applies to it; the
+refusal says to add the code or to limit the part with `Targets:`, and `--allow-behind ts` allows it, after which the note above keeps
+naming the clause. Clauses locked earlier, and a bug fix in their code, are not asked, so a project that adds a second target is not refused.
 `sor check` reports as problems a `Targets:` that names no target, names one twice or has an empty name, and a `Targets:` on a part
 when the root file has none; and a clause whose lock line `clause@target` (§11) is also the name of something else.
 
@@ -597,7 +600,7 @@ the clause first.
 | the lock is written only when every test that is not manual or deferred passes (§11) | `sor lock` refuses |
 | a `runs on:` line under a test names valid environments, and the test is not manual (§8) | problem in `sor check` (`runs on`) |
 | a test that says `runs on:` has a current pass in every environment it names (§8) | `sor verify` exits 1 |
-| a clause is locked only when the code of every target that applies to it was accepted for its current text (§9) | `sor lock` refuses and names the targets; `--allow-behind` locks anyway and `sor status` keeps listing them |
+| a clause is locked only when the code of every target that applies to it was accepted for its current text, and a clause that is new or changed has code in each target that applies to it (§9) | `sor lock` refuses and names the targets; `--allow-behind` locks anyway, and `sor status` keeps listing a target that is behind and notes one that has no code |
 | the lock is in a format this tool reads (§11) | `sor status`, `sor lock`, `sor changes` and `sor test` exit 2 and say to update; the edit hook refuses edits to code |
 | a test calls only probes, generators and metrics the target declares, and its `{values}` resolve (§8) | `sor test` fails the test before it runs |
 | the lock and claims files are not edited by hand; a spec file is not rewritten with Write, except one that is still the skeleton `sor new` wrote (§11, §15, §16) | the edit hook, in Claude Code only; for other agents, a rule in the skill (`SKILL.md`), which `AGENTS.md` points to |

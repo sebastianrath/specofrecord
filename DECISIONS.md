@@ -926,6 +926,20 @@ Found by trying the case "a clause that only concerns Python" on a throwaway pro
 - **Next.** A lock of a clause that applies to a language but has no code there refuses unless `--allow-behind` allows it (decided by the owner), built
   on `targets_applying_to` and `targets_with_code`.
 
+## A lock asks for code in every language that applies (2026-10-22)
+Decided by the owner on 2026-10-22: a clause that applies to a language (`Targets:`) but has no code there refuses at lock, unless `--allow-behind` allows it.
+- **Which clauses are asked.** Only a project that says its targets, and only a clause that is new, changed or built now (a clause locked without code that
+  gets its first code), by the status findings `new`, `changed` and `built`. A clause locked earlier is not asked, so a project that adds a second language is
+  not refused for everything it has. A review (`stale`, `shared`) and a fix against a failing test are not asked either. A change to the code alone is
+  drift, which a lock refuses anyway.
+- **One definition of "has no code".** The refusal reads `Scan.targets_with_code()` and `Project.targets_applying_to()`, the same pieces as the note of
+  `sor check` and `sor status`, so the two always agree on which clause lacks which language.
+- **The flag means more.** `--allow-behind T` now also covers "no code yet". The language has no line in the lock, so it is never listed as behind; what keeps
+  it visible is the note of `sor status`, worked out from the files (no lock format change).
+- **Cost.** A clause that was allowed to lack a language is asked again every time it changes, with the same flag. That is what a clause limited with
+  `Targets: py` on its part avoids; `Targets:` on a single clause was left out (see Still open).
+- **The message** says to add the code or limit the part, and names `--allow-behind <language>` only for when the user has said it comes later.
+
 ## Still open
 - The tool is not under Spec of Record. Its hashing, marker and lock rules could be clauses with `Targets: py, js`, so that a change to a clause
   leaves the other language behind and a lock refuses until both follow (`proposals/multi-target.md`). Until then the vectors and the
