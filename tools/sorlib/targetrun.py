@@ -5,18 +5,19 @@ command writes `{"part/test:name": "pass"}` to, as `sor test --out` does (the to
 the coverage it writes, in the lcov format that coverage.py, c8, nyc and istanbul all produce.
 
 `sor test --targets py` runs that command from the project root, with no shell, when the call names the target and never otherwise: the command is
-text in a spec file, so what a call runs is written in the call. A results file the run did not write (it is as it was before) is never read.
+text in a spec file, so what a call runs is written in the call. A results file the run did not write (it is as it was before) is never read. The
+command runs in a process group of its own, so that a timeout or Ctrl-C ends the programs it started too.
 """
 import json
 import os
 import posixpath
-import shlex
+import signal
 import subprocess
 
 from . import lock as lockfile
 from . import testrun   # the web runner: which tests a call selects, and which it leaves to CI
 from .markers import Scan
-from .model import Item
+from .model import Item, split_command
 
 TIMEOUT = 600   # seconds a target's test run may take
 
@@ -58,34 +59,63 @@ def tail(text, lines=12):
     return '\n'.join('    ' + r for r in rows[-lines:])
 
 
+def stop(proc):
+    """Ends a command and every program it started (a test runner starts workers that would go on writing, and on Windows hold the pipes), then
+    reaps it. The pipes are closed here and not read: a program that left the group could hold them open for good."""
+    try:
+        if os.name == 'posix':
+            os.killpg(proc.pid, signal.SIGKILL)   # its own group: the command was started in a new session
+        else:
+            subprocess.run(['taskkill', '/F', '/T', '/PID', str(proc.pid)], capture_output=True)
+    except OSError:
+        pass   # it had ended
+    proc.kill()
+    proc.wait()
+    for pipe in (proc.stdout, proc.stderr):
+        if pipe:
+            pipe.close()
+
+
 def run_command(project, name, say=print, timeout=TIMEOUT):
     """Runs the command of a target. Returns (the results file, the coverage file or None, what the command printed, its exit code, a note or
     None); raises TargetError when it could not start, ran out of time, or left the results file as it was. The coverage file is read only if the
     run wrote it: when it is as it was, it is not used and the note says so."""
     kinds = project.target_commands()[name]
-    argv = shlex.split(kinds['run'])
+    argv = split_command(kinds['run'])
     results = os.path.join(project.root, kinds['results'])
     lcov = os.path.join(project.root, kinds['lcov']) if 'lcov' in kinds else None
     before, before_lcov = stamp(results), lcov and stamp(lcov)
     say(f'running {name}: {kinds["run"]}')
+    group = {'start_new_session': True} if os.name == 'posix' else {'creationflags': subprocess.CREATE_NEW_PROCESS_GROUP}
     try:
-        done = subprocess.run(argv, cwd=project.root, capture_output=True, text=True, errors='replace', timeout=timeout)   # no shell
+        proc = subprocess.Popen(argv, cwd=project.root, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors='replace', **group)   # no shell
     except FileNotFoundError:
         raise TargetError(f'{name}: cannot start {argv[0]}: no such program')
     except PermissionError:
         raise TargetError(f'{name}: cannot start {argv[0]}: not allowed to run it')
+    try:
+        stdout, stderr = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
+        stop(proc)
         raise TargetError(f'{name}: the run took more than {timeout} s and was stopped')
-    output = (done.stdout or '') + (done.stderr or '')
+    except BaseException:   # Ctrl-C too: the group is not the terminal's any more, so the signal would not reach it
+        stop(proc)
+        raise
+    output = (stdout or '') + (stderr or '')
     if stamp(results) in (None, before):
         said = f'{kinds["results"]} is as it was before the run' if before else f'{kinds["results"]} was not written'
-        raise TargetError(f'{name}: the command exited with {done.returncode}, and {said}; a results file the run did not write is never read'
+        raise TargetError(f'{name}: the command exited with {proc.returncode}, and {said}; a results file the run did not write is never read'
                           + (f'. Its last lines:\n{tail(output)}' if output.strip() else ''))
     note = None
     if lcov and stamp(lcov) in (None, before_lcov):
         note = f'{name}: {kinds["lcov"]} {"is as it was before the run" if before_lcov else "was not written"}: no line coverage'
         lcov = None
-    return results, lcov, output, done.returncode, note
+    return results, lcov, output, proc.returncode, note
+
+
+def number(text):
+    """Whether text is digits that int() reads: str.isdigit() is also true for '\u00b2' and the digits of other scripts that int() refuses."""
+    return text.isascii() and text.isdigit()
 
 
 def read_lcov(path, root):
@@ -103,7 +133,7 @@ def read_lcov(path, root):
                 current = out.setdefault(name, {}) if not name.startswith('..') else None
             elif record.startswith('DA:') and current is not None:
                 fields = record[3:].split(',')
-                if len(fields) >= 2 and fields[0].isdigit() and fields[1].lstrip('-').isdigit():
+                if len(fields) >= 2 and number(fields[0]) and number(fields[1].lstrip('-')):
                     current[int(fields[0])] = max(current.get(int(fields[0]), 0), int(fields[1]))
             elif record == 'end_of_record':
                 current = None

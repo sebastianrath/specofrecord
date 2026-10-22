@@ -718,10 +718,17 @@ def run_tests(project, targets, only=None, confirmed=(), provides=None, everythi
         results, summary = testrun.run(project, only, confirmed=confirmed, provides=provides, everything=everything)
     if targets:
         rows, notes, covered = targetrun.run(project, targets, only, provides, everything)
-        for key in rows:
-            if results.get(key.partition('@')[0], {}).get('status') == 'external':
-                del results[key.partition('@')[0]]
-        results.update(rows)
+        for key, row in rows.items():
+            base = key.partition('@')[0]
+            if results.get(base, {}).get('status') == 'external':
+                del results[base]
+            was = results.get(key)
+            if was is not None and was['status'] != row['status']:   # the web run and the run of a target both report it
+                notes.append(f'{key}: the web run says {was["status"]} and the run of {row["target"]} says {row["status"]}: '
+                             + ('the failure stands' if 'fail' in (was['status'], row['status']) else f'the result of {row["target"]} stands'))
+                if was['status'] == 'fail':
+                    continue   # a failure is not taken back by another run
+            results[key] = row
     return dict(sorted(results.items())), summary, notes, covered
 
 

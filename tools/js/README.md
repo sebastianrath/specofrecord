@@ -15,12 +15,17 @@ code points, as the Python tool counts them). Three things differ on purpose:
 
 - `status --json` has no `problems`. Finding them is `sor check`, which is not in this copy, and the extension never read them.
 - It never touches a claim. The Python tool marks the claims of the Claude Code session that runs it as alive; this one only reads them.
-- An anchor `code: path#name` in a `.py` file is found by indentation. The Python tool asks Python's own parser. They agree on a function or a
-  class that starts at the margin of its block, which is what an anchor names.
+- An anchor `code: path#name` in a `.py` file is found by a tokenizer (strings, brackets, comments, continuation lines and the blocks that
+  indentation makes), not by Python's parser. They agree on the first and last line of a def, a class or an assignment, on every name in the
+  standard library, and on a file with a string or bracket left open or an indentation that does not fit (no anchor). The tokenizer does not
+  check the grammar: a file that Python refuses as a whole for a bad operator still has its functions found here. A `match` statement is read
+  although Python 3.9 refuses it, and `match` and `case` are names where they are used as names.
+- An anchor path that is absolute is read where it is, as in the Python tool.
 
 Everything else (`check`, `lock`, `claim`, `test`, `verify`, the edit guard) is the Python tool's.
 
-It is plain JavaScript (CommonJS) with no dependencies, for Node 16 or later, the Node of VS Code 1.80. A lock in a format newer than 3 is
+It is plain JavaScript (CommonJS) with no dependencies, for Node 16 or later, the Node of VS Code 1.80; a CI job runs it and its tests on Node 16
+(`.github/workflows/vscode.yml`). A lock in a format newer than 3 is
 refused with the Python tool's message, and the exit code is 2.
 
 ## What is in here
@@ -42,7 +47,7 @@ refused with the Python tool's message, and the exit code is 2.
 `tools/test_sor_js.py` runs that in the normal test run, and also checks the JavaScript against the Python tool, which is the reference:
 
 - the code of this repository through every style, plain and with characters put in at random places, and markers and lock texts;
-- a project in 56 states (a clause reworded, code edited in one language, a region shared by two clauses, a language left behind, a
+- a project in many states (a clause reworded, code edited in one language, a region shared by two clauses, a language left behind, a
   lock from a newer sor, a damaged lock, ...): the three JSON answers must be equal, and the states must include every kind of finding.
 
 `SOR_COMPARE_JS=1 python3 -m unittest discover -s tools -p 'test_*.py'` does the second kind for every state the whole test suite makes: before and

@@ -41,9 +41,21 @@ def unsafe_path(path):
     segments = p.split('/')
     if '..' in segments:
         return 'leaves the project'
-    if segments[0] == SPEC_DIR:
+    named = [s for s in segments if s not in ('', '.')]   # `./sor/r.json` and `sor//r.json` are `sor/r.json`; a case-insensitive file system reads `SOR/` as `sor/`
+    if named and named[0].lower() == SPEC_DIR:
         return f'is in {SPEC_DIR}/, which holds the spec'
     return ''
+
+
+def split_command(text):
+    """The words of a command that a target's rules give (`run:`): spaces separate them and quotes group them, with no shell. A backslash is a
+    character like any other, so that a Windows path (`.venv\\Scripts\\python.exe`) and a path with `/` read the same on every machine, and one
+    spec gives one command everywhere. Raises ValueError for a quote that is not closed."""
+    lex = shlex.shlex(text, posix=True)
+    lex.whitespace_split = True
+    lex.commenters = ''
+    lex.escape = ''
+    return list(lex)
 
 
 STARTER = re.compile(r'^[^\w\s@{}\'"`]{1,3}$')   # a comment starter a target may declare: one to three characters, none a letter, digit, space or quote
@@ -1076,7 +1088,7 @@ class Project:
                     value = it.values[kind]
                     if kind == 'run':
                         try:
-                            if not shlex.split(value):
+                            if not split_command(value):
                                 raise ValueError('empty')
                         except ValueError:
                             out.append(Problem('target', p.rel, f'`run: {value}` is not a command: words separated by spaces, quotes closed'))

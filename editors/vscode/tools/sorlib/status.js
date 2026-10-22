@@ -5,7 +5,6 @@ const fs = require('fs');
 const path = require('path');
 const lock = require('./lock');
 const { Item, Row, LEGACY_FILE_NAME, testKeyword } = require('./model');
-const markers = require('./markers');
 const T = require('./pytext');
 
 const SETTLED = ['pass', 'manual', 'checked', 'deferred'];
@@ -53,20 +52,18 @@ function read(project) {
   }
   // A lock written before the root was called ROOT keeps it under CLAUSES.
   if (has(data, LEGACY_FILE_NAME) && !has(data, project.rootKey)) {
-    lock_put(data, project.rootKey, data[LEGACY_FILE_NAME]);
+    T.put(data, project.rootKey, data[LEGACY_FILE_NAME]);
     delete data[LEGACY_FILE_NAME];
   }
   return lock.fold(data);
 }
-
-const lock_put = (o, k, v) => T.put(o, k, v);
 
 function isManual(test) {
   return test.lines.some(([, t]) => (testKeyword(t) || [''])[0] === 'manual');
 }
 
 /** The lock entries the files would produce right now. */
-function snapshot(project, scan, lines = null) {
+function snapshot(project, scan) {
   const entries = {};
   const text = {};
   const put = (key, kind, t) => {
@@ -117,7 +114,7 @@ function snapshot(project, scan, lines = null) {
       entries[it.id].refs = refs;
     }
   }
-  const perTarget = (lines === null ? project.targeted() : lines) ? scan.targetCodeHashes() : new Map();
+  const perTarget = project.targeted() ? scan.targetCodeHashes() : new Map();
   for (const [key, c] of scan.codeHashes()) {
     if (!has(entries, key)) T.put(entries, key, { kind: 'glue' });
     const entry = entries[key];
@@ -419,7 +416,4 @@ function activeClaims(project, now = Date.now() / 1000) {
   return data.filter((c) => c.until > now).map((c) => ({ agent: c.agent, asked: c.asked, since: c.since, until: c.until }));
 }
 
-module.exports = {
-  read, snapshot, conform, status, pendingTests, deferredTests, activeClaims, isManual, Finding, LockFormatError, upgrade, oldRuleKeys,
-  basisOf, bases, movedTargets, laggingTargets, unbuiltTargets, ownTest,
-};
+module.exports = { read, status, pendingTests, deferredTests, activeClaims, Finding, LockFormatError };

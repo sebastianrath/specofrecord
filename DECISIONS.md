@@ -1141,7 +1141,7 @@ Item 2 of the open list: `sor test` ran headless Chrome against a web target and
 frameworks and hand in a results file. The owner chose when a command written in a spec file may run: **only when the call names the target**.
 - **What a target says.** The values `run`, `results` and `lcov` of the Rules items of its part, read like `path` and `comment`. `{run: python3 -m pytest -q}` parses
   as a value (a command cannot contain braces). The tool still reads no pytest or jest output: the framework writes the `sor test --out` format.
-- **`sor test --targets py`** (and `sor lock --run-tests --targets py`) runs the command from the project root, split with `shlex`, with no shell and a time limit. A
+- **`sor test --targets py`** (and `sor lock --run-tests --targets py`) runs the command from the project root, split into words (spaces separate them, quotes group them, a backslash is a character like any other), with no shell, in a process group of its own and with a time limit. A
   plain `sor test` runs none and says which targets could run; with no web target and no `--targets` it says why nothing ran. The web run is as it was.
 - **A results file counts only if the run wrote it.** The tool does not delete a file named by a spec (a path in a spec file is no reason to remove anything): it
   compares the file's time and size before and after, and a file that is as it was is never read. `sor check` refuses paths that are absolute, leave the project or
@@ -1190,11 +1190,11 @@ Record is not part of this (see "The tool stays outside Spec of Record").
   11,955 anchors in the standard library (a bracket or a quote inside a string, a decorator, a class in a class). The second one reads logical
   lines the way the tokenizer does (strings, brackets, comments, backslash continuations, form feeds, tabs as 8), builds the blocks, and looks
   only at the direct children of a module, a class or a def, as `ast` does; it answers nothing for a file with an unfinished string or bracket or
-  an indentation that does not fit. It now agrees on all 11,955, and a test pins 26 hand-made shapes and the repository's own files with a line
+  an indentation that does not fit. It now agrees on all 11,955, and a test pins over thirty hand-made shapes and the repository's own files with a line
   taken out or a character put in. What it cannot see is a syntax error of the grammar (a bad operator): Python refuses the whole file there and the
   JavaScript still finds the function. That is the friendlier answer while someone types, and it is written down in `tools/js/README.md`. A `match`
   statement is read although Python 3.9 refuses it.
-- **How the two are kept equal.** `tools/test_sor_jsreader.py` puts a project in 56 states (a clause reworded, code edited in one language,
+- **How the two are kept equal.** `tools/test_sor_jsreader.py` puts a project in more than sixty states (a clause reworded, code edited in one language,
   a region shared by two clauses, a language left behind and then rebuilt, a table row changed with the code of its table, a test that did not pass
   at the last lock and then its code, tests left to CI, an alias value, no targets at all, a lock under its old name, an old root key, a lock from a
   newer sor, git blame with a commit by someone else) and compares the three answers. The states must include every kind of finding and every
@@ -1206,7 +1206,7 @@ Record is not part of this (see "The tool stays outside Spec of Record").
   deleted) at 686 places in `sor.js`, `status.js`, `views.js` and `anchors.js`. The first 394, without the Python anchors, showed that the first set
   of tests missed 173: the command line was not tested at all, no state had a test that needed a result, a failed one, a deferred one or an alias,
   nothing was in git, no lock was old or empty, and a row with code of its own was missing. Two samples of 150 and 170 after that, and a re-run of
-  every survivor, brought the states from 35 to 56 and added a cross-check for anchors in the other languages (which found nothing). 15 breaks
+  every survivor, brought the states from 35 to more than sixty and added a cross-check for anchors in the other languages (which found nothing). 15 breaks
   survive, each looked at: a blank put into text that is only searched for brackets, a `;` inside brackets that Python cannot write, a condition that
   only saves work, a default date. Not all 686 were run on the final tests, and `model.js` and `scan.js` were not mutated; they are checked by the
   comparisons on the real projects and on the whole suite only.
@@ -1222,6 +1222,29 @@ Record is not part of this (see "The tool stays outside Spec of Record").
   names the program.
 - **Limits.** Node 16 or later, since VS Code 1.80 has 16.17. The JavaScript is not measured for coverage. Windows paths and the Windows start of the
   tool are not run here.
+
+## Review of the JavaScript tool and of `sor test --targets` (2026-10-22)
+A review of the changes since the multi-target work (fifteen findings) found these, and each is fixed with a test that fails on the old code.
+- **A target's result replaced a web result.** `run_tests` merged the rows with `update()`, so a test that both the web run and the run of a target
+  reported took the target's status, and a web failure could turn into a pass. A failure now stands whichever run it is from, the other statuses give way to
+  the run that has a result, and a note names the test.
+- **`run:` is split the same on every machine.** `shlex.split` in POSIX mode took the backslashes out of `.venv\Scripts\python.exe`, and `sor check` accepted
+  the text. One helper, `model.split_command`, now serves `sor check` and the run: quotes group, a backslash is a character. A spec that used `\ ` to put a space in a
+  word on POSIX must use quotes. The feature was a day old.
+- **Stopping a run ends what it started.** The command runs in a process group of its own (a new session; `taskkill /T` on Windows, not run here), and a timeout
+  or Ctrl-C kills the group. Before, a test runner's workers lived on after the timeout.
+- **`./sor/results.json` and `SOR/results.json` were not "in the spec folder".** The check looked at the first segment as written.
+- **`DA:²,1` in an lcov file stopped `sor test` with a traceback** (`isdigit` is true for digits `int` refuses).
+- **`match = 3` and `case = 3` were not found as Python anchors** by the JavaScript tool, which took them for the statement.
+- **An absolute anchor path** was joined under the project in the JavaScript tool and used as it is in the Python tool (also the `path` of its region).
+- **Speed of the JavaScript tool:** `Scan.codeHashes()` copied its whole Map for every clause that `conform` looked at (quadratic), `fullIndex` built two
+  regular expressions for every spec line and looked through all regions for every item. Dead code was taken out of `status.js`.
+- **The test of the extension named Python by a regular expression over every argument,** so a project folder with `python` in its path failed it. The check
+  that every program started is the editor's Node on `tools/sor.js` already says more, and the expression is gone. That change is not run in a real VS Code yet.
+- **Node 16** was promised and never run: a CI job runs the vectors, the bundle test and the comparison with the Python tool on Node 16, and a release needs it.
+  It has not run yet either: no Node 16 is installed here, and none was downloaded.
+- **Not changed:** the JavaScript tool's lock `2.0` difference and the grammar errors it does not see stay as written above. The finding that spec and
+  code were edited with scripts and not with Edit is a note on how to work: the clauses were changed first, and the next edits use Edit.
 
 ## Still open
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for

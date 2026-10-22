@@ -351,6 +351,17 @@ class TestTheJavaScriptReader(unittest.TestCase):
                 self.assertEqual((code, err), (0, ''))
                 self.assertIn('usage: sor.js', out)
 
+    def test_an_anchor_with_an_absolute_path_is_found_as_the_python_tool_finds_it(self):
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as elsewhere:
+            build_project(d)
+            outside = os.path.join(elsewhere, 'lib2.py')
+            base.write(elsewhere, 'lib2.py', 'import os\n\n\ndef helper2(x):\n    return x\n')
+            edit(d, 'sor/hand.md', '  code: src_py/lib.py#helper', f'  code: src_py/lib.py#helper\n- **lib2** - Another helper.\n  code: {outside}#helper2')
+            index = js.python_json(d, ['markers', '--json'])
+            region = [r for r in index['regions'] if r['kind'] == 'anchor' and r['file'] == outside.replace(os.sep, '/')]
+            self.assertEqual([(r['start'], r['end'], r['path']) for r in region], [(4, 5, os.path.normpath(outside))])   # Python reads the file where it is
+            self.assertEqual(js.compare_with_javascript(d, [f'{outside}:4', 'hand/lib2']), [])
+
     def test_it_never_writes_to_the_project(self):
         with tempfile.TemporaryDirectory() as d:
             locked_state(d, STATES['a clause reworded'])

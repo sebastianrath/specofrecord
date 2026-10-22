@@ -353,10 +353,11 @@ note as a line of text after its groups: it is not a pending change, changes no 
 **Running the tests of a target.** A target says how its tests run in the Rules of its part. `{run: python3 -m pytest -q}` is the command,
 `{results: out/results-py.json}` the file that command writes `{"part/test:name": "pass"}` to (the format `sor test --out` writes: the tool reads no pytest or jest
 output), and `{lcov: out/lcov-py.info}` the coverage it writes in the lcov format, which coverage.py, c8, nyc and istanbul all produce (§8). Each is the value of a
-Rules item of the part (or of a part inside it) and is named once. `sor test --targets py` runs the command from the project root, split into words, with no shell,
+Rules item of the part (or of a part inside it) and is named once. `sor test --targets py` runs the command from the project root, split into words, with no shell
+(spaces separate the words and quotes group them; a backslash is a character like any other, so a Windows path reads the same on every machine),
 and `sor lock --run-tests --targets py` locks with its results; the coverage it reports is in §8. **A command runs only when the call names its target**: it is text in a spec file, so what a
 call runs is written in the call, and a plain `sor test` says which targets could run (`sor test --targets ts`) and runs none. The run is stopped when it takes too
-long, and its results file counts only if the run wrote it: a file that is as it was before the run is never read. A plain id in the file stands for the language of
+long, with every program it started (it runs in a process group of its own, which Ctrl-C ends too), and its results file counts only if the run wrote it: a file that is as it was before the run is never read. A plain id in the file stands for the language of
 that run (`part/test:name` is `part/test:name@py` for a test with test code in several languages), an id with another language is ignored and said, and a test with
 test code in that language that the file leaves out is `skipped`. `sor check` reports as problems a `run:` with no `results:`, a `results:` or `lcov:` with no
 `run:`, a path that is not relative to the project, leaves it or is in the spec folder, a command that cannot be split into words, a value said twice for one

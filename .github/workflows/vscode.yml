@@ -94,10 +94,28 @@ jobs:
 
   # Signs a build provenance attestation for the .vsix: GitHub records which repository, workflow, tag and commit built it.
   # A separate job, so the permission to sign sits only here and not in the job that installs npm packages and runs the tests.
+  # The JavaScript tool in the extension runs on the Node of VS Code, and VS Code 1.80 (the oldest the extension supports) has Node 16. The build above
+  # uses Node 20, so this job runs the tool and its tests on Node 16 and keeps the claim "Node 16 or later" (tools/js/package.json) honest.
+  oldest-node:
+    name: The JavaScript tool on Node 16
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 16
+      - name: Vectors
+        run: node tools/js/test/vectors.js
+      - name: Bundled tool test
+        run: node editors/vscode/test/bundle.js
+      # compares the tool with the Python tool, which the runner has, on a project in many states and on anchors in every language
+      - name: The tool against the Python tool
+        run: python3 -m unittest tools.test_sor_js tools.test_sor_jsreader
+
   attest:
     name: Attest the .vsix
     if: startsWith(github.ref, 'refs/tags/vscode-v')
-    needs: vsix
+    needs: [vsix, oldest-node]   # a release needs the tool to work on the oldest Node too
     runs-on: ubuntu-latest
     permissions:
       contents: read

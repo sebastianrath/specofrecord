@@ -99,13 +99,14 @@ PY_SNIPPETS = [
     'x = 1\ny = )(\ndef g(): pass\n',
     'x = 1\ndef f():\n    return (1,\n',
     'x = 1\ny = (1,\n',
+    'match = re.compile("x")\ncase: int = 4\nmatch.flags = 1\nmatch2 = 3\nmatch, case = 1, 2\ndef f(): pass\n',
     'x = 1\ny = 2 \\\n',
     'x = 1\ny = """abc\n',
     'x = 1\ny = "abc\\\n',
     'if (lambda: 1)():\n    y = 1\ndef g(): pass\nw = 2\n',
     'type_ = 1\nprint = 2\nlambda_ = 3\nif_ = 4\nelse_: int = 5\n',
 ]
-PY_NAMES = ['f', 'g', 'h', 'A', 'B', 'C', 'K', 'T', 'A.f', 'A.g', 'B.f', 'B.g', 'A.m', 'A.x', 'A.p', 'K.f', 'K.In', 'K.In.g', 'B.a', 'Q.a', 'Q.b', 'Q.m', 'x', 'y', 'z', 'w', 'a', 'b',
+PY_NAMES = ['match', 'case', 'match2', 'f', 'g', 'h', 'A', 'B', 'C', 'K', 'T', 'A.f', 'A.g', 'B.f', 'B.g', 'A.m', 'A.x', 'A.p', 'K.f', 'K.In', 'K.In.g', 'B.a', 'Q.a', 'Q.b', 'Q.m', 'x', 'y', 'z', 'w', 'a', 'b',
             'p', 'q', 'n', 'u', 'd', 'e', 'v', 't', 'c', 'j', 'k', 'été', 'π', 'Ünï.mé', 'inside', 'os', 'fh', 'print', 'lambda_', 'else_', '__all__',
             'missing', 'A.missing', 'f.inner', '']
 PY_FILES = ['tools/sorlib/anchors.py', 'tools/sorlib/hook.py', 'tools/sorlib/blame.py', 'vectors/make_hashing.py']

@@ -13,7 +13,7 @@ const points = (s) => Array.from(s).length;
 const column = (s, i) => points(s.slice(0, i));
 
 function regionDict(project, r) {
-  const d = { file: r.file, path: path.normalize(path.join(project.root, r.file)), start: r.start, end: r.end, kind: r.kind, keys: r.keys, ids: r.ids };
+  const d = { file: r.file, path: path.resolve(project.root, r.file), start: r.start, end: r.end, kind: r.kind, keys: r.keys, ids: r.ids };
   d.targetName = project.targetOf(r.file);   // the target the file belongs to, or null (`target` below is something else)
   if (r.kind === 'anchor') d.target = r.target;   // the `code: path#name` text the region came from
   return d;
@@ -21,6 +21,9 @@ function regionDict(project, r) {
 
 /** The same expression, answering with the position of each group too. */
 const withIndices = (rx) => new RegExp(rx.source, `${rx.flags}d`);
+// Built once. matchAll works on a copy of a global expression, so sharing these between lines and calls is safe (exec and test would not be).
+const VALUE_DEFINITION = withIndices(model.VDEF());
+const REFERENCE = model.REF();
 
 /** The text with each `code span` blanked out, keeping every other character where it was. */
 const mask = (text) => text.replace(model.CODE, (m) => ' '.repeat(points(m)));
@@ -45,7 +48,9 @@ function locate(project, target, valuePos) {
 /** Items, rows, values, references and code regions of the whole project. */
 function fullIndex(project, scan) {
   const regions = scan.regions.map((r) => regionDict(project, r));
-  const inRegions = (key) => scan.regions.map((r, i) => (r.keys.includes(key) ? i : -1)).filter((i) => i >= 0);
+  const byKey = new Map();   // key -> the numbers of the regions it serves
+  scan.regions.forEach((r, i) => new Set(r.keys).forEach((k) => { if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(i); }));
+  const inRegions = (key) => byKey.get(key) || [];
   const items = [];
   const valuePos = new Map();
   const refs = [];
@@ -54,7 +59,7 @@ function fullIndex(project, scan) {
     for (const it of part.items.values()) {
       for (const [n, text] of it.lines) {
         const masked = mask(text);
-        for (const m of masked.matchAll(withIndices(model.VDEF()))) {
+        for (const m of masked.matchAll(VALUE_DEFINITION)) {
           const start2 = m.indices[2][0];
           valuePos.set(`${it.id}.${m[1]}`, whereOf(part, n, column(masked, m.index), column(masked, m.index + m[0].length)));
           const val = m[2];
@@ -64,7 +69,7 @@ function fullIndex(project, scan) {
             refs.push([it, n, column(masked, at), column(masked, at + ref.length), ref]);
           }
         }
-        for (const m of masked.matchAll(model.REF())) {
+        for (const m of masked.matchAll(REFERENCE)) {
           const start = m.index + 1;   // the group starts right after the opening brace
           refs.push([it, n, column(masked, start), column(masked, start + m[1].length), T.strip(m[1])]);
         }

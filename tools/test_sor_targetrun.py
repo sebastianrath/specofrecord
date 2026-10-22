@@ -13,6 +13,7 @@ import json
 import os
 import shutil
 import sys
+import time
 import unittest
 
 sys.dont_write_bytecode = True
@@ -23,7 +24,7 @@ import test_sor as base                      # noqa: E402
 import test_sor_flows as flows               # noqa: E402
 import test_sor_targets_lock as targeted     # noqa: E402
 from sorlib import targetrun                 # noqa: E402
-from sorlib.model import Project             # noqa: E402
+from sorlib.model import Project, split_command, unsafe_path   # noqa: E402
 
 doc, write, read = base.doc, base.write, base.read
 TEST = 'greet/test:hello'
@@ -121,16 +122,34 @@ class TestWhatATargetSays(Runs):
 
     def test_a_path_outside_the_project_or_in_the_spec_folder_is_a_problem(self):
         for path, why in (('/tmp/r.json', 'is not a path relative to the project'), ('../r.json', 'leaves the project'),
-                          ('sor/r.json', 'is in sor/, which holds the spec'), ('C:/r.json', 'is not a path relative to the project')):
+                          ('sor/r.json', 'is in sor/, which holds the spec'), ('C:/r.json', 'is not a path relative to the project'),
+                          ('./sor/r.json', 'is in sor/, which holds the spec'), ('SOR/r.json', 'is in sor/, which holds the spec'),
+                          ('out/../sor/r.json', 'leaves the project')):
             with self.subTest(path):
                 code, out = self.problems(py_extra='Run with {run: python3 run.py py}, results in {results: %s}.' % path)
                 self.assertEqual(code, 2, out)
                 self.assertIn(f'`results: {path}` {why}', out)
 
+    def test_a_path_that_only_looks_different_from_one_in_the_spec_folder_is_one(self):
+        for path in ('./sor/r.json', '.\\sor\\r.json', 'sor//r.json', 'Sor/r.json', './/sor/r.json'):
+            self.assertTrue(unsafe_path(path), path)
+        for path in ('out/sor/r.json', 'sorry/r.json', './out/r.json', 'r.json', 'out//r.json'):
+            self.assertEqual(unsafe_path(path), '', path)
+
     def test_a_command_that_cannot_be_split_into_words_is_a_problem(self):
         code, out = self.problems(py_extra='Run with {run: python3 "run.py}, results in {results: out/r.json}.')
         self.assertEqual(code, 2, out)
         self.assertIn('is not a command: words separated by spaces, quotes closed', out)
+
+    def test_a_backslash_is_a_character_like_any_other_in_a_command_so_one_spec_gives_one_command(self):
+        self.assertEqual(split_command(r'.venv\Scripts\python.exe -m pytest -q'), [r'.venv\Scripts\python.exe', '-m', 'pytest', '-q'])
+        self.assertEqual(split_command(r'"C:\Program Files\Python\python.exe" a\b "c d" e'), [r'C:\Program Files\Python\python.exe', r'a\b', 'c d', 'e'])
+        self.assertEqual(split_command("python3 -m pytest -k 'a b' \"c\\d\""), ['python3', '-m', 'pytest', '-k', 'a b', 'c\\d'])
+        self.assertEqual(split_command('  '), [])
+        with self.assertRaises(ValueError):
+            split_command('python3 "run.py')
+        code, out = self.problems(py_extra='Run with {run: .venv\\Scripts\\python.exe run.py py}, results in {results: out/r.json}.')
+        self.assertNotIn('is not a command', out)
 
     def test_two_commands_for_one_target_are_a_problem(self):
         code, out = self.problems(py_extra=['Run with {run: python3 run.py py}, results in {results: out/r.json}.', 'Or with {run: pytest}.'])
@@ -156,6 +175,33 @@ class TestTheRowsOfTheWebRunAndOfATarget(Runs):
             results, summary, notes, covered = cli.run_tests(Project(self.dir), ['py'])
         self.assertEqual(sorted(results), ['greet/test:bye', f'{TEST}@py'])
         self.assertEqual(results[f'{TEST}@py']['status'], 'pass')
+
+
+    def merged(self, web, target):
+        from unittest import mock
+        from sorlib import cli, testrun
+        rows = {TEST: {'status': target, 'message': '', 'target': 'py'}}
+        with mock.patch.object(testrun, 'web_targets', return_value=[object()]), \
+                mock.patch.object(testrun, 'run', return_value=({TEST: {'status': web, 'message': ''}}, None)), \
+                mock.patch.object(targetrun, 'run', return_value=(rows, [], {})), contextlib.redirect_stdout(io.StringIO()):
+            results, _, notes, _ = cli.run_tests(Project(self.dir), ['py'])
+        return results[TEST]['status'], notes
+
+    def test_a_failure_of_the_web_run_is_not_taken_back_by_the_run_of_a_target_and_the_collision_is_said(self):
+        status, notes = self.merged('fail', 'pass')
+        self.assertEqual(status, 'fail')
+        self.assertEqual(notes, [f'{TEST}: the web run says fail and the run of py says pass: the failure stands'])
+
+    def test_a_failure_of_the_run_of_a_target_replaces_a_pass_of_the_web_run(self):
+        status, notes = self.merged('pass', 'fail')
+        self.assertEqual(status, 'fail')
+        self.assertEqual(notes, [f'{TEST}: the web run says pass and the run of py says fail: the failure stands'])
+
+    def test_two_runs_that_agree_say_nothing_and_a_deferred_test_gives_way_to_the_run_that_has_a_result(self):
+        self.assertEqual(self.merged('pass', 'pass'), ('pass', []))
+        status, notes = self.merged('deferred', 'pass')
+        self.assertEqual(status, 'pass')
+        self.assertEqual(notes, [f'{TEST}: the web run says deferred and the run of py says pass: the result of py stands'])
 
 
 class TestNamingTargets(Runs):
@@ -294,6 +340,72 @@ class TestAResultsFileThatWasNotWritten(Runs):
         self.assertIn('the run took more than 1 s and was stopped', str(caught.exception))
 
 
+@unittest.skipUnless(os.name == 'posix', 'process groups: the Windows way (taskkill /T) is not run here')
+class TestStoppingARunAndWhatItStarted(Runs):
+    # a "framework" that starts a worker, which writes its process number and goes on for a minute, and holds the pipes of the run like a worker does
+    SPAWN = ('import os, subprocess, sys, time\n'
+             "subprocess.Popen([sys.executable, '-c', \"import os, time; open('worker.pid', 'w').write(str(os.getpid())); time.sleep(60)\"])\n"
+             'time.sleep(60)\n')
+
+    def start(self):
+        write(self.dir, 'spawn.py', self.SPAWN)
+        self.build(py_extra='Run with {run: "%s" spawn.py}, results in {results: out/r.json}.' % sys.executable.replace('\\', '/'))
+        self.addCleanup(self.reap)
+        return Project(self.dir)
+
+    def pid(self):
+        path = os.path.join(self.dir, 'worker.pid')
+        end = time.time() + 5
+        while not os.path.exists(path) or not read(path):
+            self.assertLess(time.time(), end, 'the worker did not start')
+            time.sleep(0.05)
+        return int(read(path))
+
+    def alive(self, pid):
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        return True
+
+    def reap(self):
+        path = os.path.join(self.dir, 'worker.pid')
+        if os.path.exists(path) and read(path):
+            try:
+                os.kill(int(read(path)), 9)
+            except ProcessLookupError:
+                pass
+
+    def gone(self, pid):
+        end = time.time() + 5
+        while self.alive(pid) and time.time() < end:
+            time.sleep(0.05)
+        return not self.alive(pid)
+
+    def test_a_run_that_takes_too_long_is_stopped_with_the_programs_it_started(self):
+        project = self.start()
+        began = time.time()
+        with self.assertRaises(targetrun.TargetError) as caught:
+            targetrun.run_command(project, 'py', say=lambda *_: None, timeout=1)
+        self.assertIn('the run took more than 1 s and was stopped', str(caught.exception))
+        self.assertLess(time.time() - began, 10)
+        self.assertTrue(self.gone(self.pid()), 'the worker is still running')
+
+    def test_ctrl_c_ends_the_run_and_what_it_started_and_goes_on_to_the_caller(self):
+        from unittest import mock
+        project = self.start()
+        original = targetrun.subprocess.Popen.communicate
+
+        def interrupted(proc, *args, **kwargs):
+            self.pid()   # the worker is running
+            raise KeyboardInterrupt
+        with mock.patch.object(targetrun.subprocess.Popen, 'communicate', interrupted):
+            with self.assertRaises(KeyboardInterrupt):
+                targetrun.run_command(project, 'py', say=lambda *_: None, timeout=30)
+        self.assertTrue(self.gone(self.pid()), 'the worker is still running')
+        self.assertTrue(original)
+
+
 class TestCoverageOfATarget(Runs):
     PY_LCOV = 'SF:src_py/greet.py\nDA:2,3\nend_of_record\n'
 
@@ -416,6 +528,10 @@ class TestReadingAnLcovFile(unittest.TestCase):
     def test_a_line_seen_twice_keeps_the_larger_count_and_a_record_that_is_not_numbers_is_ignored(self):
         got = self.read('SF:a.py\nDA:1,4\nDA:1,0\nDA:x,1\nDA:2,-\nDA:3\nend_of_record\n')
         self.assertEqual(got, {'a.py': {1: 4}})
+
+    def test_digits_of_other_scripts_are_not_numbers_to_it(self):
+        got = self.read('SF:a.py\nDA:\u00b2,1\nDA:1,\u0663\nDA:2,3\nend_of_record\n')
+        self.assertEqual(got, {'a.py': {2: 3}})
 
     def test_lines_outside_a_file_record_are_ignored(self):
         self.assertEqual(self.read('DA:1,1\nSF:a.py\nend_of_record\nDA:2,2\n'), {'a.py': {}})

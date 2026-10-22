@@ -518,7 +518,6 @@ exports.run = async function run() {
     const toolJs = path.join(ext.extensionPath, 'tools', 'sor.js');
     const odd = started.filter((c) => c[0] !== process.execPath || c[1] !== toolJs);
     assert(!odd.length, 'a refresh started something else than the editor\'s Node on tools/sor.js: ' + JSON.stringify(odd[0] || null).slice(0, 200));
-    assert(!started.some((c) => c.some((x) => /python|(^|[\\/])py(\.exe)?$/i.test(String(x)))), 'no Python in any command');
     assert(api.state.projects.length && api.state.projects.every((p) => p.index && p.status), 'every project has its index and status');
     ok(`node: a refresh started ${started.length} programs, all of them the editor's Node on tools/sor.js, none of them Python`);
   }

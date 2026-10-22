@@ -2,8 +2,9 @@
 // Symbol anchors (`tools/sorlib/anchors.py`): a clause names the code it is about with an indented line `code: path#name`, and the lines of
 // that function, class, method or constant belong to the clause. Every language but Python is read by declaration patterns and brace
 // matching, exactly as the Python tool does. Python files are read there with Python's own parser, which JavaScript does not have: here
-// they are read by indentation, which agrees with it for ordinary code (a def, a class, a constant, decorators) and may differ for a
-// block with a multi-line string whose lines are indented less than the block.
+// they are read by a tokenizer (below) that agrees with `ast` on the first and last line of a def, a class or an assignment, and on the files
+// that `ast` refuses because a string or a bracket is left open or the indentation does not fit. It does not check the grammar: a bad operator
+// that makes Python refuse the whole file leaves the functions of that file found here.
 const { splitLines } = require('./model');
 const T = require('./pytext');
 
@@ -35,6 +36,9 @@ function find(text, path, name) {
 
 const PY_NAME = `[\\p{L}\\p{N}_]`;
 const COMPOUND = /^(?:async[ \t]+def|def|class|if|elif|else|for|while|try|except|finally|with|match|case)(?![\p{L}\p{N}_])/u;
+// `match` and `case` are names in a program that does not use the statement: `match = re.compile(x)`, `case: int = 3`, `match.group()`
+const SOFT_NAME = /^(?:match|case)[ \t]*(?:=(?!=)|:|[.,;)\]]|$)/u;
+const isCompound = (s) => COMPOUND.test(s) && !SOFT_NAME.test(s);
 
 /** The width of a line's indentation as the tokenizer counts it: a tab goes to the next multiple of 8, a form feed starts again. */
 function indentWidth(line) {
@@ -132,7 +136,7 @@ function blockEndIndex(ll, k, hi) {
 /** The text of a statement up to its first top-level colon is a compound statement's header: whether the colon ends the statement (a block follows). */
 function opensBlock(code) {
   const s = code.trim();
-  if (!COMPOUND.test(s)) return false;
+  if (!isCompound(s)) return false;
   let depth = 0;
   for (let i = 0; i < s.length; i++) {
     const c = s[i];
@@ -191,7 +195,7 @@ function assignsTo(code, part) {
     while (t.startsWith('(') && t.endsWith(')')) t = T.strip(t.slice(1, -1));
     return t === part && new RegExp(`^${PY_NAME}+$`, 'u').test(t) && !/^[0-9]/.test(t);
   };
-  if (COMPOUND.test(T.strip(code))) return false;   // a compound statement with its body on the same line: the statements after the colon are the body's
+  if (isCompound(T.strip(code))) return false;   // a compound statement with its body on the same line: the statements after the colon are the body's
   for (const s of simpleStatements(code)) {
     let depth = 0;
     let colon = -1;

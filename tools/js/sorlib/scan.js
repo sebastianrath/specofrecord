@@ -99,7 +99,7 @@ class Scan {
         if (rel.startsWith('./')) rel = rel.slice(2);
         let text;
         try {
-          text = DECODER.decode(fs.readFileSync(path.join(this.project.root, rel)));
+          text = DECODER.decode(fs.readFileSync(path.resolve(this.project.root, rel)));   // an absolute path stays itself, as in os.path.join
         } catch (e) {
           continue;
         }
@@ -182,7 +182,7 @@ class Scan {
       }
       this._hashes.set(legacy, new Map([...byKey].map(([k, rs]) => [k, markers.codeHash(rs, legacy)])));
     }
-    return new Map(this._hashes.get(legacy));
+    return this._hashes.get(legacy);   // worked out once; the callers only read it
   }
 
   /** key -> Map(target -> hash) of the code marked with it, one hash for the regions in each target's paths. Code in no target's path is under `*`. */
