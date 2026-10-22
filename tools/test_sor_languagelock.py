@@ -475,6 +475,36 @@ class TestTheRowsOfAClause(RowsFixture):
         self.assertEqual(code, 2, out)
         self.assertIn('is not locked as it reads now', out)
 
+    def test_releasing_a_language_names_the_unlocked_code_of_its_rows(self):
+        self.cell_changed_and_python_rebuilt()
+        write(self.dir, 'src_ts/greet.ts', self.TS + 'export const FR = "Bonjour";  // @clause greet/hello/fr\n')   # only the row has code to lock
+        self.assertTrue(self.claim(['greet/hello@ts'], 'bob', session='B')[0])
+        code, out, _ = self.sor('release', '--as', 'bob', 'greet/hello@ts', CLAUDE_CODE_SESSION_ID='B')
+        self.assertEqual(code, 0, out)
+        self.assertIn('note: greet/hello@ts has code that is not locked yet', out)
+
+    def test_a_lock_of_one_language_says_that_a_row_is_still_behind_in_the_other(self):
+        flows.replace_in(self.spec_file, '| fr | Salut |', '| fr | Bonjour |')
+        self.assertEqual(self.sor('lock', 'greet/hello', 'greet/hello/fr', '--allow-behind', 'py,ts')[0], 0)
+        write(self.dir, 'src_py/greet.py', self.PY + 'FR = "Bonjour"  # @clause greet/hello/fr\n')
+        code, out, _ = self.sor('lock', 'greet/hello@py')
+        self.assertEqual(code, 0, out)
+        self.assertIn('locked greet/hello/fr@py', out)
+        self.assertIn('greet/hello is not finished in every language: ts is behind the clause', out)
+
+    def test_a_clause_whose_code_is_all_in_a_row_is_locked_in_that_language_through_the_row(self):
+        write(self.dir, 'src_py/greet.py', self.PY)
+        write(self.dir, 'src_ts/greet.ts', 'export const FR = "Salut";  // @clause greet/hello/fr\n')   # the clause has no ts code, its row has
+        self.build(rules=self.ROWS)
+        self.assertEqual(self.sor('lock', '--all', '--allow-behind', 'py,ts')[0], 0)
+        flows.replace_in(self.spec_file, '| fr | Salut |', '| fr | Bonjour |')
+        self.assertEqual(self.sor('lock', 'greet/hello', 'greet/hello/fr', '--allow-behind', 'py,ts')[0], 0)
+        write(self.dir, 'src_ts/greet.ts', 'export const FR = "Bonjour";  // @clause greet/hello/fr\n')
+        code, out, _ = self.sor('lock', 'greet/hello@ts')
+        self.assertEqual(code, 0, out)
+        self.assertIn('locked greet/hello/fr@ts', out)
+        self.assertNotIn('no code', out)
+
     def test_another_session_cannot_change_the_text_of_a_row_the_claim_relies_on(self):
         with mock.patch.dict(os.environ, {'SOR_ENFORCE_CLAIMS': '1'}):
             self.assertTrue(self.claim(['greet/hello@ts'], 'a', session='A')[0])
@@ -786,6 +816,33 @@ class TestThisLanguageChangesMeanwhile(Meanwhile):
         self.assertEqual(code, 2, out)
         self.assertIn('the lock changed while this one was being worked out', out)
         self.assertIn(AGAIN, out)
+
+
+class TestTheTestOfARowsClause(RowsFixture):
+    """greet/hello is a table with a test that needs a result for each language it has test code in."""
+
+    def setUp(self):
+        super().setUp()
+        self.build(rules=self.ROWS, tests=OWN)
+        self.row_code()
+        write(self.dir, 'src_py/test_greet.py', test_code('py'))
+        write(self.dir, 'src_ts/greet.test.ts', test_code('ts'))
+        both = write(self.dir, 'both.json', json.dumps({f'{TEST}@py': 'pass', f'{TEST}@ts': 'pass'}))
+        self.assertEqual(self.sor('lock', '--all', '--allow-behind', 'ts', '--results', both)[0], 0)
+
+    def test_the_test_runs_again_when_only_the_code_of_a_row_is_locked(self):
+        flows.replace_in(self.spec_file, '| fr | Salut |', '| fr | Bonjour |')
+        write(self.dir, 'src_py/greet.py', self.PY + 'FR = "Bonjour"  # @clause greet/hello/fr\n')
+        both = write(self.dir, 'both.json', json.dumps({f'{TEST}@py': 'pass', f'{TEST}@ts': 'pass'}))
+        self.assertEqual(self.sor('lock', 'greet/hello', 'greet/hello/fr', TEST, '--allow-behind', 'ts', '--results', both)[0], 0)
+        write(self.dir, 'src_ts/greet.ts', self.TS + 'export const FR = "Bonjour";  // @clause greet/hello/fr\n')
+        code, out, _ = self.sor('lock', 'greet/hello@ts')
+        self.assertEqual(code, 2, out)                                      # the code of the row is the code of the clause: its test is run for it
+        self.assertIn(f'{TEST}@ts', out)
+        ts_only = write(self.dir, 'ts.json', json.dumps({f'{TEST}@ts': 'pass'}))
+        code, out, _ = self.sor('lock', 'greet/hello@ts', '--results', ts_only)
+        self.assertEqual(code, 0, out)
+        self.assertIn('locked greet/hello/fr@ts', out)
 
 
 class TestRowCodeInAFileOfItsOwn(LocksWhile, RowsFixture):

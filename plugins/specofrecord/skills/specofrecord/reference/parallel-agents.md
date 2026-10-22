@@ -40,7 +40,7 @@ Subagents share your session, so the tool cannot tell them apart from you by its
 ## Two agents on one clause, one language each
 In a project that says its targets (`Targets: py, ts` in the root file) a clause has code in more than one language, and an id may carry the
 language: `greet/hello@py`. Use it when another agent rebuilds the other language of the clause at the same time.
-- `sor claim greet/hello@py` holds the Python side only: its lock line, the line of its test, and the code in the Python files. Another agent may
+- `sor claim greet/hello@py` holds the Python side only: its lock line, the lines of its test and of its table rows, and the code in the Python files. Another agent may
   claim `greet/hello@ts` at once. Nobody can change the clause's text while either of you holds a language of it, because your code is built for
   that text. To change the clause, claim the whole clause (`sor claim greet/hello`), which holds every language and waits for them.
 - The order for a clause that changes: the agent that changes the text claims the whole clause, rebuilds the language it works on, and locks the

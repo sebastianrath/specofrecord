@@ -593,9 +593,10 @@ def print_language_lock(project, entries, wanted, lines, glue):
     basis = lockfile.bases(project, entries)
     for clause in sorted({c for c, _ in wanted}):
         here = {t for c, t in wanted if c == clause}
-        e = entries.get(clause) or {}
-        behind = [t for t in lockfile.lagging_targets(project, clause, e, owners, basis) if t not in here]
-        missing = [t for t in project.targets_applying_to(clause) if t not in (e.get('targets') or {}) and t not in here]
+        held = [k for k in lockfile.language_keys(project, clause) if k != lockfile.own_test(clause) and k in entries]   # the clause and its rows
+        behind = sorted({t for k in held for t in lockfile.lagging_targets(project, k, entries[k], owners, basis)} - here)
+        coded = {t for k in held for t in (entries[k].get('targets') or {})}
+        missing = [t for t in project.targets_applying_to(clause) if t not in coded and t not in here]
         parts = ([f'{", ".join(behind)} {"is" if len(behind) == 1 else "are"} behind the clause (its code was accepted for an older text)'] if behind else []) \
             + ([f'{", ".join(missing)} {"has" if len(missing) == 1 else "have"} no code yet'] if missing else [])
         if parts:
@@ -643,13 +644,14 @@ def unlocked_languages(project, ids):
     scan = Scan(project)
     now = lockfile.conform(lockfile.snapshot(project, scan), lock, scan)
     basis, owners = lockfile.bases(project, lock), lockfile.owner_parts(project)
-    out = []
-    for ident, (key, target) in langs:
+
+    def open_in(key, target):
         mine = ((now.get(key) or {}).get('targets') or {}).get(target)
         was = ((lock.get(key) or {}).get('targets') or {}).get(target)
-        if mine and (was is None or was.get('code') != mine['code'] or target in lockfile.lagging_targets(project, key, lock[key], owners, basis)):
-            out.append(ident)
-    return out
+        return bool(mine) and (was is None or was.get('code') != mine['code']
+                               or target in lockfile.lagging_targets(project, key, lock[key], owners, basis))
+
+    return [ident for ident, (key, target) in langs if any(open_in(k, target) for k in lockfile.language_keys(project, key))]
 
 
 def cmd_release(args):

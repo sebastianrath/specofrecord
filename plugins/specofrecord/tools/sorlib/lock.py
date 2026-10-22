@@ -389,10 +389,11 @@ def own_test(key):
 
 
 def language_keys(project, clause):
-    """The lock keys that a claim or a lock of one language of a clause covers (SPEC §16), the clause first: the clause, its own test and its
-    rows, for a row can have code of its own in a language. What each of them holds in that language is its line `key@language`."""
+    """The lock keys that a claim or a lock of one language of a clause covers (SPEC §16): the clause, its rows (a row can have code of its own
+    in a language) and its own test, last, since what it proves is settled by the code before it. What each of them holds in that language is
+    its line `key@language`."""
     item = project.items.get(clause)
-    return [clause, own_test(clause)] + ([r.id for r in item.rows.values()] if isinstance(item, Item) else [])
+    return [clause] + ([r.id for r in item.rows.values()] if isinstance(item, Item) else []) + [own_test(clause)]
 
 
 class Finding:
@@ -747,11 +748,13 @@ def accept(project, scan, results, allow_incomplete, findings=(), old=None, conf
         if f.status == 'shared' and test in entries and entries[test]['result'] not in SETTLED:
             reasons.append(f'shared  {f.key}  its code changed with another clause, so {test} must pass '
                            '(--allow-incomplete does not cover this)')
-    basis = bases(project, entries)
+    basis = bases(project, entries) if allow_behind else {}   # only a language left behind can wait for a result
 
     def waiting(k):
         """The languages whose result a test may leave for later: `--allow-behind` leaves the test, or the clause it is named after, behind in
         them. The code of that language is not rebuilt yet, so a result now would be for the old code; the lock of the language asks for it."""
+        if not allow_behind:
+            return set()
         part, _, name = k.rpartition('/')
         clause = f'{part}/{name[5:]}' if part else name[5:]
         late = set(lagging_targets(project, k, entries[k], owners, basis)) | set(lagging_targets(project, clause, entries.get(clause) or {}, owners, basis))
@@ -810,15 +813,16 @@ def accept_language(project, scan, results, allow_incomplete, findings, old, wan
             if (key, t) not in seen and key in entries:
                 seen.add((key, t))
                 units.append((key, t, clause, key == clause))
-    needing = []
+    needing, bare, coded = [], [], set()   # `coded`: the clause or one of its rows has code in a language, `bare`: the clause itself has none
     for key, t, clause, asked in units:
         name, new, prev = f'{key}@{t}', entries[key], old.get(key)
         line = (new.get('targets') or {}).get(t)
         if line is None:
             if asked:
-                reasons.append(f'no code  {name}  {key} has no code in {t}: write it (a region marked `@clause {key}` in a file of {t}), '
-                               'then lock again')
+                bare.append((key, t))
             continue
+        if key != own_test(clause):
+            coded.add((clause, t))
         if prev is None or (prev.get('code') and not prev.get('targets')) or basis_of(project, entries, key) != basis_of(project, old, key):
             reasons.append(f'changed  {name}  {key} is not locked as it reads now: lock it first, with `sor lock {clause}` '
                            '(only the code of one language can be locked on its own)')
@@ -838,14 +842,17 @@ def accept_language(project, scan, results, allow_incomplete, findings, old, wan
             confirmed.append(name)
         same = was is not None and {x: v for x, v in was.items() if x != 'result'} == {x: v for x, v in line.items() if x != 'result'}
         if 'result' in line:
-            # a test that stands as it was, and passed, needs no new result, unless the code it proves is locked now: a language is locked
-            # together with the proof that its test passes against it
-            if same and was.get('result') == 'pass' and (clause, t) not in lines:
+            # a test that stands as it was, and passed, needs no new result, unless the code it proves is locked now (the clause's or a row's):
+            # a language is locked together with the proof that its test passes against it
+            if same and was.get('result') == 'pass' and not any((k, t) in lines for k in language_keys(project, clause) if k != key):
                 continue
             needing.append((key, t, line))
         elif same:
             continue
         lines[(key, t)] = line
+    for key, t in bare:
+        if (key, t) not in coded:   # a clause whose code is all in its rows is locked in that language through them
+            reasons.append(f'no code  {key}@{t}  {key} has no code in {t}: write it (a region marked `@clause {key}` in a file of {t}), then lock again')
     for key, t, line in needing:
         langs = sorted(x for x, l in entries[key]['targets'].items() if 'result' in l)
         got = results.get(f'{key}@{t}')

@@ -437,7 +437,11 @@ def _claim(project, scan, universe, ids, agent, ttl, session):
     if not agent:
         raise ClaimError('say who you are: --as NAME, or set SOR_AGENT (a Claude Code session is recognised by itself)')
     session = current_session() if session is None else session
-    keys, unknown = footprint(project, universe, ids)
+    keys, unknown, owned = set(), [], {}
+    for ident in ids:
+        owned[ident], bad = footprint(project, universe, [ident])
+        keys |= owned[ident]
+        unknown += bad
     if unknown:
         raise ClaimError(unknown_text(project, universe, unknown) + ' (to add a clause, claim the part that will hold it)')
     regions, pins, plain = set(), set(), {k for k in keys if '@' not in k}
@@ -449,7 +453,7 @@ def _claim(project, scan, universe, ids, agent, ttl, session):
             pins |= bases   # the text of the clause, of its test and of its rows: what the code of that language is built for
             plain |= bases
         else:
-            regions |= regions_of(scan, footprint(project, universe, [ident])[0])
+            regions |= regions_of(scan, owned[ident])
     shared = sorted({k for _, ids_ in regions for k in ids_} - plain)
     with _Mutex(project):
         now = time.time()

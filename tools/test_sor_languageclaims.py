@@ -19,6 +19,7 @@ import test_sor as base                      # noqa: E402
 import test_sor_flows as flows               # noqa: E402
 import test_sor_targets_lock as targeted     # noqa: E402
 from sorlib import claims, hook              # noqa: E402
+from sorlib import lock as lockfile          # noqa: E402
 from sorlib.markers import Scan             # noqa: E402
 from sorlib.model import Project             # noqa: E402
 
@@ -102,6 +103,16 @@ class TestWhatALanguageClaimHolds(Claimed):
         ok, res = self.claim(['greet/hello@py'], 'b', session='B')
         self.assertFalse(ok)
         self.assertIn('greet/hello@py', claims.describe(res['holders'][0]))
+
+
+class TestAClaimAsksOnceForEachId(Claimed):
+    def test_the_keys_of_each_id_are_worked_out_once(self):
+        project = Project(self.dir)
+        scan = Scan(project)
+        with mock.patch.object(claims, 'footprint', wraps=claims.footprint) as footprint:
+            ok, _ = claims.claim(project, scan, set(lockfile.snapshot(project, scan)), ['greet/hello', 'greet/bye', 'greet/test:hello'], 'z', 60, 'Z')
+        self.assertTrue(ok)
+        self.assertEqual(footprint.call_count, 3)
 
 
 class TestWhatABlockedClaimNames(Claimed):

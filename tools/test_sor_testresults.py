@@ -18,6 +18,7 @@ import test_sor as base                      # noqa: E402
 import test_sor_flows as flows               # noqa: E402
 import test_sor_targets_lock as targeted     # noqa: E402
 from sorlib import lock as lockfile          # noqa: E402
+from sorlib.markers import Scan             # noqa: E402
 from sorlib.model import Project             # noqa: E402
 
 write, read = base.write, base.read
@@ -145,6 +146,25 @@ class TestAChangedTestIsBehindLikeAClause(Tested):
         code, out, _ = self.lock_with(self.GIVEN, '--allow-behind', 'py,ts')
         self.assertEqual(code, 0, out)
         self.assertIn(f'behind       {TEST}  py, ts', self.sor('status')[1])
+
+
+class TestNothingWaitsWithoutAllowBehind(Tested):
+    def test_a_lock_without_the_option_does_not_work_out_what_is_behind_for_the_results(self):
+        from unittest import mock
+        project = Project(self.dir)
+        scan = Scan(project)
+        given = {f'{TEST}@py': 'pass', f'{TEST}@ts': 'pass'}
+
+        def calls(allow):
+            with mock.patch.object(lockfile, 'bases', wraps=lockfile.bases) as bases:
+                lockfile.accept(project, scan, given, False, [], {}, [], None, allow, ())
+            return bases.call_count
+        self.assertEqual(calls(('ts',)), calls(()) + 1)          # the extra one is the work for results that may wait
+
+    def test_a_language_named_by_the_option_that_is_not_behind_still_needs_its_result(self):
+        code, out, _ = self.lock_with({f'{TEST}@py': 'pass'}, '--allow-behind', 'ts')
+        self.assertEqual(code, 2, out)
+        self.assertIn(f'{TEST}@ts', out)
 
 
 class TestOneLanguageHasTestCode(Tested):

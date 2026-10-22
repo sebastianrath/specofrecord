@@ -1059,11 +1059,12 @@ Decided by the owner on 2026-10-22: test results are per target, where the test 
 ## One language of a clause, claimed and locked on its own (2026-10-22)
 Asked by the owner as "how can I avoid drift, e.g. one agent claims `@py` and the other forgets it", and as a question about races between two agents on
 one clause. The answer is that each language is its own claim and its own lock line, and that a lock of one language can only write what that language owns.
-- **`greet/hello@py` is an id** in a project that says its targets. A claim of it holds the clause's line in that language, the line of the clause's own test
-  in that language, and the code regions in that language's files. It records `pins: [clause]`, because the code relies on the clause's text: it conflicts with a
-  claim of the whole clause, with a claim of the same language and with an edit of the clause's text, and not with another language of the clause. A claim of
-  the whole clause holds every language (`footprint` adds the lines). The edit hook looks only at the edited file's regions for a code edit, so a claim of
-  `@py` never refuses a TypeScript edit of the same clause (found by a test: it first returned all regions of the touched clause).
+- **`greet/hello@py` is an id** in a project that says its targets. A claim of it holds the clause's line in that language, the lines of the clause's own test
+  and of its rows in that language, and the code regions in that language's files. It records `pins`, the text of those keys, because the code relies on it: it
+  conflicts with a claim of the whole clause, with a claim of the same language and with an edit of that text, and not with another language of the clause. A
+  claim of the whole clause holds every language (`footprint` adds the lines). The edit hook looks only at the edited file's regions for a code edit in a project
+  that says its targets, so a claim of `@py` never refuses a TypeScript edit of the same clause (found by a test: it first returned all regions of the touched
+  clause). The first version pinned the clause only, and covered no rows: the review of 2026-10-22 below changed both.
 - **`sor lock greet/hello@py` writes that language's lines and the glue of its files, and nothing else.** The clause's own line is never rewritten (decided before),
   so the lock needs the clause locked as it reads now and says "lock it first" otherwise. It merges the line into the entry it reads under the mutex, and
   stops with "run it again" when the clause's line, that language's line, its glue or a file of that language moved since it read. Another language landing
