@@ -42,7 +42,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function classOf(status) {
   if (status === 'drift') return 'drift';
   if (status === 'stale' || status === 'shared') return 'review';
-  if (status === 'new' || status === 'changed' || status === 'removed') return 'recompile';
+  if (status === 'new' || status === 'changed' || status === 'removed' || status === 'behind') return 'recompile';
   return null;
 }
 // @clause end

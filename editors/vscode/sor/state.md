@@ -18,7 +18,8 @@ up to date.
 
 ## Approach
 - **words** — the tool's status names map to the words: stale and shared are review; new,
-  changed and removed are recompile.
+  changed, removed and behind are recompile (behind: the code of one language of a clause was
+  built for an older text of the clause). Any other status counts as in sync.
 - **hover-cut** — the text under each clause in the hover is cut to {lines: 6} lines.
 
 ## Contract
@@ -30,6 +31,8 @@ up to date.
 - **states** — a line whose clause changed shows "to recompile" (test/suite.js).
 - **gutter** — after a refresh `index.html` has marks in each state the tool reports, and a clause
   item that needs review has an amber mark (test/suite.js).
+- **words** — each status the tool reports has one word: behind is recompile, stale and shared are
+  review, and a status the extension does not know counts as in sync (test/regions.js).
 - **no-hover** — a line outside any region, and a file outside any project, show nothing.
   manual: by eye
 - **blame** — a drifted line in a git repository shows who changed it in its hover.
