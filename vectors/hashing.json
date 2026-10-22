@@ -2431,6 +2431,723 @@
    }
   ]
  },
+ "starters_of": {
+  "how": "starters_of(path) -> [starter]: the comment starters, besides // # /* <!-- -- ; (SPEC section 10), that a marker may follow in a file of that type: the `starters` column of the table, in order. A row for every extension in it.",
+  "rows": [
+   {
+    "name": "the starters of .ada",
+    "path": "a.ada",
+    "starters": []
+   },
+   {
+    "name": "the starters of .adb",
+    "path": "a.adb",
+    "starters": []
+   },
+   {
+    "name": "the starters of .ads",
+    "path": "a.ads",
+    "starters": []
+   },
+   {
+    "name": "the starters of .awk",
+    "path": "a.awk",
+    "starters": []
+   },
+   {
+    "name": "the starters of .bas",
+    "path": "a.bas",
+    "starters": [
+     "'"
+    ]
+   },
+   {
+    "name": "the starters of .bash",
+    "path": "a.bash",
+    "starters": []
+   },
+   {
+    "name": "the starters of .bat",
+    "path": "a.bat",
+    "starters": [
+     "rem"
+    ]
+   },
+   {
+    "name": "the starters of .bazel",
+    "path": "a.bazel",
+    "starters": []
+   },
+   {
+    "name": "the starters of .bzl",
+    "path": "a.bzl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .c",
+    "path": "a.c",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cc",
+    "path": "a.cc",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cjs",
+    "path": "a.cjs",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cmake",
+    "path": "a.cmake",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cmd",
+    "path": "a.cmd",
+    "starters": [
+     "rem"
+    ]
+   },
+   {
+    "name": "the starters of .coffee",
+    "path": "a.coffee",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cpp",
+    "path": "a.cpp",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cr",
+    "path": "a.cr",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cs",
+    "path": "a.cs",
+    "starters": []
+   },
+   {
+    "name": "the starters of .css",
+    "path": "a.css",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cts",
+    "path": "a.cts",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cxx",
+    "path": "a.cxx",
+    "starters": []
+   },
+   {
+    "name": "the starters of .d",
+    "path": "a.d",
+    "starters": []
+   },
+   {
+    "name": "the starters of .dart",
+    "path": "a.dart",
+    "starters": []
+   },
+   {
+    "name": "the starters of .elm",
+    "path": "a.elm",
+    "starters": []
+   },
+   {
+    "name": "the starters of .erl",
+    "path": "a.erl",
+    "starters": [
+     "%"
+    ]
+   },
+   {
+    "name": "the starters of .ex",
+    "path": "a.ex",
+    "starters": []
+   },
+   {
+    "name": "the starters of .exs",
+    "path": "a.exs",
+    "starters": []
+   },
+   {
+    "name": "the starters of .f",
+    "path": "a.f",
+    "starters": [
+     "!"
+    ]
+   },
+   {
+    "name": "the starters of .f03",
+    "path": "a.f03",
+    "starters": [
+     "!"
+    ]
+   },
+   {
+    "name": "the starters of .f08",
+    "path": "a.f08",
+    "starters": [
+     "!"
+    ]
+   },
+   {
+    "name": "the starters of .f90",
+    "path": "a.f90",
+    "starters": [
+     "!"
+    ]
+   },
+   {
+    "name": "the starters of .f95",
+    "path": "a.f95",
+    "starters": [
+     "!"
+    ]
+   },
+   {
+    "name": "the starters of .fish",
+    "path": "a.fish",
+    "starters": []
+   },
+   {
+    "name": "the starters of .for",
+    "path": "a.for",
+    "starters": [
+     "!"
+    ]
+   },
+   {
+    "name": "the starters of .frag",
+    "path": "a.frag",
+    "starters": []
+   },
+   {
+    "name": "the starters of .fs",
+    "path": "a.fs",
+    "starters": [
+     "(*"
+    ]
+   },
+   {
+    "name": "the starters of .fsi",
+    "path": "a.fsi",
+    "starters": [
+     "(*"
+    ]
+   },
+   {
+    "name": "the starters of .fsx",
+    "path": "a.fsx",
+    "starters": [
+     "(*"
+    ]
+   },
+   {
+    "name": "the starters of .ftn",
+    "path": "a.ftn",
+    "starters": [
+     "!"
+    ]
+   },
+   {
+    "name": "the starters of .gemspec",
+    "path": "a.gemspec",
+    "starters": []
+   },
+   {
+    "name": "the starters of .glsl",
+    "path": "a.glsl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .go",
+    "path": "a.go",
+    "starters": []
+   },
+   {
+    "name": "the starters of .gradle",
+    "path": "a.gradle",
+    "starters": []
+   },
+   {
+    "name": "the starters of .groovy",
+    "path": "a.groovy",
+    "starters": []
+   },
+   {
+    "name": "the starters of .h",
+    "path": "a.h",
+    "starters": []
+   },
+   {
+    "name": "the starters of .hh",
+    "path": "a.hh",
+    "starters": []
+   },
+   {
+    "name": "the starters of .hlsl",
+    "path": "a.hlsl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .hpp",
+    "path": "a.hpp",
+    "starters": []
+   },
+   {
+    "name": "the starters of .hrl",
+    "path": "a.hrl",
+    "starters": [
+     "%"
+    ]
+   },
+   {
+    "name": "the starters of .hs",
+    "path": "a.hs",
+    "starters": []
+   },
+   {
+    "name": "the starters of .htm",
+    "path": "a.htm",
+    "starters": []
+   },
+   {
+    "name": "the starters of .html",
+    "path": "a.html",
+    "starters": []
+   },
+   {
+    "name": "the starters of .hxx",
+    "path": "a.hxx",
+    "starters": []
+   },
+   {
+    "name": "the starters of .idr",
+    "path": "a.idr",
+    "starters": []
+   },
+   {
+    "name": "the starters of .ino",
+    "path": "a.ino",
+    "starters": []
+   },
+   {
+    "name": "the starters of .java",
+    "path": "a.java",
+    "starters": []
+   },
+   {
+    "name": "the starters of .jl",
+    "path": "a.jl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .js",
+    "path": "a.js",
+    "starters": []
+   },
+   {
+    "name": "the starters of .json",
+    "path": "a.json",
+    "starters": []
+   },
+   {
+    "name": "the starters of .json5",
+    "path": "a.json5",
+    "starters": []
+   },
+   {
+    "name": "the starters of .jsonc",
+    "path": "a.jsonc",
+    "starters": []
+   },
+   {
+    "name": "the starters of .jsx",
+    "path": "a.jsx",
+    "starters": []
+   },
+   {
+    "name": "the starters of .ksh",
+    "path": "a.ksh",
+    "starters": []
+   },
+   {
+    "name": "the starters of .kt",
+    "path": "a.kt",
+    "starters": []
+   },
+   {
+    "name": "the starters of .kts",
+    "path": "a.kts",
+    "starters": []
+   },
+   {
+    "name": "the starters of .less",
+    "path": "a.less",
+    "starters": []
+   },
+   {
+    "name": "the starters of .lua",
+    "path": "a.lua",
+    "starters": []
+   },
+   {
+    "name": "the starters of .m",
+    "path": "a.m",
+    "starters": [
+     "%"
+    ]
+   },
+   {
+    "name": "the starters of .metal",
+    "path": "a.metal",
+    "starters": []
+   },
+   {
+    "name": "the starters of .mjs",
+    "path": "a.mjs",
+    "starters": []
+   },
+   {
+    "name": "the starters of .ml",
+    "path": "a.ml",
+    "starters": [
+     "(*"
+    ]
+   },
+   {
+    "name": "the starters of .mli",
+    "path": "a.mli",
+    "starters": [
+     "(*"
+    ]
+   },
+   {
+    "name": "the starters of .mll",
+    "path": "a.mll",
+    "starters": [
+     "(*"
+    ]
+   },
+   {
+    "name": "the starters of .mly",
+    "path": "a.mly",
+    "starters": [
+     "(*"
+    ]
+   },
+   {
+    "name": "the starters of .mm",
+    "path": "a.mm",
+    "starters": []
+   },
+   {
+    "name": "the starters of .mts",
+    "path": "a.mts",
+    "starters": []
+   },
+   {
+    "name": "the starters of .nim",
+    "path": "a.nim",
+    "starters": []
+   },
+   {
+    "name": "the starters of .nims",
+    "path": "a.nims",
+    "starters": []
+   },
+   {
+    "name": "the starters of .nix",
+    "path": "a.nix",
+    "starters": []
+   },
+   {
+    "name": "the starters of .pas",
+    "path": "a.pas",
+    "starters": [
+     "(*"
+    ]
+   },
+   {
+    "name": "the starters of .php",
+    "path": "a.php",
+    "starters": []
+   },
+   {
+    "name": "the starters of .pl",
+    "path": "a.pl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .pm",
+    "path": "a.pm",
+    "starters": []
+   },
+   {
+    "name": "the starters of .pp",
+    "path": "a.pp",
+    "starters": [
+     "(*"
+    ]
+   },
+   {
+    "name": "the starters of .proto",
+    "path": "a.proto",
+    "starters": []
+   },
+   {
+    "name": "the starters of .ps1",
+    "path": "a.ps1",
+    "starters": []
+   },
+   {
+    "name": "the starters of .psm1",
+    "path": "a.psm1",
+    "starters": []
+   },
+   {
+    "name": "the starters of .purs",
+    "path": "a.purs",
+    "starters": []
+   },
+   {
+    "name": "the starters of .pxd",
+    "path": "a.pxd",
+    "starters": []
+   },
+   {
+    "name": "the starters of .pxi",
+    "path": "a.pxi",
+    "starters": []
+   },
+   {
+    "name": "the starters of .py",
+    "path": "a.py",
+    "starters": []
+   },
+   {
+    "name": "the starters of .pyi",
+    "path": "a.pyi",
+    "starters": []
+   },
+   {
+    "name": "the starters of .pyw",
+    "path": "a.pyw",
+    "starters": []
+   },
+   {
+    "name": "the starters of .pyx",
+    "path": "a.pyx",
+    "starters": []
+   },
+   {
+    "name": "the starters of .r",
+    "path": "a.r",
+    "starters": []
+   },
+   {
+    "name": "the starters of .rake",
+    "path": "a.rake",
+    "starters": []
+   },
+   {
+    "name": "the starters of .rb",
+    "path": "a.rb",
+    "starters": []
+   },
+   {
+    "name": "the starters of .rs",
+    "path": "a.rs",
+    "starters": []
+   },
+   {
+    "name": "the starters of .sass",
+    "path": "a.sass",
+    "starters": []
+   },
+   {
+    "name": "the starters of .sc",
+    "path": "a.sc",
+    "starters": []
+   },
+   {
+    "name": "the starters of .scala",
+    "path": "a.scala",
+    "starters": []
+   },
+   {
+    "name": "the starters of .scss",
+    "path": "a.scss",
+    "starters": []
+   },
+   {
+    "name": "the starters of .sh",
+    "path": "a.sh",
+    "starters": []
+   },
+   {
+    "name": "the starters of .sky",
+    "path": "a.sky",
+    "starters": []
+   },
+   {
+    "name": "the starters of .sol",
+    "path": "a.sol",
+    "starters": []
+   },
+   {
+    "name": "the starters of .sql",
+    "path": "a.sql",
+    "starters": []
+   },
+   {
+    "name": "the starters of .star",
+    "path": "a.star",
+    "starters": []
+   },
+   {
+    "name": "the starters of .sty",
+    "path": "a.sty",
+    "starters": [
+     "%"
+    ]
+   },
+   {
+    "name": "the starters of .styl",
+    "path": "a.styl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .sv",
+    "path": "a.sv",
+    "starters": []
+   },
+   {
+    "name": "the starters of .svelte",
+    "path": "a.svelte",
+    "starters": []
+   },
+   {
+    "name": "the starters of .svh",
+    "path": "a.svh",
+    "starters": []
+   },
+   {
+    "name": "the starters of .swift",
+    "path": "a.swift",
+    "starters": []
+   },
+   {
+    "name": "the starters of .tcl",
+    "path": "a.tcl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .tex",
+    "path": "a.tex",
+    "starters": [
+     "%"
+    ]
+   },
+   {
+    "name": "the starters of .tf",
+    "path": "a.tf",
+    "starters": []
+   },
+   {
+    "name": "the starters of .tfvars",
+    "path": "a.tfvars",
+    "starters": []
+   },
+   {
+    "name": "the starters of .thrift",
+    "path": "a.thrift",
+    "starters": []
+   },
+   {
+    "name": "the starters of .toml",
+    "path": "a.toml",
+    "starters": []
+   },
+   {
+    "name": "the starters of .ts",
+    "path": "a.ts",
+    "starters": []
+   },
+   {
+    "name": "the starters of .tsx",
+    "path": "a.tsx",
+    "starters": []
+   },
+   {
+    "name": "the starters of .v",
+    "path": "a.v",
+    "starters": []
+   },
+   {
+    "name": "the starters of .vb",
+    "path": "a.vb",
+    "starters": [
+     "'"
+    ]
+   },
+   {
+    "name": "the starters of .vbs",
+    "path": "a.vbs",
+    "starters": [
+     "'"
+    ]
+   },
+   {
+    "name": "the starters of .vert",
+    "path": "a.vert",
+    "starters": []
+   },
+   {
+    "name": "the starters of .vhd",
+    "path": "a.vhd",
+    "starters": []
+   },
+   {
+    "name": "the starters of .vhdl",
+    "path": "a.vhdl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .vue",
+    "path": "a.vue",
+    "starters": []
+   },
+   {
+    "name": "the starters of .xhtml",
+    "path": "a.xhtml",
+    "starters": []
+   },
+   {
+    "name": "the starters of .zig",
+    "path": "a.zig",
+    "starters": []
+   },
+   {
+    "name": "the starters of .zsh",
+    "path": "a.zsh",
+    "starters": []
+   },
+   {
+    "name": "a file nobody listed",
+    "path": "LICENSE",
+    "starters": []
+   }
+  ]
+ },
  "lock_render": {
   "how": "render(entries, fmt) -> text of the lock file (fmt null: the format the entries need, 2 when a clause has `targets`, else 1): a clause with `targets` loses `targets` and `code` and gets a line `<clause>@<target>` of kind \"code\" per target; keys sorted, one entry per line, entry keys sorted, separators \", \" and \": \", non-ASCII as written; a fmt above 1 opens with its marker line.",
   "rows": [

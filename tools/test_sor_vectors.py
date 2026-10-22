@@ -27,7 +27,7 @@ from sorlib.model import split_lines         # noqa: E402
 PATH = os.path.join(REPO, 'vectors', 'hashing.json')
 with open(PATH, encoding='utf8') as fh:
     VECTORS = json.load(fh)
-CATEGORIES = ('style_of', 'split_lines', 'normalize', 'code_hash', 'text_hash', 'targets_digest', 'fold', 'marker', 'lock_render')
+CATEGORIES = ('style_of', 'split_lines', 'normalize', 'code_hash', 'text_hash', 'targets_digest', 'fold', 'marker', 'starters_of', 'lock_render')
 
 
 def rows(category):
@@ -100,6 +100,16 @@ class TestEveryRow(unittest.TestCase):
         for r in rows('text_hash'):
             with self.subTest(r['name']):
                 self.assertEqual(lockfile.h(r['input']), r['hash'])
+
+    def test_starters_of(self):
+        for r in rows('starters_of'):
+            with self.subTest(r['name']):
+                self.assertEqual(list(markers.starters_of(r['path'])), r['starters'])
+
+    def test_every_type_with_starters_has_a_row(self):
+        paths = {r['path'] for r in rows('starters_of')}
+        missing = [f'.{e}' for e in markers.STYLES if f'a.{e}' not in paths]
+        self.assertEqual(missing, [], 'a type without a row: add it to the file')
 
     def test_marker(self):
         for r in rows('marker'):
