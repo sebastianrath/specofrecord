@@ -37,6 +37,24 @@ Subagents share your session, so the tool cannot tell them apart from you by its
   inside them are shown, and the exit code follows only them, so another agent's unfinished part does not fail yours.
   `audio` covers `audio/mixer`, not `audio-fx`; `ROOT` is the root file alone.
 
+## Two agents on one clause, one language each
+In a project that says its targets (`Targets: py, ts` in the root file) a clause has code in more than one language, and an id may carry the
+language: `greet/hello@py`. Use it when another agent rebuilds the other language of the clause at the same time.
+- `sor claim greet/hello@py` holds the Python side only: its lock line, the line of its test, and the code in the Python files. Another agent may
+  claim `greet/hello@ts` at once. Nobody can change the clause's text while either of you holds a language of it, because your code is built for
+  that text. To change the clause, claim the whole clause (`sor claim greet/hello`), which holds every language and waits for them.
+- The order for a clause that changes: the agent that changes the text claims the whole clause, rebuilds the language it works on, and locks the
+  clause (`sor lock greet/hello`), which is refused while another language would stay behind. Only when the user has said that a language is rebuilt by
+  someone else, it adds `--allow-behind ts` (the hook asks the user first). The clause is locked then, and `ts` is listed as behind.
+- The other agent claims `greet/hello@ts`, changes the TypeScript code, runs the tests, and locks it with `sor lock greet/hello@ts`. That lock writes the
+  TypeScript line, the line of the clause's test in TypeScript and the glue of the TypeScript files, and nothing else, so it cannot undo what the first
+  agent locked. It is refused while the clause has an unlocked change ("lock the clause first"), for code that did not change (use `--already-fits ts`
+  only after you checked that it fits the changed clause as it is), and while the test in that language has no passing result (`--results` with
+  `greet/test:hello@ts`).
+- Two clauses that share one code region in a language are locked together: `sor lock greet/hello@py greet/bye@py`.
+- A lock of one language tells you which other languages of the clause are still behind or without code. When you release a language that has code
+  that is not locked, `sor release` says so.
+
 ## When your claim runs out
 A claim that expired protects nothing, and another agent may have claimed the clause since. The tool tells you when you
 come back to `sor lock` or `sor release`:

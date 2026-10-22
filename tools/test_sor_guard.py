@@ -44,6 +44,7 @@ class TestWhichCommandsAreALockWithAllowBehind(unittest.TestCase):
         ('the values of other options are not ids', 'sor lock a --as bob --results r.json --allow-behind ts', (['a'], ['ts'])),
         ('a command that cannot be read still counts', "sor lock a --allow-behind ts 'unbalanced", ([], [])),
         ('the confirmation flag', 'sor lock greet/bye --already-fits ts', (['greet/bye'], ['ts'])),
+        ('one language of a clause', 'sor lock greet/hello@ts --already-fits ts', (['greet/hello@ts'], ['ts'])),
         ('the confirmation flag with an equals sign', 'sor lock --all --already-fits=ts,py', ([], ['ts', 'py'])),
         ('the shortest prefix argparse takes for the confirmation flag', 'sor lock a --alr ts', (['a'], ['ts'])),
         ('a here-document for a shell is a list of commands', "bash <<EOF\nsor lock a --allow-behind ts\nEOF", (['a'], ['ts'])),

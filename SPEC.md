@@ -354,6 +354,9 @@ being locked, and one with no code for a clause (that is `--allow-behind`'s).
 `sor lock` also refuses a clause that is new, changed or built now, has code in some target and none in a target that applies to it; the
 refusal says to add the code or to limit the part with `Targets:`, and `--allow-behind ts` allows it, after which the note above keeps
 naming the clause. Clauses locked earlier, and a bug fix in their code, are not asked, so a project that adds a second target is not refused.
+A language the clause was locked without that way is **built** when its first code arrives, and that is not drift: `sor status` lists the clause in the
+recompile group as behind, with `ts (first code)`, the edit hook lets the code be written, and the line for it comes with the next lock of the clause or with
+`sor lock greet/hello@ts` (§16).
 `sor check` reports as problems a `Targets:` that names no target, names one twice or has an empty name, and a `Targets:` on a part
 when the root file has none; and a clause whose lock line `clause@target` (§11) is also the name of something else.
 
@@ -499,6 +502,7 @@ with `-C <folder>`:
 | `sor lock [--run-tests \| --results F] [--confirm test …] [--allow-incomplete]` | writes the lock; refuses on problems, drift, or tests that did not pass. What a scoped lock waits for is in §16. With both `--run-tests` and `--results F`, F gives the results of the EXTERNAL tests only (§8). The refusal for tests without a result says `N test(s) did not pass (F failed, M not run)`, lists the first ten and the way out: with no web target a `manual:` line for a test nobody can run yet, or `--results F` for a test in the project's own framework; with a web target `sor lock --run-tests`, adding `--results F` for a test marked `@clause test <id>`; and `--allow-incomplete` in both |
 | `sor lock [<id …> \| --all] [--allow-behind TARGETS] [--already-fits TARGETS]` | accepts the named clauses only, none of the child parts under them unless named (§11); with no ids, what you claimed, and the child parts under a claimed part that have a change of their own (new, changed or removed; parts made after the claim too): it prints `locking the parts under them too: …`, and leaves out a child part that another agent's claim overlaps, naming it (`not locking audio/mixer, which is claimed: …`); `ROOT` is not expanded; `--all` the whole project (§16). Refused while someone else claims them. With no ids and every claim of the agent expired, it is refused and says so; when only some expired, it warns (§16) |
 | `sor claim <id …> [--as NAME] [--ttl 30m]` | says you are working on these clauses, and how long it holds without activity: `claimed audio, held while you work: it ends at 00:31 if you do nothing for 30 min` (`--ttl never`: `no idle limit`; without `--ttl`, the root file's `Claims: idle …`, else 30 minutes); exit 3 and who holds them when someone else is: the refusal names the ids in the way, and says when the others asked for were free but not claimed either, for a claim takes all its ids or none (§16) |
+| `sor claim greet/hello@py`, `sor lock greet/hello@py` | one language of a clause, in a project that says its targets (§9, §16): the claim holds that language's line, the line of its own test and the code regions in its files; the lock writes those lines and the glue of that language's files, and never the clause's own line. `sor release` of it says when the language has code that is not locked |
 | `sor release [id … \| --all] [--as NAME] [--force]` | gives claims up again. A caller that names itself (`--as NAME` or `SOR_AGENT`) frees only that agent's claims; releasing another agent's claim by id prints `NOT released (held by someone else; --force overrides)` and exits 3. A caller that gives no name (the parent, or the only agent) frees every claim made in its session (§16). `--force` overrides. Claims that had expired are named: `nothing to release: your claims on X expired at 00:31`, or the same as a `note:` beside what was released |
 | `sor markers [id \| file:line]` | where an item's code is, or which clauses a line of code serves; `--json` gives every region with the `targetName` of the target its file belongs to (null when it belongs to none) |
 | `sor show <part \| item>` | the clauses with their code underneath, and under an item every test that proves it: one view for people and agents |
@@ -776,13 +780,37 @@ What the tool does about it:
   once keep each other's entries: the lock is re-read and merged under a short mutex. A lock is worked out from what it read, and under that mutex it
   stops, writing nothing, and says to run it again when the lock has changed for what it was locking (anything for a lock of the whole project), when a
   spec file or a code file of what it locks has changed (the files are stamped before they are read), or when another agent claimed meanwhile (whole project).
+- **One language of a clause.** In a project that says its targets (§9) an id may carry a language, `greet/hello@py`, so that two agents work on one
+  clause, one per language. `sor claim greet/hello@py` holds the clause's lock line in that language, the line of its own test in that language and the code
+  regions marked with them in the files of that language, and nothing of the other languages. The claim also relies on the clause's text, which it does
+  not hold but does not let anyone change (`pins` in the claims file): it conflicts with a claim of the whole clause, with a claim of the same language and with an edit
+  of the clause's text (the edit hook names the holder), and not with a claim of another language of the clause or an edit of that language's code. A claim of the
+  whole clause, or of the part that holds it, holds every language. An id with an `@` that names no clause, or a language that does not apply to it, is refused with
+  the reason (`fr is not a language of greet/bye (it has py, ts)`), and in a project without `Targets:` it names nothing. `sor release greet/hello@py` gives it up
+  and says when that language has code that is not locked, as a note.
+- **Locking one language.** `sor lock greet/hello@py` (a plain `sor lock` does the same for a claim of it) writes the lock line of that language, the line of
+  the clause's own test in that language, and the glue of that language's files, and nothing else. It never rewrites the clause's own line (its text and
+  references), and it keeps every other language's line as the lock has it at that moment, so it and a lock of another language of the clause cannot step on each
+  other. The line says which text the code was built for, so the clause has to be locked as it reads now: when the clause or its test changed since the last lock,
+  or was never locked, the lock is refused and says to lock the clause first (`sor lock greet/hello`, with `--allow-behind` for a language not rebuilt yet). It is
+  also refused for a language with no code for the clause; for code that changed with no change to the clause (drift), unless that language is behind or has no
+  line yet and is being built; for code that is behind and has not changed, unless `--already-fits py` says it was checked (§9; the hook asks first); while the
+  clause's own test in that language has no passing result, whenever the lock writes that language's code (the result is `greet/test:hello@py` in `--results`, §8,
+  or `--allow-incomplete`); for code that is also the code of another clause in that language, which has a change of its own there (name both:
+  `sor lock greet/hello@py greet/bye@py`); for a problem in the clause's spec files or in the files of that language that hold its code (problems in the files of
+  the other languages do not count); and when someone else claims the clause or that language. `--allow-behind` is refused with it, for it already leaves out
+  every other language, and `--already-fits` is refused in a command that also names whole clauses. A command may name whole clauses and languages of other
+  clauses, and a language of a clause that is locked whole in the same command is part of that lock. With nothing to write it says `nothing to lock for
+  greet/hello@py` and exits 0. After it, the lock names the other languages of the clause that are still behind or have no code, and the way to finish them.
+  Under the mutex it stops, writing nothing, and says to run it again when the clause's line, the line of that language or its glue changed since it read
+  the lock, or when a file of that language that it read changed; a lock of another language of the clause that lands in between is not in the way, and both lines survive.
 - **Edit guard (on where `SOR_ENFORCE_CLAIMS=1` is set for the hook: this repository's settings and the plugin).** The hook refuses an edit to a clause, or to code
   on a region, that another agent holds. It names who, since when and until when at the latest, and
   the agent decides: take another clause, wait and retry (the holder may release sooner), or ask.
   It cannot tell who edits without a `session_id` and then allows. Without the variable it is off, as it
   must be wherever the hook's `session_id` is not the id the CLI finds in `CLAUDE_CODE_SESSION_ID`: if they
   differed, an agent would be refused by its own claim.
-- **The claims file** (`sor/.sor-claims.json`, `{"claims": [{agent, asked, keys, regions, session, since, last, idle, until}]}`) is
+- **The claims file** (`sor/.sor-claims.json`, `{"claims": [{agent, asked, keys, regions, pins, session, since, last, idle, until}]}`) is
   written whole through a temp file and a rename, under a short mutex (`sor/.sor-claims.lock`, an `O_EXCL` file broken
   when older than 10 s); temp files older than 5 minutes are removed. A claim that expired is kept for 2 hours as a
   tombstone (`claims.TOMBSTONE`), only so that its holder can be told (next point); every write of the file prunes the

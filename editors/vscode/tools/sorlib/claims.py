@@ -193,11 +193,60 @@ class _Mutex:
             pass
 
 
+def line_id(project, ident):
+    """(clause, language) for an id like `greet/hello@py`, the code of one language of a clause (SPEC §16); None for any other id. An id of that
+    form that names no clause, or a language that does not apply to it, is not an id: `line_problem` says why."""
+    base, sep, target = ident.rpartition('@')
+    if not sep or not base or not project.targeted() or project.find(base) is None or project.find(base)[0] == 'part':
+        return None
+    return (base, target) if target in project.targets_applying_to(base) else None
+
+
+def line_problem(project, ident):
+    """Why an id with an `@` in it, which `line_id` does not take, is no language of a clause; '' for an id with no `@`."""
+    base, sep, target = ident.rpartition('@')
+    if not sep or not base:
+        return ''
+    if not project.targeted():
+        return f'{ident}: this project keeps no code per language (`Targets:` in the root file), so there is only the clause'
+    found = project.find(base)
+    if found is None or found[0] == 'part':
+        return f'{ident}: {base} is no clause'
+    applies = project.targets_applying_to(base)
+    return f'{ident}: {target} is not a language of {base} (it has {", ".join(applies) or "none"})'
+
+
+def own_test_key(key):
+    """The key of the test that is named after a clause: `greet/hello` -> `greet/test:hello`."""
+    part, _, name = key.rpartition('/')
+    return f'{part}/test:{name}' if part else f'test:{name}'
+
+
+def line_keys(project, base, target):
+    """The keys a claim of one language of a clause holds: its line, and the line of the clause's own test when it has one."""
+    test = own_test_key(base)
+    return {f'{base}@{target}'} | ({f'{test}@{target}'} if test in project.items else set())
+
+
+def regions_in(project, scan, bases, target):
+    """The code regions marked with any of these keys that lie in the files of one language: as `regions_of`, only a language's."""
+    out = set()
+    for r in scan.regions:
+        if project.target_of(r.file) == target and any(k in bases for k in r.keys):
+            out.add((r.file, tuple(sorted(k for k in r.keys if not k.startswith('glue:')))))
+    return out
+
+
 def footprint(project, universe, ids):
     """(keys, unknown): every lock key the ids own. `universe` is the set of lock keys that exist
-    (now, and for `sor lock` also in the old lock, so a deleted clause can still be locked)."""
+    (now, and for `sor lock` also in the old lock, so a deleted clause can still be locked). A clause also owns its line in each language that
+    applies to it (`greet/hello@py`, a key of the claim and not of the lock file), and the id of one language of a clause owns that line only."""
     keys, unknown = set(), []
     for ident in ids:
+        lang = line_id(project, ident)
+        if lang:
+            keys |= line_keys(project, *lang)
+            continue
         found = project.find(ident)
         mine = set()
         if found and found[0] == 'part':
@@ -218,6 +267,8 @@ def footprint(project, universe, ids):
                         mine.add(k)
         if not mine:
             unknown.append(ident)
+        elif project.targeted():
+            mine |= {f'{k}@{t}' for k in list(mine) if k in project.items for t in project.targets_applying_to(k)}
         keys.update(mine)
     return keys, unknown
 
@@ -251,8 +302,13 @@ def _regions(c):
     return {(f, tuple(ks)) for f, ks in c.get('regions', [])}
 
 
-def conflicts(claim_list, keys, regions):
-    return [c for c in claim_list if set(c['keys']) & set(keys) or _regions(c) & set(regions)]
+def conflicts(claim_list, keys, regions, text=True):
+    """The claims that overlap these keys and regions. A claim of one language of a clause pins the clause (`pins` in the claim): it relies on its
+    text, so it conflicts with whoever holds or edits that text (`text`: the keys include text, as for a spec edit or a lock of the clause, and not
+    for an edit of code). A claim of the clause as a whole holds the clause's line in every language, so it overlaps a claim of one of them, and
+    two claims of different languages of a clause do not overlap."""
+    keys, regions = set(keys), set(regions)
+    return [c for c in claim_list if set(c['keys']) & keys or _regions(c) & regions or (text and set(c.get('pins', ())) & keys)]
 
 
 def when(ts):
@@ -282,7 +338,7 @@ def describe(c, now=None):
 def covers(ident, other):
     """Does the claimed id `ident` cover `other`: itself, or something under it (a part: its items and child
     parts)?"""
-    return other == ident or other.startswith(ident + '/')
+    return other == ident or other.startswith(ident + '/') or other.startswith(ident + '@')
 
 
 def lapse_text(cs):
@@ -348,9 +404,12 @@ def unheld(project, scan, universe, pids, agent, session=None):
 
 
 def _one(project, scan, universe, ident):
-    """(keys, regions) of one asked id."""
+    """(keys, regions, pins) of one asked id."""
     keys = footprint(project, universe, [ident])[0]
-    return keys, regions_of(scan, keys)
+    lang = line_id(project, ident)
+    if lang:
+        return keys, regions_in(project, scan, {lang[0], own_test_key(lang[0])}, lang[1]), {lang[0]}
+    return keys, regions_of(scan, keys), set()
 
 
 def claim(project, scan, universe, ids, agent, ttl=DEFAULT_TTL, session=None):
@@ -369,6 +428,9 @@ def unknown_text(project, universe, unknown):
     the id of the root item it was meant for: items of the root have no prefix."""
     text = 'no such clause or part: ' + ', '.join(unknown)
     fixes = []
+    why = [line_problem(project, ident) for ident in unknown if line_problem(project, ident)]
+    if why:
+        return '; '.join(why)
     for ident in unknown:
         head, _, rest = ident.partition('/')
         if rest and head in ('ROOT', PART_FILE_NAME) and not footprint(project, universe, [rest])[1]:
@@ -384,8 +446,17 @@ def _claim(project, scan, universe, ids, agent, ttl, session):
     keys, unknown = footprint(project, universe, ids)
     if unknown:
         raise ClaimError(unknown_text(project, universe, unknown) + ' (to add a clause, claim the part that will hold it)')
-    regions = regions_of(scan, keys)
-    shared = sorted({k for _, ids_ in regions for k in ids_} - keys)
+    regions, pins, plain = set(), set(), {k for k in keys if '@' not in k}
+    for ident in ids:   # a clause holds all its code, one language of it only that language's
+        lang = line_id(project, ident)
+        if lang:
+            bases = {lang[0], own_test_key(lang[0])}
+            regions |= regions_in(project, scan, bases, lang[1])
+            pins.add(lang[0])
+            plain |= bases
+        else:
+            regions |= regions_of(scan, footprint(project, universe, [ident])[0])
+    shared = sorted({k for _, ids_ in regions for k in ids_} - plain)
     with _Mutex(project):
         now = time.time()
         held = read(project)   # in force or expired: the expired ones are kept, see `lapsed`
@@ -400,6 +471,8 @@ def _claim(project, scan, universe, ids, agent, ttl, session):
         record = {'agent': agent, 'asked': sorted(ids), 'keys': sorted(keys), 'since': now,
                   'until': NEVER if ttl is None else now + ttl, 'idle': ttl, 'last': now,
                   'regions': [[f, list(ks)] for f, ks in sorted(regions)], 'session': session}
+        if pins:
+            record['pins'] = sorted(pins)   # the clauses whose text this claim relies on (a claim of one language of them)
         if mine:
             record['since'] = mine[0]['since']
         # what this claim covers is no news any more: the agent's own expired claims on it go, other agents' stay
@@ -480,7 +553,7 @@ def release(project, ids, agent, everything=False, force=False, session=None):
         now = time.time()
         gone, refused, keep = [], [], []
         for c in read(project):
-            asked = everything or any(i == a or a.startswith(i + '/') or i.startswith(a + '/')
+            asked = everything or any(i == a or a.startswith(i + '/') or i.startswith(a + '/') or a.startswith(i + '@')
                                       for i in ids for a in c['asked'])
             if not asked:
                 keep.append(c)
@@ -495,14 +568,14 @@ def release(project, ids, agent, everything=False, force=False, session=None):
     return gone, refused
 
 
-def others(project, agent, keys=None, regions=None, now=None, session=None):
+def others(project, agent, keys=None, regions=None, now=None, session=None, text=True):
     """Unexpired claims of other agents (another session, or another name); with `keys` and
-    `regions`, only those that overlap them."""
+    `regions`, only those that overlap them (`text`: the keys include the text of the clauses, see `conflicts`)."""
     session = current_session() if session is None else session
     held = [c for c in active(project, now) if not same_agent(c, agent, session)]
     if keys is None:
         return held
-    return conflicts(held, keys, regions or ())
+    return conflicts(held, keys, regions or (), text=text)
 
 
 def is_own(c, session_id):
@@ -514,11 +587,12 @@ def is_own(c, session_id):
     return bool(c['session']) and c['session'] == (session_id or '').strip()
 
 
-def others_for_session(project, session_id, keys, regions=(), now=None):
+def others_for_session(project, session_id, keys, regions=(), now=None, text=True):
     """Unexpired claims that overlap keys or regions and are not this session's: what the edit hook
-    refuses on. The names given with --as do not matter here, only the session."""
+    refuses on. The names given with --as do not matter here, only the session. `text`: the edit is of the text of the
+    clauses (a spec file), which a claim of one language of them pins; an edit of code is not."""
     held = [c for c in active(project, now) if not is_own(c, session_id)]
-    return conflicts(held, keys, regions)
+    return conflicts(held, keys, regions, text=text)
 
 
 def lock_mutex(project):

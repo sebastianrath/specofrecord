@@ -23,7 +23,7 @@ pass `-C <folder>`. The format is in `reference/format-cheatsheet.md`.
 | "build it", after a person changed clauses | step 3 of the change: `sor status` lists what changed |
 | "keep my change", or drift that was there before you started | "Code a person changed", below |
 | plain sentences: bullets without **names**, or `sor check` says `unnamed test` or `loose text` | `reference/plain-clauses.md` |
-| other agents work at the same time | `reference/parallel-agents.md` |
+| other agents work at the same time, or one per language of a clause (`greet/hello@py`) | `reference/parallel-agents.md` |
 | a test that needs a place (an OS, a GPU, a database) or must run in CI | `reference/ci-evidence.md` |
 
 A new project: nothing else is asked of the user, and there is no `sor init`. Write the specs and stop: write code

@@ -1056,6 +1056,31 @@ Decided by the owner on 2026-10-22: test results are per target, where the test 
 - **`sor status` names the lines** of a test that needs a result for each language (`part/test:name@py`), and its example is a line, which the lock accepts.
 - **Evidence fingerprints** of a test with test code in a targeted project change once: its `code` is now the digest of its lines. Stage 7 redoes them.
 
+## One language of a clause, claimed and locked on its own (2026-10-22)
+Asked by the owner as "how can I avoid drift, e.g. one agent claims `@py` and the other forgets it", and as a question about races between two agents on
+one clause. The answer is that each language is its own claim and its own lock line, and that a lock of one language can only write what that language owns.
+- **`greet/hello@py` is an id** in a project that says its targets. A claim of it holds the clause's line in that language, the line of the clause's own test
+  in that language, and the code regions in that language's files. It records `pins: [clause]`, because the code relies on the clause's text: it conflicts with a
+  claim of the whole clause, with a claim of the same language and with an edit of the clause's text, and not with another language of the clause. A claim of
+  the whole clause holds every language (`footprint` adds the lines). The edit hook looks only at the edited file's regions for a code edit, so a claim of
+  `@py` never refuses a TypeScript edit of the same clause (found by a test: it first returned all regions of the touched clause).
+- **`sor lock greet/hello@py` writes that language's lines and the glue of its files, and nothing else.** The clause's own line is never rewritten (decided before),
+  so the lock needs the clause locked as it reads now and says "lock it first" otherwise. It merges the line into the entry it reads under the mutex, and
+  stops with "run it again" when the clause's line, that language's line, its glue or a file of that language moved since it read. Another language landing
+  in between is not in the way, and both lines survive (a test runs a TypeScript lock inside a Python lock). The files stamped are those of that language only.
+- **The test of a language has to pass again when its code is locked.** A plain lock asks for results only of tests that are pending, which for a changed clause
+  is all of them, at the moment the whole clause is locked. A language is rebuilt after that, so the lock of it asks for a result of the clause's test in that
+  language (`greet/test:hello@ts`), or `--allow-incomplete`. This is stronger than the plain lock on purpose: the earlier result was for the old code.
+- **`--already-fits ts` works for one language** and is recorded as before. `--allow-behind` is refused with a lock of one language, for it already leaves out the
+  others, and `--already-fits` is refused in a command that also names whole clauses (two commands, each says what it does).
+- **Found while building it, and fixed in status.** (1) The first code of a language that a clause was locked without (`--allow-behind ts` for want of code) was
+  drift, so the only way to add it was to change the clause. It is now `behind` with `ts (first code)`, which the edit hook allows. (2) A clause that shares a
+  code region with a clause that is `behind` was drift when that region was rebuilt, for `behind` did not count as a reason for the region to change. It does now,
+  and the sharing clause is `shared`, as it is for a changed clause.
+- **Nudges.** A lock of one language says which other languages of the clause are still behind or have no code, and how to finish them. `sor release` of a language
+  says when it has code that is not locked. Nothing is enforced: claims stay advice, and `sor status` and the session-start note go on listing what is pending.
+- **Not done.** `Targets:` per single clause; evidence per target (stage 7); the editor extension (stage 8).
+
 ## Still open
 - The tool is not under Spec of Record. Its hashing, marker and lock rules could be clauses with `Targets: py, js`, so that a change to a clause
   leaves the other language behind and a lock refuses until both follow (`proposals/multi-target.md`). Until then the vectors and the

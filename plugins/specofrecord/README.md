@@ -69,6 +69,10 @@ placeholders that `sor check` reports until they are filled in. Or create the fi
   so a parent running subagents in parallel gives each its own name (`--as`); two subagents then conflict at
   `sor claim`. Who may release what is in "Claims" of `skills/specofrecord/SKILL.md`. The edit hook does not enforce
   between sibling subagents.
+- **One language of a clause.** In a project that says its targets, `sor claim greet/hello@py` holds the Python side of a clause and another agent may
+  hold the TypeScript side. `sor lock greet/hello@py` writes that language's lock lines and never the clause's own, so the two locks cannot undo each
+  other. The clause has to be locked first, and the hook that asks before `--allow-behind` asks before `--already-fits` as well. The order is in
+  `skills/specofrecord/reference/parallel-agents.md`.
 - **Open questions and notes.** An `open: <question>` line under any item but a test flags a question nobody has
   answered: `sor check` lists it as a note, it is not part of the item's lock text, and the agent builds only what is
   not in question instead of choosing an answer. `sor check` also notes a part that outgrows the limits of the format

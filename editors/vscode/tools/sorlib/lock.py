@@ -165,20 +165,20 @@ def moved_targets(a, b):
     return sorted(t for t in set(ta) | set(tb) if ta.get(t, {}).get('code') != tb.get(t, {}).get('code'))
 
 
+def basis_of(project, entries, key):
+    """What a language's `built` is compared with for one clause: its text hash, and for an item with a table also the text hash of each
+    row that has no code of its own per target (the cells of a row are not in the item's text, and a table's code is usually marked with
+    the item, so a changed cell is a change to that code). A row with lines of its own is behind on its own."""
+    item = project.items.get(key)
+    rows = sorted(r.id for r in item.rows.values() if r.id in entries and not entries[r.id].get('targets')) \
+        if isinstance(item, Item) else []
+    text = (entries.get(key) or {}).get('text')
+    return h('\n'.join([text or ''] + [entries[r].get('text', '') for r in rows])) if rows else text
+
+
 def bases(project, entries):
-    """{key: what a target's `built` is compared with} for the clauses that have code per target. It is the clause's text hash, and for
-    an item with a table also the text hash of each row that has no code of its own per target: the cells of a row are not in the
-    item's text, and a table's code is usually marked with the item, so a changed cell is a change to that code. A row with lines of
-    its own is behind on its own."""
-    out = {}
-    for key, e in entries.items():
-        if not e.get('targets'):
-            continue
-        item = project.items.get(key)
-        rows = sorted(r.id for r in item.rows.values() if r.id in entries and not entries[r.id].get('targets')) \
-            if isinstance(item, Item) else []
-        out[key] = h('\n'.join([e.get('text', '')] + [entries[r].get('text', '') for r in rows])) if rows else e.get('text')
-    return out
+    """{key: `basis_of`} for the clauses that have code per target."""
+    return {key: basis_of(project, entries, key) for key, e in entries.items() if e.get('targets')}
 
 
 def lagging_targets(project, key, entry, owners, basis):
@@ -187,6 +187,13 @@ def lagging_targets(project, key, entry, owners, basis):
     applicable = project.targets_of_part(owners.get(key))
     return sorted(t for t, line in (entry.get('targets') or {}).items()
                   if t in applicable and line.get('built') != basis.get(key, entry.get('text')))
+
+
+def unbuilt_targets(project, key, entry, owners):
+    """The targets that apply to a locked clause and have no line in the lock: it was locked without code in them (`--allow-behind`), so
+    code that arrives in one is the first code of that language and not a change to what was accepted."""
+    applicable = project.targets_of_part(owners.get(key))
+    return sorted(t for t in applicable if t not in (entry.get('targets') or {}))
 
 
 def old_rule_keys(lock, scan):
@@ -468,10 +475,11 @@ def status(project, scan, lock):
         elif a.get('code') != b.get('code'):
             moved = moved_targets(a, b) if a.get('targets') and b.get('targets') else []
             late = lagging_targets(project, key, b, owner_part, lock_basis) if moved else []
+            first = [t for t in unbuilt_targets(project, key, b, owner_part) if t in moved]   # a language the clause was locked without
             if 'code' not in b:
                 findings.append(Finding('built', key, 'first code for a locked clause', where(key)))
-            elif moved and set(moved) <= set(late):   # the code of the targets that are behind is being rebuilt: not drift
-                findings.append(Finding('behind', key, f'{", ".join(moved)} (being rebuilt)', where_in(key, moved)))
+            elif moved and set(moved) <= set(late) | set(first):   # the code of the targets that are behind is being rebuilt: not drift
+                findings.append(Finding('behind', key, ', '.join(moved) + (' (first code)' if not late else ' (being rebuilt)'), where_in(key, moved)))
             elif kind == 'glue':
                 findings.append(Finding('glue', key, '', where(key)))
             elif owner_part.get(key) and owner_part[key].key in hand:
@@ -517,7 +525,7 @@ def status(project, scan, lock):
             f.status, f.detail = 'fixing', 'its test changed first'
     # A region marked with several ids may change for any of them. The other ids are not drift,
     # but they are not free either: each must be reviewed, and its own test must pass again.
-    explained = {f.key for f in findings if f.status in ('new', 'changed', 'stale', 'built', 'fixing')}
+    explained = {f.key for f in findings if f.status in ('new', 'changed', 'stale', 'built', 'fixing', 'behind')}
     for f in findings:
         if f.status == 'drift':
             shared = {k for r in scan.regions_for(f.key) for k in r.keys} & explained
@@ -624,6 +632,18 @@ def no_code_after(project, scan, findings, keys, allowed):
     return out
 
 
+def owner_parts(project):
+    """{key: the part that holds it} for every part, item and row."""
+    owners = {}
+    for p in project.parts.values():
+        owners[p.key] = p
+        for it in p.items.values():
+            owners[it.id] = p
+            for r in it.rows.values():
+                owners[r.id] = p
+    return owners
+
+
 def accept(project, scan, results, allow_incomplete, findings=(), old=None, confirm=(), scope=None, allow_behind=(), already_fits=()):
     """The entries `sor lock` would write, or the reasons it refuses. `confirm` names manual
     tests a person has just checked; earlier confirmations carry over while they still stand.
@@ -652,13 +672,7 @@ def accept(project, scan, results, allow_incomplete, findings=(), old=None, conf
             else:
                 entries.pop(k, None)
     reasons = []
-    owners = {}
-    for p in project.parts.values():
-        owners[p.key] = p
-        for it in p.items.values():
-            owners[it.id] = p
-            for r in it.rows.values():
-                owners[r.id] = p
+    owners = owner_parts(project)
     keys = entries if scope is None else scope
     if already_fits:
         clash = sorted(set(already_fits) & set(allow_behind))
@@ -727,6 +741,120 @@ def accept(project, scan, results, allow_incomplete, findings=(), old=None, conf
                        + listed([f'{n} (failed)' for n in failed_names] + [n for k in left for n in lines_not_passed(k)]))
         reasons.append(how_to_pass(project, failed_names + [n for k in left for n in lines_not_passed(k)], bool(fails)))
     return entries, reasons
+
+
+def language_view(entry, target):
+    """What a lock of one language depends on in an entry: everything but the code lines of the other languages (and what is worked out from
+    them: `code`, and the `result` of a test that keeps one per language). Two views that are equal mean nobody changed what that lock read."""
+    if not entry:
+        return None
+    lines = entry.get('targets') or {}
+    own = {x: v for x, v in entry.items() if x not in ('targets', 'code') and not (x == 'result' and any('result' in l for l in lines.values()))}
+    return own, lines.get(target)
+
+
+def accept_language(project, scan, results, allow_incomplete, findings, old, wanted, already_fits=()):
+    """What `sor lock K@t` writes (SPEC §16): the line of one language of a clause, the line of the clause's own test in that language, and the
+    glue of that language's files. The clause's text and every other language's line stay as the lock has them, so this lock and a lock of
+    another language of the clause cannot step on each other. `wanted`: [(clause, language)]. Returns
+    ({(key, language): line}, {glue key: entry}, [reasons], [what --already-fits confirmed])."""
+    old = upgrade(old, scan) if old else {}
+    entries = snapshot(project, scan)
+    built_for(project, entries, old)
+    reasons, lines, glue, confirmed = [], {}, {}, []
+    drifting = {f.key: f for f in findings if f.status == 'drift'}
+    owners, old_basis = owner_parts(project), bases(project, old)
+
+    def legit(key, prev):   # the languages whose code may change without a change to the clause: behind, or without a line yet
+        return set(lagging_targets(project, key, prev, owners, old_basis)) | set(unbuilt_targets(project, key, prev, owners))
+
+    units, seen = [], set()
+    for clause, t in wanted:
+        for key, asked in ((clause, True), (own_test(clause), False)):
+            if (key, t) not in seen and key in entries:
+                seen.add((key, t))
+                units.append((key, t, clause, asked))
+    needing = []
+    for key, t, clause, asked in units:
+        name, new, prev = f'{key}@{t}', entries[key], old.get(key)
+        line = (new.get('targets') or {}).get(t)
+        if line is None:
+            if asked:
+                reasons.append(f'no code  {name}  {key} has no code in {t}: write it (a region marked `@clause {key}` in a file of {t}), '
+                               'then lock again')
+            continue
+        if prev is None or (prev.get('code') and not prev.get('targets')) or basis_of(project, entries, key) != basis_of(project, old, key):
+            reasons.append(f'changed  {name}  {key} is not locked as it reads now: lock it first, with `sor lock {clause}` '
+                           '(only the code of one language can be locked on its own)')
+            continue
+        if key in drifting and t in moved_targets(new, prev) and t not in legit(key, prev):   # a language being rebuilt or built is no drift
+            reasons.append(f'drift  {name}  @ {drifting[key].where}')
+            continue
+        was = (prev.get('targets') or {}).get(t)
+        if line.get('built') != basis_of(project, entries, key):   # the lock has this code as accepted for an older text and it did not change
+            if t not in already_fits:
+                reasons.append(f'behind  {name}  its code was accepted for an older text of the clause and is the same code: rebuild it '
+                               f'(change that code). Only if you checked that it fits the clause as it is, lock again with --already-fits {t}; '
+                               'it is then recorded as confirmed, not rebuilt')
+                continue
+            line['built'] = basis_of(project, entries, key)
+            line['fits'] = True
+            confirmed.append(name)
+        same = was is not None and {x: v for x, v in was.items() if x != 'result'} == {x: v for x, v in line.items() if x != 'result'}
+        if 'result' in line:
+            # a test that stands as it was, and passed, needs no new result, unless the code it proves is locked now: a language is locked
+            # together with the proof that its test passes against it
+            if same and was.get('result') == 'pass' and (clause, t) not in lines:
+                continue
+            needing.append((key, t, line))
+        elif same:
+            continue
+        lines[(key, t)] = line
+    for key, t, line in needing:
+        langs = sorted(x for x, l in entries[key]['targets'].items() if 'result' in l)
+        name = f'{key}@{t}'
+        if name in results:
+            got = results[name]
+        elif key in results and len(langs) > 1:
+            got = None
+            reasons.append(f'results: {key} has test code in {", ".join(langs)}: give a result for each, '
+                           + ', '.join(f'{key}@{x}' for x in langs))
+        else:
+            got = results.get(key)
+        line['result'] = got if got in ('pass', 'fail') else 'none'
+        lines[(key, t)] = line
+    bad = sorted((f'{k}@{t}', line['result']) for (k, t), line in lines.items() if 'result' in line and line['result'] != 'pass')
+    if bad and not allow_incomplete:
+        failed = [n for n, r in bad if r == 'fail']
+        reasons.append(f'{len(bad)} test(s) did not pass ({len(failed)} failed, {len(bad) - len(failed)} not run): '
+                       + listed([f'{n} (failed)' if n in failed else n for n, _ in bad]))
+        reasons.append(how_to_pass(project, [n for n, _ in bad], bool(failed)))
+    # the code of this language that is also the code of another clause: that clause must be locked in the same breath, or it has not changed
+    mine = {k for k, _, _, _ in units}
+    for key, t, clause, asked in units:
+        for r in scan.regions:
+            if project.target_of(r.file) != t or key not in r.keys:
+                continue
+            for other in r.keys:
+                if other.startswith('glue:') or other in mine:
+                    continue
+                now_line = ((entries.get(other) or {}).get('targets') or {}).get(t) or {}
+                was_line = (((old.get(other) or {}).get('targets') or {}).get(t)) or {}
+                if now_line.get('code') != was_line.get('code'):
+                    reasons.append(f'shares code  {key}@{t}  its code in {t} is also the code of {other}, which has a change of its own there: '
+                                   f'lock them together (sor lock {clause}@{t} {other}@{t})')
+    if already_fits and not confirmed and not reasons:
+        reasons.append(f'--already-fits {",".join(already_fits)}: nothing to confirm, none of the languages being locked has code that is behind')
+    wanted_languages = {t for _, t in wanted}
+    owned = {r.file for r in scan.regions if any(not k.startswith('glue:') for k in r.keys)}
+    for r in scan.regions:
+        if project.target_of(r.file) not in wanted_languages:
+            continue
+        if r.file not in owned or any(k in mine for k in r.keys):
+            g = f'glue:{r.file}'
+            if g in entries and entries[g] != old.get(g):
+                glue[g] = entries[g]
+    return lines, glue, reasons, confirmed
 
 
 def is_manual(test):

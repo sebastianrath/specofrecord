@@ -104,7 +104,7 @@ def spec_keys_touched(project, path, new_text):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-def claim_refusal(project, payload, keys, regions=()):
+def claim_refusal(project, payload, keys, regions=(), text=True):
     """A refusal when another agent holds a claim on what the edit touches: who, since when, until
     when at the latest. The agent decides what to do next. None when free, or not enforcing."""
     if not enforcing() or not keys:
@@ -112,7 +112,7 @@ def claim_refusal(project, payload, keys, regions=()):
     sid = (payload.get('session_id') or '').strip()
     if not sid:
         return None   # cannot tell who is editing
-    held = claims.others_for_session(project, sid, keys, regions)
+    held = claims.others_for_session(project, sid, keys, regions, text=text)
     if not held:
         return None
     lines = [f'- {claims.describe(c)}' for c in held]
@@ -207,7 +207,10 @@ def pre_edit(payload):
     if enforcing():
         a, b = after.code_hashes(), before.code_hashes()
         touched = {k for k in set(a) | set(b) if a.get(k) != b.get(k) and not k.startswith('glue:')}
-        refusal = claim_refusal(project, payload, touched, claims.regions_of(after, touched))
+        # the regions of this file only: a claim of one language holds the regions of its own files, and the same clause in another file is not
+        # what is being edited; code is not the text of the clause, which a claim of one language pins
+        here = {(f, ids) for f, ids in claims.regions_of(after, touched) if f == rel}
+        refusal = claim_refusal(project, payload, touched, here, text=False)
         if refusal:
             return refusal
     was, _ = lockfile.status(project, before, lock)

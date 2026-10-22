@@ -13,7 +13,7 @@
     sor test --list [ID ...] [--provides NAMES] [--all]  the tests a run would run and the ones it leaves to CI; runs nothing
     sor evidence --job NAME --provides NAMES --results F [--commit SHA] [--run ID]  write what a CI job proved about the tests that say `runs on:`
     sor verify [FILE|FOLDER ...]  the gate: every test that says `runs on:` has a current pass in every environment it names
-    sor lock [IDS|--all] [--run-tests] [--allow-behind T] [--already-fits T]  accept clauses, code and test results: IDS, else what you claimed (--all: the whole project)
+    sor lock [IDS|--all] [--run-tests] [--allow-behind T] [--already-fits T]  accept clauses, code and test results: IDS (K@lang: one language of a clause), else what you claimed (--all: the whole project)
     sor claim IDS --as NAME       say you are working on these clauses; refused (exit 3) when someone else is
     sor release [IDS|--all]       give them up again
     sor markers [ID | FILE:LINE] [--json]  where a clause's code is, or which clauses a line serves
@@ -317,12 +317,25 @@ def cmd_rehash(args, project, scan):
     return 0
 
 
-def moved_files(project, scan, scope, before):
+def language_files(project, scan, clause, target):
+    """The files a lock of one language of a clause reads: the spec files the clause and its test live in, and the files of that language
+    that hold their code. The files of the other languages are not among them: a change there is not what this lock is about."""
+    keys = {clause, lockfile.own_test(clause)}
+    code = {r.file for r in scan.regions}
+    return (scope_files(project, scan, keys) - code) | \
+        {r.file for r in scan.regions if project.target_of(r.file) == target and any(k in keys for k in r.keys)}
+
+
+def moved_files(project, scan, scope, before, wanted=(), glue=()):
     """The files that a lock read and that changed while it was being worked out: the spec files, and the code files of the regions in
-    scope (all of them without a scope). `before` is `file_stamps` taken before the scan read anything."""
+    scope (all of them without a scope), and for a lock of one language of a clause (`wanted`) only that language's files, and its `glue`.
+    `before` is `file_stamps` taken before the scan read anything."""
     now = file_stamps(project)
     spec = project.spec_dir + os.sep
-    regions = scan.regions if scope is None else [r for r in scan.regions if any(k in scope for k in r.keys)]
+    regions = scan.regions if scope is None else [r for r in scan.regions if any(k in scope or k in glue for k in r.keys)]
+    for clause, target in wanted:
+        keys = {clause, lockfile.own_test(clause)}
+        regions = regions + [r for r in scan.regions if project.target_of(r.file) == target and any(k in keys for k in r.keys)]
     relevant = {p for p in set(before) | set(now) if p.startswith(spec)} | {os.path.join(project.root, r.file) for r in regions}
     return sorted(os.path.relpath(p, project.root).replace(os.sep, '/') for p in relevant if before.get(p) != now.get(p))
 
@@ -377,14 +390,27 @@ def cmd_lock(args):
             if kids:
                 print('locking the parts under them too: ' + ', '.join(kids))
                 ids += kids
-    if ids:
-        scope, reasons, shared = scope_plan(project, scan, old, findings, ids)
+    wanted = [lang for lang in (claims.line_id(project, i) for i in ids) if lang]   # (clause, language): one language of a clause (SPEC §16)
+    ids = [i for i in ids if not claims.line_id(project, i)]
+    every = findings   # `findings` goes on to hold only those of the clauses in scope
+    if ids or wanted:
+        if ids:
+            scope, reasons, shared = scope_plan(project, scan, old, findings, ids)
+        else:
+            scope, reasons, shared = set(), [], []
+        whole = sorted(f'{c}@{t}' for c, t in wanted if c in scope)
+        if whole:
+            print(f'note: {", ".join(whole)} {"is" if len(whole) == 1 else "are"} locked with the whole clause, not on {"its" if len(whole) == 1 else "their"} own')
+        wanted = [(c, t) for c, t in wanted if c not in scope]
         if shared and not reasons:
             print('locking with them (they share code): ' + ', '.join(shared))
         files = scope_files(project, scan, scope)
+        for c, t in wanted:
+            files |= language_files(project, scan, c, t)
         found = problems(project, scan)
         here = [p for p in found if p.where.split(':')[0] in files]
-        apart = [p for p in here if p.kind in ITEM_LOCAL and item_at(project, p.where) and not covered(item_at(project, p.where), scope)]
+        cover = set(scope) | {k for c, _ in wanted for k in (c, lockfile.own_test(c))}
+        apart = [p for p in here if p.kind in ITEM_LOCAL and item_at(project, p.where) and not covered(item_at(project, p.where), cover)]
         reasons += [with_holder(project, me, p) for p in here if p not in apart]
         outside = [p for p in found if p.where.split(':')[0] not in files]
         if outside:
@@ -393,6 +419,9 @@ def cmd_lock(args):
             print(f'note: {len(apart)} problem(s) in other items of these files do not block this lock (`sor check` lists them)')
         findings = [f for f in findings if f.key in scope]
         held = claims.others(project, me, scope, claims.regions_of(scan, scope))
+        for c, t in wanted:   # the claim of one language holds its own lines and files: a claim of the same language, or of the whole clause, is in the way
+            held += [x for x in claims.others(project, me, claims.line_keys(project, c, t),
+                                              claims.regions_in(project, scan, {c, lockfile.own_test(c)}, t), text=False) if x not in held]
     else:
         reasons = [str(p) for p in problems(project, scan)]
         held = claims.others(project, me)
@@ -400,7 +429,7 @@ def cmd_lock(args):
     if held:
         reasons += [f'claimed  {claims.describe(c)}' for c in held]
         reasons.append('lock only your own clauses: sor lock <ids>'
-                       if not ids else 'wait for them, or ask them to release')
+                       if not (ids or wanted) else 'wait for them, or ask them to release')
         if not me:
             reasons.append('say who you are with --as NAME (or SOR_AGENT): your own claims do not block you')
         sid = claims.current_session()
@@ -408,7 +437,7 @@ def cmd_lock(args):
         if names:
             reasons.append('you made these claims in this session under another name: pass --as '
                            + ' or --as '.join(names) + ' (every claim, lock and release must use the same name)')
-    if ids and (held or any(r.startswith('no such') or 'shares code' in r for r in reasons)):
+    if (ids or wanted) and (held or any(r.startswith('no such') or 'shares code' in r for r in reasons)):
         print('lock refused:')
         for r in reasons:
             print('  ' + r)
@@ -422,6 +451,15 @@ def cmd_lock(args):
             return 2
     if already_fits and not project.targeted():
         print('lock refused:\n  --already-fits needs a project that says its targets (`Targets:` in the root file): there is no code per language to confirm')
+        return 2
+    if wanted and allow_behind:
+        print('lock refused:\n  --allow-behind is for the lock of a whole clause, which leaves a language out with it; a lock of one language '
+              f'({", ".join(f"{c}@{t}" for c, t in wanted)}) leaves out every other language by itself. Leave the option out, or lock the '
+              'whole clauses and the languages with two commands')
+        return 2
+    if wanted and ids and already_fits:
+        print('lock refused:\n  --already-fits names the languages of whole clauses and a lock of one language is named by its own id: '
+              'lock the whole clauses and the languages with two commands')
         return 2
     confirm = [c if '/test:' in c or c.startswith('test:') else lockfile.own_test(c) for c in args.confirm]
     results, external = {}, set()
@@ -441,7 +479,11 @@ def cmd_lock(args):
     elif args.results:
         with open(args.results, encoding='utf8') as fh:
             results = json.load(fh)
-    entries, more = lockfile.accept(project, scan, results, args.allow_incomplete, findings, old, confirm, scope, allow_behind, already_fits)
+    entries, more = lockfile.accept(project, scan, results, args.allow_incomplete, findings, old, confirm, scope, allow_behind, () if wanted and not ids else already_fits)
+    lines, glue = {}, {}
+    if wanted:
+        lines, glue, more_lines, confirmed = lockfile.accept_language(project, scan, results, args.allow_incomplete, every, old, wanted, set(already_fits))
+        more += more_lines
     gave = sorted(k for k, v in results.items() if entries.get(k.partition('@')[0], {}).get('result') == 'deferred' and (scope is None or k.partition('@')[0] in scope))
     if gave:
         print(f'note: a result for {", ".join(gave)} is not recorded in the lock: it says `runs on:`, so a CI job proves it '
@@ -458,6 +500,9 @@ def cmd_lock(args):
         for r in reasons:
             print('  ' + r)
         return 2
+    if wanted and not ids and not lines and not glue:
+        print('nothing to lock for ' + ', '.join(f'{c}@{t}' for c, t in wanted) + ': the lock has this code, built for the clause as it reads now')
+        return 0
     try:
         with claims.lock_mutex(project):
             # Between reading the lock and the files and writing, another agent may have locked, edited or claimed. A lock is worked out from
@@ -468,7 +513,13 @@ def cmd_lock(args):
                 print('lock refused:\n  the lock changed while this one was being worked out (another `sor lock` finished in between): '
                       'run it again')
                 return 2
-            moved = moved_files(project, scan, scope, stamps)
+            read_keys = {(k, t) for c, t in wanted for k in (c, lockfile.own_test(c))}
+            if any(lockfile.language_view(current.get(k), t) != lockfile.language_view(seen.get(k), t) for k, t in read_keys) \
+                    or any(current.get(g) != seen.get(g) for g in glue):
+                print('lock refused:\n  the lock changed while this one was being worked out (another `sor lock` finished in between): '
+                      'run it again')
+                return 2
+            moved = moved_files(project, scan, scope, stamps, wanted, glue)
             if moved:
                 print(f'lock refused:\n  {", ".join(moved[:5])}{" and more" if len(moved) > 5 else ""} changed while this one was being '
                       'worked out: run it again')
@@ -487,6 +538,13 @@ def cmd_lock(args):
                         merged[k] = entries[k]
                     else:
                         merged.pop(k, None)
+                for (k, t), line in lines.items():   # one line of the entry the lock has now: the other languages' lines stay as they are
+                    e = dict(merged[k])
+                    e['targets'] = dict(e.get('targets') or {}, **{t: line})
+                    if e.get('kind') == 'test' and any('result' in l for l in e['targets'].values()):
+                        e['result'] = lockfile.derived_result(e['targets'])
+                    merged[k] = e
+                merged.update(glue)
                 entries = merged
             lockfile.write(project, entries)
     except (claims.ClaimError, lockfile.LockWriteError) as e:
@@ -498,10 +556,14 @@ def cmd_lock(args):
         print(f'now left to CI, because they say `runs on:`: {", ".join(newly)}')
     fresh = [(k, [t for t, line in (e.get('targets') or {}).items() if line.get('fits')
                   and not (((old.get(k) or {}).get('targets') or {}).get(t) or {}).get('fits')])
-             for k, e in sorted(entries.items()) if scope is None or k in scope]
+             for k, e in sorted(entries.items()) if scope is None or k in scope or k in {key for key, _ in lines}]
     for k, langs in fresh:
         if langs:
             print(f'confirmed to fit the clause, not rebuilt: {k} in {", ".join(langs)} (the lock says so on the line, and `sor status` keeps a note)')
+    if wanted:
+        print_language_lock(project, entries, wanted, lines, glue)
+        if not ids:
+            return 0
     tests = [e for e in entries.values() if e.get('kind') == 'test']
     n = {r: sum(e['result'] == r for e in tests) for r in ('pass', 'checked', 'manual', 'deferred')}
     what = f'{len(scope)} of {len(entries)} entries' if scope is not None else f'{len(entries)} entries'
@@ -516,6 +578,29 @@ def cmd_lock(args):
             print(f'still pending outside what you locked: {len(left)} (claim and lock those, or leave them to whoever works '
                   'on them; `sor status` lists them). Not a reason for --all while others hold claims.')
     return 0
+
+
+def print_language_lock(project, entries, wanted, lines, glue):
+    """What a lock of one language of a clause did, and what is left of the clause in the other languages."""
+    shown = [f'{k}@{t}' for k, t in sorted(lines)] + [f'glue of {g[len("glue:"):]}' for g in sorted(glue)]
+    rel = os.path.relpath(project.lock_path, project.root)
+    print(f'locked {", ".join(shown) or "nothing new"} in {rel}; the clause and its other languages stay as the lock had them')
+    open_tests = [f'{k}@{t}' for (k, t), line in sorted(lines.items()) if 'result' in line and line['result'] != 'pass']
+    if open_tests:
+        print(f'recorded as not passed: {", ".join(open_tests)}')
+    owners = lockfile.owner_parts(project)
+    basis = lockfile.bases(project, entries)
+    for clause in sorted({c for c, _ in wanted}):
+        here = {t for c, t in wanted if c == clause}
+        e = entries.get(clause) or {}
+        behind = [t for t in lockfile.lagging_targets(project, clause, e, owners, basis) if t not in here]
+        missing = [t for t in project.targets_applying_to(clause) if t not in (e.get('targets') or {}) and t not in here]
+        parts = ([f'{", ".join(behind)} {"is" if len(behind) == 1 else "are"} behind the clause (its code was accepted for an older text)'] if behind else []) \
+            + ([f'{", ".join(missing)} {"has" if len(missing) == 1 else "have"} no code yet'] if missing else [])
+        if parts:
+            hand = (behind + missing)[0]
+            print(f'{clause} is not finished in every language: {"; ".join(parts)}. Whoever builds it claims that language '
+                  f'(sor claim {clause}@{hand}), changes its code, and locks it (sor lock {clause}@{hand}).')
 
 
 def cmd_claim(args):
@@ -545,6 +630,27 @@ def cmd_claim(args):
     return 0
 
 
+def unlocked_languages(project, ids):
+    """The ids among `ids` that name one language of a clause (greet/hello@py) whose code is not what the lock has, or is behind the clause."""
+    langs = [(i, lang) for i, lang in ((i, claims.line_id(project, i)) for i in ids) if lang]
+    if not langs:
+        return []
+    try:
+        lock = lockfile.read(project)
+    except lockfile.LockFormatError:
+        return []   # a lock this copy cannot read says nothing about what is open
+    scan = Scan(project)
+    now = lockfile.conform(lockfile.snapshot(project, scan), lock, scan)
+    basis, owners = lockfile.bases(project, lock), lockfile.owner_parts(project)
+    out = []
+    for ident, (key, target) in langs:
+        mine = ((now.get(key) or {}).get('targets') or {}).get(target)
+        was = ((lock.get(key) or {}).get('targets') or {}).get(target)
+        if mine and (was is None or was.get('code') != mine['code'] or target in lockfile.lagging_targets(project, key, lock[key], owners, basis)):
+            out.append(ident)
+    return out
+
+
 def cmd_release(args):
     project = Project(args.root)
     agent = claims.agent_name(args.agent)
@@ -562,6 +668,11 @@ def cmd_release(args):
             print('released ' + ', '.join(c['asked']))
     for c in refused:
         print('NOT released (held by someone else; --force overrides): ' + claims.describe(c))
+    open_lines = unlocked_languages(project, [a for c in gone for a in c['asked']])
+    if open_lines:   # the claim kept the language to its holder: letting go of it with work in it leaves that work to whoever comes next
+        print(f'note: {", ".join(open_lines)} {"has" if len(open_lines) == 1 else "have"} code that is not locked yet: lock '
+              f'{"it" if len(open_lines) == 1 else "them"} (sor lock {" ".join(open_lines)}) or leave {"it" if len(open_lines) == 1 else "them"} for '
+              'whoever takes it next (`sor status` lists it)')
     if ran_out:
         print(('note: ' if len(ran_out) < len(gone) else 'nothing to release: ') + f'your {claims.lapse_text(ran_out)} '
               f'({claims.claim_again()})')
@@ -924,7 +1035,7 @@ def build_parser():
     s.add_argument('--all', action='store_true', help='list every entry even before the first lock')
     s.set_defaults(fn=cmd_status)
     s = sub.add_parser('lock')
-    s.add_argument('ids', nargs='*', help='lock only these clauses or parts (and what shares their code); '
+    s.add_argument('ids', nargs='*', help='lock only these clauses or parts (and what shares their code), or one language of a clause: greet/hello@py; '
                    'none: what you claimed')
     s.add_argument('--all', action='store_true', help='lock the whole project (refused while others hold claims)')
     s.add_argument('--as', dest='agent', help='who you are (or set SOR_AGENT): your own claims do not block your lock')
