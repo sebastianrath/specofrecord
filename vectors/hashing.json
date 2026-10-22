@@ -2662,6 +2662,172 @@
     }
    },
    {
+    "name": "a test with a result on each line gets the result of its lines: pass when all passed",
+    "file": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt"
+     },
+     "g/test:h@py": {
+      "kind": "code",
+      "of": "g/test:h",
+      "built": "tt",
+      "target": "py",
+      "code": "a1b2c3d4e5f6",
+      "result": "pass"
+     },
+     "g/test:h@ts": {
+      "kind": "code",
+      "of": "g/test:h",
+      "built": "tt",
+      "target": "ts",
+      "code": "0f1e2d3c4b5a",
+      "result": "pass"
+     }
+    },
+    "entries": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt",
+      "result": "pass",
+      "code": "6423277cf92e",
+      "targets": {
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "tt",
+        "result": "pass"
+       },
+       "ts": {
+        "code": "0f1e2d3c4b5a",
+        "built": "tt",
+        "result": "pass"
+       }
+      }
+     }
+    }
+   },
+   {
+    "name": "one failed line makes the test fail",
+    "file": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt"
+     },
+     "g/test:h@py": {
+      "kind": "code",
+      "of": "g/test:h",
+      "built": "tt",
+      "target": "py",
+      "code": "a1b2c3d4e5f6",
+      "result": "pass"
+     },
+     "g/test:h@ts": {
+      "kind": "code",
+      "of": "g/test:h",
+      "built": "tt",
+      "target": "ts",
+      "code": "0f1e2d3c4b5a",
+      "result": "fail"
+     }
+    },
+    "entries": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt",
+      "result": "fail",
+      "code": "6423277cf92e",
+      "targets": {
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "tt",
+        "result": "pass"
+       },
+       "ts": {
+        "code": "0f1e2d3c4b5a",
+        "built": "tt",
+        "result": "fail"
+       }
+      }
+     }
+    }
+   },
+   {
+    "name": "a line that has not passed and none that failed leave the test at none",
+    "file": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt"
+     },
+     "g/test:h@py": {
+      "kind": "code",
+      "of": "g/test:h",
+      "built": "tt",
+      "target": "py",
+      "code": "a1b2c3d4e5f6",
+      "result": "pass"
+     },
+     "g/test:h@ts": {
+      "kind": "code",
+      "of": "g/test:h",
+      "built": "tt",
+      "target": "ts",
+      "code": "0f1e2d3c4b5a",
+      "result": "none"
+     }
+    },
+    "entries": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt",
+      "result": "none",
+      "code": "6423277cf92e",
+      "targets": {
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "tt",
+        "result": "pass"
+       },
+       "ts": {
+        "code": "0f1e2d3c4b5a",
+        "built": "tt",
+        "result": "none"
+       }
+      }
+     }
+    }
+   },
+   {
+    "name": "a test whose lines carry no result keeps the result of its own entry",
+    "file": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt",
+      "result": "manual"
+     },
+     "g/test:h@py": {
+      "kind": "code",
+      "of": "g/test:h",
+      "built": "tt",
+      "target": "py",
+      "code": "a1b2c3d4e5f6"
+     }
+    },
+    "entries": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt",
+      "result": "manual",
+      "code": "31448b7f898b",
+      "targets": {
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "tt"
+       }
+      }
+     }
+    }
+   },
+   {
     "name": "a line whose clause is not in the file is dropped",
     "file": {
      "g/h": {
@@ -4194,6 +4360,50 @@
      }
     },
     "text": "{\n\"*format\": 3,\n\"g/h\": {\"kind\": \"item\", \"refs\": {\"x\": \"r1\"}, \"text\": \"text1\"},\n\"g/h@py\": {\"built\": \"text1\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"py\"},\n\"g/h@ts\": {\"built\": \"text1\", \"code\": \"0f1e2d3c4b5a\", \"fits\": true, \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"ts\"}\n}\n"
+   },
+   {
+    "name": "a test with a result on each line: the result is on the lines and not on the test, and the lock is format 3",
+    "fmt": null,
+    "entries": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt",
+      "result": "fail",
+      "code": "ignored",
+      "targets": {
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "tt",
+        "result": "pass"
+       },
+       "ts": {
+        "code": "0f1e2d3c4b5a",
+        "built": "tt",
+        "result": "fail"
+       }
+      }
+     }
+    },
+    "text": "{\n\"*format\": 3,\n\"g/test:h\": {\"kind\": \"test\", \"text\": \"tt\"},\n\"g/test:h@py\": {\"built\": \"tt\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/test:h\", \"result\": \"pass\", \"target\": \"py\"},\n\"g/test:h@ts\": {\"built\": \"tt\", \"code\": \"0f1e2d3c4b5a\", \"kind\": \"code\", \"of\": \"g/test:h\", \"result\": \"fail\", \"target\": \"ts\"}\n}\n"
+   },
+   {
+    "name": "a test whose lines carry no result keeps its result and the lock stays format 2",
+    "fmt": null,
+    "entries": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt",
+      "result": "manual",
+      "code": "ignored",
+      "targets": {
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "tt"
+       }
+      }
+     }
+    },
+    "text": "{\n\"*format\": 2,\n\"g/test:h\": {\"kind\": \"test\", \"result\": \"manual\", \"text\": \"tt\"},\n\"g/test:h@py\": {\"built\": \"tt\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/test:h\", \"target\": \"py\"}\n}\n"
    },
    {
     "name": "a higher format than the entries need is written as asked, with plain lines",

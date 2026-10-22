@@ -277,7 +277,12 @@ for that item) or `bug:` (a regression test).
   without such code stays a failure that says how to mark it. The file F is written by whoever runs the framework: the
   tool reads no jest or pytest output. External
   tests are not run by `sor test`, so they do not count toward its clause coverage, and the tool trusts the framework's
-  result, as it does for `--results` alone.
+  result, as it does for `--results` alone. **In a project that says its targets (§9)** a test with marked code in more than one language has a result for each:
+  its lock entry gets a line `part/test:name@py` per language with test code, like a clause (the lock is then format 3, §11), each line holds `result`, and the
+  result of the test is worked out from them when the lock is read (`fail` if one failed, `pass` if all passed, else `none`), so everything that reads a test's
+  result goes on reading one. `F` then holds `{"part/test:name@py": "pass", "part/test:name@ts": "pass"}`; a plain id is the result of the only language that
+  has test code for it, and is refused, naming the lines, when two have; a language with no test code for the test is refused. A language with no test code
+  needs no result. A test that is `manual:` or left to CI keeps its result on its entry, and its lines (they have `code` and `built`) hold none.
 - **A test left to CI.** A test that needs a place (an OS, a GPU, a database replica, an hour) says `runs on: linux, windows+gpu`.
   A comma separates the environments it must pass in; a plus joins the names one machine must provide together; a name is
   lowercase letters, digits, dots, dashes and underscores. Such a test is **deferred**: its lock entry says `deferred`, from the spec

@@ -284,6 +284,8 @@ DIGEST = [
      'digest': sha(f'*:{ALL_C}\npy:{PY_C}')},
 ]
 clause = {'kind': 'item', 'refs': {'x': 'r1'}, 'text': 'text1'}
+TEST = {'kind': 'test', 'text': 'tt'}
+LINE_OF_TEST = {'kind': 'code', 'of': 'g/test:h', 'built': 'tt'}
 FOLD = [
     {'name': 'a line goes into its clause and the clause gets the digest of its targets as its code',
      'file': {'g/h': clause, 'g/h@py': {'kind': 'code', 'of': 'g/h', 'target': 'py', 'code': PY_C, 'built': 'text1'},
@@ -294,6 +296,24 @@ FOLD = [
     {'name': 'every field of a line goes into its clause, not only code and built',
      'file': {'g/h': clause, 'g/h@ts': {'kind': 'code', 'of': 'g/h', 'target': 'ts', 'code': TS_C, 'built': 'text1', 'fits': True, 'later': 'x'}},
      'entries': {'g/h': dict(clause, code=sha(f'ts:{TS_C}'), targets={'ts': {'code': TS_C, 'built': 'text1', 'fits': True, 'later': 'x'}})}},
+    {'name': 'a test with a result on each line gets the result of its lines: pass when all passed',
+     'file': {'g/test:h': TEST, 'g/test:h@py': dict(LINE_OF_TEST, target='py', code=PY_C, result='pass'),
+              'g/test:h@ts': dict(LINE_OF_TEST, target='ts', code=TS_C, result='pass')},
+     'entries': {'g/test:h': dict(TEST, result='pass', code=sha(f'py:{PY_C}\nts:{TS_C}'),
+                                  targets={'py': {'code': PY_C, 'built': 'tt', 'result': 'pass'}, 'ts': {'code': TS_C, 'built': 'tt', 'result': 'pass'}})}},
+    {'name': 'one failed line makes the test fail',
+     'file': {'g/test:h': TEST, 'g/test:h@py': dict(LINE_OF_TEST, target='py', code=PY_C, result='pass'),
+              'g/test:h@ts': dict(LINE_OF_TEST, target='ts', code=TS_C, result='fail')},
+     'entries': {'g/test:h': dict(TEST, result='fail', code=sha(f'py:{PY_C}\nts:{TS_C}'),
+                                  targets={'py': {'code': PY_C, 'built': 'tt', 'result': 'pass'}, 'ts': {'code': TS_C, 'built': 'tt', 'result': 'fail'}})}},
+    {'name': 'a line that has not passed and none that failed leave the test at none',
+     'file': {'g/test:h': TEST, 'g/test:h@py': dict(LINE_OF_TEST, target='py', code=PY_C, result='pass'),
+              'g/test:h@ts': dict(LINE_OF_TEST, target='ts', code=TS_C, result='none')},
+     'entries': {'g/test:h': dict(TEST, result='none', code=sha(f'py:{PY_C}\nts:{TS_C}'),
+                                  targets={'py': {'code': PY_C, 'built': 'tt', 'result': 'pass'}, 'ts': {'code': TS_C, 'built': 'tt', 'result': 'none'}})}},
+    {'name': 'a test whose lines carry no result keeps the result of its own entry',
+     'file': {'g/test:h': dict(TEST, result='manual'), 'g/test:h@py': dict(LINE_OF_TEST, target='py', code=PY_C)},
+     'entries': {'g/test:h': dict(TEST, result='manual', code=sha(f'py:{PY_C}'), targets={'py': {'code': PY_C, 'built': 'tt'}})}},
     {'name': 'a line whose clause is not in the file is dropped',
      'file': {'g/h': clause, 'g/x@py': {'kind': 'code', 'of': 'g/x', 'target': 'py', 'code': PY_C, 'built': 'text1'}},
      'entries': {'g/h': clause}},
@@ -310,6 +330,17 @@ LOCK.append({'name': 'a line that says more than code and built makes the lock f
              'text': '{\n"*format": 3,\n"g/h": {"kind": "item", "refs": {"x": "r1"}, "text": "text1"},\n'
                      '"g/h@py": {"built": "text1", "code": "%s", "kind": "code", "of": "g/h", "target": "py"},\n'
                      '"g/h@ts": {"built": "text1", "code": "%s", "fits": true, "kind": "code", "of": "g/h", "target": "ts"}\n}\n' % (PY_C, TS_C)})
+LOCK.append({'name': 'a test with a result on each line: the result is on the lines and not on the test, and the lock is format 3',
+             'fmt': None,
+             'entries': {'g/test:h': dict(TEST, result='fail', code='ignored',
+                                          targets={'py': {'code': PY_C, 'built': 'tt', 'result': 'pass'}, 'ts': {'code': TS_C, 'built': 'tt', 'result': 'fail'}})},
+             'text': '{\n"*format": 3,\n"g/test:h": {"kind": "test", "text": "tt"},\n'
+                     '"g/test:h@py": {"built": "tt", "code": "%s", "kind": "code", "of": "g/test:h", "result": "pass", "target": "py"},\n'
+                     '"g/test:h@ts": {"built": "tt", "code": "%s", "kind": "code", "of": "g/test:h", "result": "fail", "target": "ts"}\n}\n' % (PY_C, TS_C)})
+LOCK.append({'name': 'a test whose lines carry no result keeps its result and the lock stays format 2', 'fmt': None,
+             'entries': {'g/test:h': dict(TEST, result='manual', code='ignored', targets={'py': {'code': PY_C, 'built': 'tt'}})},
+             'text': '{\n"*format": 2,\n"g/test:h": {"kind": "test", "result": "manual", "text": "tt"},\n'
+                     '"g/test:h@py": {"built": "tt", "code": "%s", "kind": "code", "of": "g/test:h", "target": "py"}\n}\n' % PY_C})
 LOCK.append({'name': 'a higher format than the entries need is written as asked, with plain lines', 'fmt': 3,
              'entries': {'g/h': dict(clause, code='ignored', targets={'py': {'code': PY_C, 'built': 'text1'}})},
              'text': '{\n"*format": 3,\n"g/h": {"kind": "item", "refs": {"x": "r1"}, "text": "text1"},\n'

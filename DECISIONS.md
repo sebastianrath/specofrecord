@@ -1036,6 +1036,21 @@ the same files.
   entry it has just read and keeps TypeScript's, and the check above looks at that line only. Replacing the whole entry would let two language agents overwrite
   each other.
 
+## A test keeps a result for each language it has test code in (2026-10-22)
+Decided by the owner on 2026-10-22: test results are per target, where the test has test code.
+- **Lines for tests.** In a project that says its targets, a test with `@clause test` code in a language gets a line `part/test:name@py` there, like a clause. The
+  line holds `code`, `built` and, for a test that needs a result from the project's own framework, `result`. A line with `result` makes the lock format 3. A
+  test that is `manual:` or left to CI keeps its result on its entry, and its lines hold none, so a lock with only such tests stays in format 2.
+- **One result for every reader.** The result of the test is worked out from its lines when the lock is read (`fail` if one failed, `pass` if all passed, else
+  `none`) and is not written on the entry. `sor status`, the hook, the views, evidence and the extension's JSON read `entry['result']` as they always did.
+- **`--results`.** `id@py` is one language's result. A plain id is the result of the only language with test code for it, and is refused, with the lines named,
+  when two have; a language with no test code for the test is refused. A language with no test code needs no result. The lock refusal and the `tests` block name
+  the line that has not passed, and the example in the way out is a line.
+- **Results come with each lock,** as they always did: a line does not carry the result of an earlier lock, so a lock of everything asks again.
+- **Not done:** the same for `--run-tests` with a web target (a web test has no marked code, so it has no lines; the filter now lets `id@lang` through for the
+  tests it calls external, and no test exercises it, since it needs the headless browser); and evidence per language (stage 7).
+- **Evidence fingerprints** of a test with test code in a targeted project change once: its `code` is now the digest of its lines. Stage 7 redoes them.
+
 ## Still open
 - The tool is not under Spec of Record. Its hashing, marker and lock rules could be clauses with `Targets: py, js`, so that a change to a clause
   leaves the other language behind and a lock refuses until both follow (`proposals/multi-target.md`). Until then the vectors and the

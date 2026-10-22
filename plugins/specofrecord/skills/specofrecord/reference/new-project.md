@@ -71,7 +71,8 @@ they are written steps that nobody can run yet. A person, or the project's own t
 the lock records them as manual and unconfirmed. Say so honestly: `sor test` has no runner for such a project. Without the
 `manual:` line, `sor check` notes the test as one nothing will run, and `sor lock` refuses it for want of a result. The way
 to a real result later is a test in the project's own framework and `sor lock --results F`, where F is a JSON file of
-results written from a run of the framework: with no web target it gives the result of any test that is not `manual:`.
+results written from a run of the framework: with no web target it gives the result of any test that is not `manual:`. A project that
+says its targets (`Targets:`) and has test code in more than one language gives one result for each: `{"part/test:name@py": "pass"}`.
 Mark the test's code `// @clause test <id>` in a folder a target declares as code (`{path: tests/}`) so that the code is
 tied to its bullet and guarded (see `reference/plain-clauses.md`, and SPEC §8 on tests written in your own framework).
 The tool reads no framework's own output.

@@ -164,7 +164,7 @@ class TestTheJavaScriptCopy(unittest.TestCase):
         for _ in range(150):
             entries = {}
             for key in rng.sample(KEYS, rng.randint(1, 8)):
-                entry = {'kind': rng.choice(['item', 'part', 'row']), 'text': rng.choice(['x', 'café', '\U0001F600', 'a\nb', '"q"', ''])}
+                entry = {'kind': rng.choice(['item', 'part', 'row', 'test']), 'text': rng.choice(['x', 'café', '\U0001F600', 'a\nb', '"q"', ''])}
                 if rng.random() < 0.5:
                     entry['code'] = 'c' * 12
                 if rng.random() < 0.3:
@@ -174,6 +174,10 @@ class TestTheJavaScriptCopy(unittest.TestCase):
                     for line in entry['targets'].values():
                         if rng.random() < 0.3:
                             line.update(rng.choice([{'fits': True}, {'later': '\u00fc'}, {'fits': True, 'note': 'a\nb'}]))
+                        if entry['kind'] == 'test' and rng.random() < 0.6:
+                            line['result'] = rng.choice(['pass', 'fail', 'none'])
+                if entry['kind'] == 'test':
+                    entry['result'] = rng.choice(['pass', 'fail', 'none', 'manual'])
                 entries[key] = entry
             jobs.append({'entries': entries, 'fmt': rng.choice([None, None, 1, 2, 3])})
         want = [python_render(j['entries'], j['fmt']) for j in jobs]

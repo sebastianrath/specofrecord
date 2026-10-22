@@ -430,19 +430,20 @@ def cmd_lock(args):
         if args.results:   # the project's own results, for the tests `sor test` shows as EXTERNAL and for those only
             with open(args.results, encoding='utf8') as fh:
                 given = json.load(fh)
-            results.update({k: v for k, v in given.items() if k in external and v in ('pass', 'fail')})
-            ignored = sorted(set(given) - external)
+            results.update({k: v for k, v in given.items() if k.partition('@')[0] in external and v in ('pass', 'fail')})
+            ignored = sorted(k for k in given if k.partition('@')[0] not in external)
             if ignored:
                 print(f'--results: ignored {", ".join(ignored)} (only tests shown as EXTERNAL take a result from the file)')
     elif args.results:
         with open(args.results, encoding='utf8') as fh:
             results = json.load(fh)
     entries, more = lockfile.accept(project, scan, results, args.allow_incomplete, findings, old, confirm, scope, allow_behind, already_fits)
-    gave = sorted(k for k, v in results.items() if entries.get(k, {}).get('result') == 'deferred' and (scope is None or k in scope))
+    gave = sorted(k for k, v in results.items() if entries.get(k.partition('@')[0], {}).get('result') == 'deferred' and (scope is None or k.partition('@')[0] in scope))
     if gave:
         print(f'note: a result for {", ".join(gave)} is not recorded in the lock: it says `runs on:`, so a CI job proves it '
               '(`sor evidence` writes that result for a job)')
-    waiting = sorted(k for k in external if k not in results and (scope is None or k in scope)
+    given = {k.partition('@')[0] for k in results}
+    waiting = sorted(k for k in external if k not in given and (scope is None or k in scope)
                      and entries.get(k, {}).get('result') != 'deferred')
     if waiting and more and not args.allow_incomplete:
         more.append(f'EXTERNAL {", ".join(waiting)}: no result yet. Run your own tests and pass --results F with '

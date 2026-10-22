@@ -106,9 +106,12 @@ def snapshot(project, scan, lines=None):
     per_target = scan.target_code_hashes() if (project.targeted() if lines is None else lines) else {}
     for key, c in scan.code_hashes().items():
         entry = entries.setdefault(key, {'kind': 'glue'})
-        if key in per_target and entry['kind'] in ('item', 'row', 'part'):
+        if key in per_target and entry['kind'] in ('item', 'row', 'part', 'test'):
             entry['targets'] = {t: {'code': code} for t, code in per_target[key].items()}
             entry['code'] = digest(entry['targets'])
+            if entry['kind'] == 'test' and entry.get('result') == 'none':   # a manual test or one left to CI has no result to give
+                for line in entry['targets'].values():
+                    line['result'] = 'none'
         else:
             entry['code'] = c
     return entries
@@ -121,7 +124,7 @@ def conform(now, lock, scan):
     per_target = None
     for key, a in now.items():
         b = lock.get(key)
-        if not b or a.get('kind') not in ('item', 'row', 'part'):
+        if not b or a.get('kind') not in ('item', 'row', 'part', 'test'):
             continue
         if b.get('targets') and not a.get('targets'):
             per_target = per_target if per_target is not None else scan.target_code_hashes()
@@ -246,6 +249,13 @@ def read(project):
     return fold(data)
 
 
+def derived_result(targets):
+    """The result of a test that keeps one per language (a line with `result`): `fail` if one failed, `pass` if all passed, else `none`. It is
+    worked out when the lock is read and not written, so every reader of a test's `result` goes on reading one."""
+    results = [line['result'] for line in targets.values() if 'result' in line]
+    return 'fail' if 'fail' in results else 'pass' if results and all(r == 'pass' for r in results) else 'none'
+
+
 def digest(targets):
     """The `code` of a clause that has its code per target: a hash of the targets' hashes, in the order of their names."""
     return h('\n'.join(f'{t}:{targets[t]["code"]}' for t in sorted(targets)))
@@ -268,6 +278,8 @@ def fold(data):
     for e in out.values():
         if isinstance(e, dict) and e.get('targets'):
             e['code'] = digest(e['targets'])
+            if e.get('kind') == 'test' and any('result' in line for line in e['targets'].values()):
+                e['result'] = derived_result(e['targets'])
     return out
 
 
@@ -281,6 +293,8 @@ def unfold(entries):
             out[k] = e
             continue
         out[k] = {x: v for x, v in e.items() if x not in ('targets', 'code')}
+        if any('result' in line for line in targets.values()):
+            out[k].pop('result', None)   # derived from its lines when the lock is read
         for t, line in targets.items():
             if f'{k}@{t}' in entries:
                 raise LockWriteError(f'{k}@{t} is a clause of its own and also the lock line for the code of {k} in {t}: rename one of them')
@@ -544,7 +558,7 @@ def built_for(project, entries, old):
         prior = ((old or {}).get(key) or {}).get('targets') or {}
         for t, line in e['targets'].items():
             if t in prior and prior[t].get('code') == line['code']:
-                line.update({x: v for x, v in prior[t].items() if x != 'code'})
+                line.update({x: v for x, v in prior[t].items() if x not in ('code', 'result')})
                 line['built'] = prior[t].get('built', old_basis.get(key))
                 if line['built'] != now_basis[key]:
                     line.pop('fits', None)   # confirmed for an older text of the clause: it says nothing about this one
@@ -671,12 +685,29 @@ def accept(project, scan, results, allow_incomplete, findings=(), old=None, conf
         if e.get('result') == 'manual' and (key in confirm or key in still):
             e['result'] = 'checked'
     for key, res in results.items():
-        if scope is not None and key not in scope:
+        base, _, target = key.partition('@')   # `greet/test:hello@py`: the result of the test code in one language
+        if scope is not None and base not in scope:
             continue   # a run of all tests also reports the tests of clauses that are not being locked
-        if key not in entries or entries[key].get('kind') != 'test':
+        entry = entries.get(base)
+        if entry is None or entry.get('kind') != 'test':
             reasons.append(f'results: {key} is not a test')
-        elif entries[key]['result'] not in ('manual', 'checked', 'deferred'):   # a result never settles what CI proves
-            entries[key]['result'] = res if res in ('pass', 'fail') else 'none'
+            continue
+        lines = {t: line for t, line in (entry.get('targets') or {}).items() if 'result' in line}
+        if lines:
+            if target and target not in lines:
+                reasons.append(f'results: {key}: the test code of {base} is in {", ".join(sorted(lines))}, not in {target}')
+            elif not target and len(lines) > 1:
+                reasons.append(f'results: {base} has test code in {", ".join(sorted(lines))}: give a result for each, '
+                               + ', '.join(f'{base}@{t}' for t in sorted(lines)))
+            else:
+                lines[target or next(iter(lines))]['result'] = res if res in ('pass', 'fail') else 'none'
+        elif target:
+            reasons.append(f'results: {key}: {base} has no test code per language, so it has one result: {base}')
+        elif entry['result'] not in ('manual', 'checked', 'deferred'):   # a result never settles what CI proves
+            entry['result'] = res if res in ('pass', 'fail') else 'none'
+    for entry in entries.values():
+        if entry.get('kind') == 'test' and any('result' in line for line in (entry.get('targets') or {}).values()):
+            entry['result'] = derived_result(entry['targets'])
     for f in findings:
         test = own_test(f.key)
         if f.status == 'shared' and test in entries and entries[test]['result'] not in SETTLED:
@@ -685,11 +716,16 @@ def accept(project, scan, results, allow_incomplete, findings=(), old=None, conf
     pending = [k for k, e in entries.items() if e.get('result') in ('none', 'fail')
                and (scope is None or k in scope)]
     if pending and not allow_incomplete:
+        def lines_not_passed(k):   # a test with a result for each language is named by the language lines that did not pass
+            lines = {t: line for t, line in (entries[k].get('targets') or {}).items() if 'result' in line}
+            return [f'{k}@{t}' for t in sorted(lines) if lines[t]['result'] != 'pass'] if lines else [k]
+
         fails = sorted(k for k in pending if entries[k]['result'] == 'fail')
         left = sorted(set(pending) - set(fails))
+        failed_names = [n for k in fails for n in lines_not_passed(k)]
         reasons.append(f'{len(pending)} test(s) did not pass ({len(fails)} failed, {len(left)} not run): '
-                       + listed([f'{k} (failed)' for k in fails] + left))
-        reasons.append(how_to_pass(project, fails + left, bool(fails)))
+                       + listed([f'{n} (failed)' for n in failed_names] + [n for k in left for n in lines_not_passed(k)]))
+        reasons.append(how_to_pass(project, failed_names + [n for k in left for n in lines_not_passed(k)], bool(fails)))
     return entries, reasons
 
 

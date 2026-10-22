@@ -22,6 +22,18 @@ function h(s) {
 const isObject = (e) => e !== null && typeof e === 'object' && !Array.isArray(e);
 const hasKeys = (e) => isObject(e) && Object.keys(e).length > 0;
 
+/**
+ * The result of a test that keeps one per language (a line with `result`): `fail` if one failed, `pass` if all passed, else `none`. It is worked
+ * out when the lock is read and not written, so every reader of a test's `result` goes on reading one.
+ */
+function derivedResult(targets) {
+  const results = Object.keys(targets).filter((t) => Object.prototype.hasOwnProperty.call(targets[t], 'result')).map((t) => targets[t].result);
+  if (results.includes('fail')) return 'fail';
+  return results.length && results.every((r) => r === 'pass') ? 'pass' : 'none';
+}
+
+const hasResults = (targets) => Object.keys(targets).some((t) => Object.prototype.hasOwnProperty.call(targets[t], 'result'));
+
 /** The `code` of a clause that has its code per target: a hash of the targets' hashes, in the order of their names. */
 function digest(targets) {
   return h(sorted(Object.keys(targets)).map((t) => `${t}:${targets[t].code}`).join('\n'));
@@ -50,7 +62,10 @@ function fold(data) {
     }
   }
   for (const k of Object.keys(out)) {
-    if (isObject(out[k]) && hasKeys(out[k].targets)) out[k].code = digest(out[k].targets);
+    if (isObject(out[k]) && hasKeys(out[k].targets)) {
+      out[k].code = digest(out[k].targets);
+      if (out[k].kind === 'test' && hasResults(out[k].targets)) out[k].result = derivedResult(out[k].targets);
+    }
   }
   return out;
 }
@@ -68,7 +83,8 @@ function unfold(entries) {
       continue;
     }
     const rest = {};
-    for (const x of Object.keys(e)) if (x !== 'targets' && x !== 'code') put(rest, x, e[x]);
+    const derived = hasResults(e.targets);   // the result of a test with a result on each line is worked out when the lock is read
+    for (const x of Object.keys(e)) if (x !== 'targets' && x !== 'code' && !(derived && x === 'result')) put(rest, x, e[x]);
     put(out, k, rest);
     for (const t of Object.keys(e.targets)) {
       if (Object.prototype.hasOwnProperty.call(entries, `${k}@${t}`)) {
