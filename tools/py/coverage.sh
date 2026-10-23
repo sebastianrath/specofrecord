@@ -1,7 +1,7 @@
 #!/bin/sh
 # Line and branch coverage of the tool over its own tests, per file, with the lines no test reaches.
-#   sh tools/coverage.sh              run the tests under coverage and print the report
-#   sh tools/coverage.sh --skip-covered      any option of `coverage report` is passed on
+#   sh tools/py/coverage.sh              run the tests under coverage and print the report
+#   sh tools/py/coverage.sh --skip-covered      any option of `coverage report` is passed on
 # `coverage` is a development tool only (the tool itself uses the standard library): it is installed once into
 # .venv-coverage, which git ignores. Subprocesses (`sor` run as a program, the hooks) are measured too.
 set -e

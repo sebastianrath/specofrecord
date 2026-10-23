@@ -21,6 +21,7 @@ import glob
 import json
 import os
 import re
+import subprocess
 import sys
 import unittest
 
@@ -375,6 +376,34 @@ class TestTheLicenses(unittest.TestCase):
         self.assertIn('The code in this plugin is MIT', readme)
         self.assertIn('CC BY 4.0', readme)
         self.assertNotIn('not been chosen', readme)
+
+
+class TestNothingNamesTheOldLayout(unittest.TestCase):
+    """The Python tool moved from tools/ to tools/py. A document, script or workflow of the repository that still names the old place sends a reader or a run
+    to a path that is gone, or, in the dotted form `unittest tools.test_x`, to an import that fails. The plugin's own documents and the shipped copies keep
+    the old layout on purpose (the plugin has no py level), so they are not listed. The command shown in a document is checked by TestNamesInTheDocuments,
+    which accepts both forms; this is the test that tells them apart."""
+    OLD = re.compile(r'tools/(?:sor\.py|sorlib|test_|coverage)|unittest tools\.|discover -s tools(?![/\w])')
+    WORKFLOW_OLD = re.compile(r'unittest tools\.|discover -s tools(?![/\w])')   # the workflows also name the extension's copy, extension/tools/sorlib, on purpose
+    FILES = ('CLAUDE.md', 'AGENTS.md', 'README.md', 'SPEC.md', 'LICENSE.md', 'index.html', 'vectors/README.md', 'vectors/make_hashing.py', 'tools/js/README.md',
+             'examples/solar-system/design/README.md', '.claude/settings.json', '.claude/skills/run-specofrecord/SKILL.md', '.claude/skills/run-specofrecord/smoke.sh',
+             '.coveragerc', '.gitignore', 'tools/py/coverage.sh', 'tools/py/coverage_site/sitecustomize.py')
+    WORKFLOWS = ('.github/workflows/plugin.yml', '.github/workflows/vscode.yml')
+
+    def test_no_document_script_or_workflow_names_the_old_places(self):
+        found = []
+        for files, pattern in ((self.FILES, self.OLD), (self.WORKFLOWS, self.WORKFLOW_OLD)):
+            for rel in files:
+                for number, line in enumerate(read(rel).split('\n'), 1):
+                    found += [f'{rel}:{number} {m.group(0)}' for m in pattern.finditer(line)]
+        self.assertEqual(found, [], 'the Python tool is in tools/py')
+
+    def test_the_old_test_command_fails_and_says_where_the_tests_are(self):
+        """`discover -s tools` finds no test in tools/py (it is no package), so without tools/test_sor_moved_to_py.py it would print `Ran 0 tests`, `OK`."""
+        done = subprocess.run([sys.executable, '-m', 'unittest', 'discover', '-s', 'tools', '-p', 'test_*.py'], cwd=REPO, capture_output=True, text=True,
+                              env=dict(os.environ, PYTHONDONTWRITEBYTECODE='1'))
+        self.assertNotEqual(done.returncode, 0, done.stderr)
+        self.assertIn('discover -s tools/py', done.stderr)
 
 
 if __name__ == '__main__':

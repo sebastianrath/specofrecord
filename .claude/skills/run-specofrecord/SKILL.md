@@ -83,7 +83,7 @@ sh plugins/sync-tools.sh --check
 ```
 
 The first two take a few seconds each. The third currently fails, see Gotchas. The whole suite is
-`python3 -m unittest discover -s tools/py -p 'test_*.py'`. It ran 1354 tests and passed in about 57 seconds here. The twelve minutes in `CLAUDE.md` are for the run with `SOR_COMPARE_JS=1`.
+`python3 -m unittest discover -s tools/py -p 'test_*.py'`. It takes about a minute here. The twelve minutes in `CLAUDE.md` are for the run with `SOR_COMPARE_JS=1`.
 
 ## Run (human path)
 Open `examples/solar-system/out/index.html` from disk, or `index.html`, in any browser. Only the server path above was tried here.

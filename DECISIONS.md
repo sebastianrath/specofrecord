@@ -1344,18 +1344,23 @@ what it knows, and ask before the flags that weaken a lock.
 The two implementations sat at different levels. The Python tool was `tools/sor.py` and `tools/sorlib/`, and the JavaScript copy (added later, as "the first slice
 of it") was a subfolder, `tools/js/`, because `tools/sorlib` was taken. A reader comparing `tools/sorlib` with `tools/js` was comparing a library folder with a whole
 tool. The owner expected `py` and `js`, and asked for that layout.
-- **The layout.** `tools/py/` holds `sor.py`, `sorlib/`, the 32 `test_*.py` files and `coverage.sh`, with the coverage helper `coverage_site/`. `tools/js/` is unchanged.
-  `tools/LICENSE` and `vectors/` stay where they were. The tests stay next to `sor.py`, so the paths they take from their own folder keep working, and the thirteen that
+- **The layout.** `tools/py/` holds `sor.py`, `sorlib/`, the 33 `test_*.py` files and `coverage.sh`, with the coverage helper `coverage_site/`. `tools/js/` is unchanged.
+  `tools/LICENSE` and `vectors/` stay where they were. The tests stay next to `sor.py`, so the paths they take from their own folder keep working, and the ones that
   reach the repository root go one level further up. Everything was moved with `git mv`, so `git log --follow` and blame still work.
 - **The shipped copies keep their layout.** The plugin has `tools/sor.py` and `tools/sorlib/`, and the extension has `tools/sor.js` and `tools/sorlib/`. Only what
   `plugins/sync-tools.sh` reads from changed. The plugin's `hooks.json`, `bin/sor`, its skill and README are not touched, so installed plugins keep working.
 - **The command in the messages follows where the tool sits.** `invoke.py` prints `python3 tools/py/sor.py` in a checkout of this repository and
-  `python3 tools/sor.py` for a copy that is vendored into a project, the layout `reference/ci-evidence.md` describes. It reads the name of the folder that holds `sor.py`.
+  `python3 tools/sor.py` for a copy that is vendored into a project, the layout `reference/ci-evidence.md` describes. It takes the layout of this repository to be a folder called `py` with `js` beside it, and not the name alone.
 - **What was changed with it.** The hook commands in `.claude/settings.json` (and the fallback that climbs up to find the tool), both CI workflows, `.coveragerc`,
   `coverage.sh`, the vectors generator, the `run-specofrecord` skill, and the documents that name a command. Older entries in this file keep the paths they were written with.
 - **A running session loses the edit guard until it restarts.** Hook commands are read when a session starts. A session opened before this change keeps running
   `tools/sor.py`, which is gone, and the hook then prints that the edit guard did not run and exits 1, which does not block. No shim was left at `tools/sor.py`,
   because it would bring the uneven layout back.
+- **The old test command fails on purpose.** `python3 -m unittest discover -s tools` finds no test in `tools/py` (it is not a package) and, on the Python 3.9 that CI uses,
+  reports `Ran 0 tests`, `OK`, exit code 0, a green run that checked nothing. `tools/test_sor_moved_to_py.py` is what that command finds instead: it fails and says where the
+  tests are, and `discover -s tools/py` does not look in `tools/`. A test in `test_sor_docs.py` runs the old command, so the file cannot be removed quietly, and another refuses the
+  old places, the dotted form `unittest tools.test_x` included, in the repository's documents, scripts and workflows. A review after the move found a workflow and a README
+  that still used that dotted form, which a search for slashes could not see.
 - **Not verified here.** The GitHub workflows, and `editors/vscode/test/grammar.js` and `suite.js`, which need `npm install` and a downloaded VS Code.
 
 ## Still open

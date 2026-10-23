@@ -44,6 +44,11 @@ class TestTheNameOfTheCommand(unittest.TestCase):
     def test_a_copy_that_sits_directly_in_a_tools_folder_names_tools_sor_py(self):
         self.assertEqual(command_of(self.copy_library('project', 'tools')), 'python3 tools/sor.py')
 
+    def test_a_folder_that_is_only_called_py_is_not_a_checkout(self):
+        self.assertEqual(command_of(self.copy_library('vendor', 'py')), 'python3 tools/sor.py')   # no js beside it
+        os.makedirs(os.path.join(self.root, 'vendor', 'js'))
+        self.assertEqual(command_of(os.path.join(self.root, 'vendor', 'py')), 'python3 tools/py/sor.py')   # the same folder with js beside it is the layout
+
     def test_the_plugin_names_sor_whatever_the_folder_is_called(self):
         folder = self.copy_library('plugin', 'tools')
         os.makedirs(os.path.join(self.root, 'plugin', '.claude-plugin'))
