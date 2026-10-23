@@ -1,5 +1,5 @@
 #!/bin/sh
-# Keeps the plugin and the VS Code extension self-contained: copies the canonical tools (../tools) into both, and
+# Keeps the plugin and the VS Code extension self-contained: copies the canonical tools (../tools/py, ../tools/js) into both, and
 # regenerates the skill's format cheat sheet from ../SPEC.md. `tools/` and SPEC.md stay the places to edit.
 #   sh plugins/sync-tools.sh           copy
 #   sh plugins/sync-tools.sh --check   fail (exit 1) when a copy is out of date
@@ -15,8 +15,8 @@ sheet_rel="skills/specofrecord/reference/format-cheatsheet.md"
 
 copy_tools() {  # copy_tools <folder>: the tool as it is shipped, in <folder>/tools
   mkdir -p "$1/tools/sorlib"
-  cp "$src/sor.py" "$1/tools/sor.py"
-  for f in "$src"/sorlib/*.py; do cp "$f" "$1/tools/sorlib/"; done
+  cp "$src/py/sor.py" "$1/tools/sor.py"
+  for f in "$src"/py/sorlib/*.py; do cp "$f" "$1/tools/sorlib/"; done
 }
 
 copy_js_tool() {  # copy_js_tool <folder>: the JavaScript tool the editor extension runs, in <folder>/tools

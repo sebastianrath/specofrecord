@@ -1,5 +1,5 @@
 'use strict';
-// What changed since the last lock (`tools/sorlib/lock.py`, the reading half): the entries the files would produce now, the lock as it is, and
+// What changed since the last lock (`tools/py/sorlib/lock.py`, the reading half): the entries the files would produce now, the lock as it is, and
 // the findings that compare them. Nothing here writes a file, accepts a change or runs a test.
 const fs = require('fs');
 const path = require('path');

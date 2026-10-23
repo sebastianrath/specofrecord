@@ -1,5 +1,5 @@
 {
- "about": "Rows of input and expected output for how Spec of Record hashes code and writes the lock (SPEC section 11). Any implementation of the tool runs every row. The expected texts are written by hand and the hashes are computed with SHA-256 alone, never with the tool. A line in a row is one string; a text is one string. Run them with tools/test_sor_vectors.py.",
+ "about": "Rows of input and expected output for how Spec of Record hashes code and writes the lock (SPEC section 11). Any implementation of the tool runs every row. The expected texts are written by hand and the hashes are computed with SHA-256 alone, never with the tool. A line in a row is one string; a text is one string. Run them with tools/py/test_sor_vectors.py.",
  "format": 3,
  "style_of": {
   "how": "style_of(path) -> style: the style of the lower-cased file name if it is one of the known names, else of the text after its last dot if the name has a dot, else \"safe\". A style is family[-keep][+kinds]; see SPEC section 11.",

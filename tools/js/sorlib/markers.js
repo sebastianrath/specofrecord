@@ -161,7 +161,7 @@ const MAGIC = /^#.*(?:coding[:=]|frozen_string_literal:|shareable_constant_value
 
 // How a file's code is normalized follows its type. A style is written `family[-keep][+kinds]`. One row per kind of file: its
 // extensions, its style, and the comment starters (besides the ones every file has) that a marker may be written after. This is the
-// table of tools/sorlib/markers.py; the vectors have a row for every type in it, in both directions.
+// table of tools/py/sorlib/markers.py; the vectors have a row for every type in it, in both directions.
 const LANGUAGES = [
   ['py pyi pyw pyx pxd pxi bzl bazel star sky', 'python', ''],
   ['sh bash zsh ksh fish rb rake gemspec pl pm r toml ex exs jl ps1 psm1 tf tfvars cmake nix tcl cr awk', 'hash', ''],

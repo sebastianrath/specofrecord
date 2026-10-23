@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Runs the Spec of Record CLI: python tools/sor.py <command>. See sorlib/cli.py."""
+"""Runs the Spec of Record CLI: python sor.py <command>. See sorlib/cli.py."""
 import os
 import sys
 

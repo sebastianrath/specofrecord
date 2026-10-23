@@ -1340,6 +1340,24 @@ what it knows, and ask before the flags that weaken a lock.
   lock it cannot reproduce, with branch protection. The label is what such a gate would read, and `sor verify` already gates the tests that say `runs on:`. The README
   and the skill still say "in sync" and "the independent check", and rewording them is a separate change.
 
+## The Python tool moves to tools/py (2026-10-22)
+The two implementations sat at different levels. The Python tool was `tools/sor.py` and `tools/sorlib/`, and the JavaScript copy (added later, as "the first slice
+of it") was a subfolder, `tools/js/`, because `tools/sorlib` was taken. A reader comparing `tools/sorlib` with `tools/js` was comparing a library folder with a whole
+tool. The owner expected `py` and `js`, and asked for that layout.
+- **The layout.** `tools/py/` holds `sor.py`, `sorlib/`, the 32 `test_*.py` files and `coverage.sh`, with the coverage helper `coverage_site/`. `tools/js/` is unchanged.
+  `tools/LICENSE` and `vectors/` stay where they were. The tests stay next to `sor.py`, so the paths they take from their own folder keep working, and the thirteen that
+  reach the repository root go one level further up. Everything was moved with `git mv`, so `git log --follow` and blame still work.
+- **The shipped copies keep their layout.** The plugin has `tools/sor.py` and `tools/sorlib/`, and the extension has `tools/sor.js` and `tools/sorlib/`. Only what
+  `plugins/sync-tools.sh` reads from changed. The plugin's `hooks.json`, `bin/sor`, its skill and README are not touched, so installed plugins keep working.
+- **The command in the messages follows where the tool sits.** `invoke.py` prints `python3 tools/py/sor.py` in a checkout of this repository and
+  `python3 tools/sor.py` for a copy that is vendored into a project, the layout `reference/ci-evidence.md` describes. It reads the name of the folder that holds `sor.py`.
+- **What was changed with it.** The hook commands in `.claude/settings.json` (and the fallback that climbs up to find the tool), both CI workflows, `.coveragerc`,
+  `coverage.sh`, the vectors generator, the `run-specofrecord` skill, and the documents that name a command. Older entries in this file keep the paths they were written with.
+- **A running session loses the edit guard until it restarts.** Hook commands are read when a session starts. A session opened before this change keeps running
+  `tools/sor.py`, which is gone, and the hook then prints that the edit guard did not run and exits 1, which does not block. No shim was left at `tools/sor.py`,
+  because it would bring the uneven layout back.
+- **Not verified here.** The GitHub workflows, and `editors/vscode/test/grammar.js` and `suite.js`, which need `npm install` and a downloaded VS Code.
+
 ## Still open
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for
   this format (SPEC §15). The old `fdd` prototype (previous syntax) is not in this folder.

@@ -1,5 +1,5 @@
 'use strict';
-// Symbol anchors (`tools/sorlib/anchors.py`): a clause names the code it is about with an indented line `code: path#name`, and the lines of
+// Symbol anchors (`tools/py/sorlib/anchors.py`): a clause names the code it is about with an indented line `code: path#name`, and the lines of
 // that function, class, method or constant belong to the clause. Every language but Python is read by declaration patterns and brace
 // matching, exactly as the Python tool does. Python files are read there with Python's own parser, which JavaScript does not have: here
 // they are read by a tokenizer (below) that agrees with `ast` on the first and last line of a def, a class or an assignment, and on the files

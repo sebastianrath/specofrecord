@@ -88,7 +88,7 @@ child parts; more child parts than that: group them under parts of their own.
 
 ## 1. Files and hierarchy
 - All spec files live under `sor/` (short for Spec of Record: the folder sits next to `src/`). Code lives wherever the target says. The folder holds the clauses, and `sor-lock.json` is the lock. The one special file is the root, `sor/SPECOFRECORD.md`: every other part is a file named for what it is.
-- The folder, root file and lock file names are constants in `tools/sorlib/model.py`.
+- The folder, root file and lock file names are constants in `tools/py/sorlib/model.py`.
 - A part's id is its path under `sor/` without `.md`: `sor/camera.md` → `camera`,
   `sor/render/culling.md` → `render/culling`. Every id except the root's names its file.
 - The root `sor/SPECOFRECORD.md` is the project. Its Rules are the top-level objectives. Its id is `ROOT`, in commands (`sor claim ROOT`),
@@ -445,7 +445,7 @@ when the root file has none; and a clause whose lock line `clause@target` (§11)
 - **The rules are pinned by rows.** `vectors/hashing.json` holds rows of input and expected output for the file type of a path, the
   splitting of lines, the normalization of code, the hash of the regions of a clause, the hash of a text and the text of the lock file,
   written by hand and hashed with SHA-256 alone. An implementation of the tool, in any language, has to give the same answer for every
-  row, or a lock written by one shows as drift in the other (`tools/test_sor_vectors.py` runs them for the Python tool, and `tools/js/test/vectors.js` for its JavaScript copy).
+  row, or a lock written by one shows as drift in the other (`tools/py/test_sor_vectors.py` runs them for the Python tool, and `tools/js/test/vectors.js` for its JavaScript copy).
 - **A project that says its targets keeps a clause's code per target (`Targets:`, §9).** The clause's entry keeps its text and
   references, and each target with code gets a line of its own, `greet/hello@py`, with `kind: code`, `of` (the clause), `target`,
   `code` (the hash of the code in that target's paths, in file and line order) and `built` (the text hash of the clause that code was
@@ -516,7 +516,7 @@ Tie-breaks: a user or a test could notice the change → Rules · only the way i
 - **Collisions are decided by geometry, not fixed priority** ("the nearest wins").
 
 ## 15. What a tool enforces today
-`tools/sor.py` (Python 3, no dependencies) reads this format. Run it in a project folder or
+`tools/py/sor.py` (Python 3, no dependencies) reads this format. Run it in a project folder or
 with `-C <folder>`:
 
 | Command | Does |
@@ -617,7 +617,7 @@ the plugin at `plugins/specofrecord/`, DECISIONS.md):
   with the clauses that may change now.
 - *A hook that cannot run never blocks an edit.* Only a deliberate refusal (a JSON deny) does. Any other failure
   exits 1 with a one-line notice, because Claude Code treats exit code 2 as a refusal and a missing script gives exit
-  2. The repository's `.claude/settings.json` therefore looks for the tool at `$CLAUDE_PROJECT_DIR/tools/sor.py`,
+  2. The repository's `.claude/settings.json` therefore looks for the tool at `$CLAUDE_PROJECT_DIR/tools/py/sor.py`,
   then upward from the session's directory, and the plugin's hooks end in `|| exit 1`.
 - *At session start* in a project that has a spec, one short note says so, so an agent knows the
   workflow exists before it edits anything. The note ends with a compact index of the parts (`sor parts`: each

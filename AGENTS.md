@@ -9,7 +9,7 @@ other agents, which you need most): read them when the task calls for them. `CLA
 Claude Code, so there is one text to keep up to date. This file only says what differs when you are not
 Claude Code.
 
-The tool is `python3 tools/sor.py -C <project> <command>` (a project is a folder holding `sor/`, e.g.
+The tool is `python3 tools/py/sor.py -C <project> <command>` (a project is a folder holding `sor/`, e.g.
 `examples/solar-system`). In the skill, `sor` stands for that whole command.
 
 ## If you are not Claude Code

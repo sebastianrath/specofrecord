@@ -33,7 +33,7 @@ or a variables export) and replace `tokens.json` with the result.
 
 The sor tool reads `tokens.json` (see `Design:` in `sor/SPECOFRECORD.md`): every token is a clause the
 page is built from, `design/planet/mars` and so on, and every SVG in `assets/` is one too.
-After an export, run `python tools/sor.py -C examples/solar-system status`. It lists the
+After an export, run `python tools/py/sor.py -C examples/solar-system status`. It lists the
 changed tokens and the lines in `out/index.html` to rebuild. The colors are copied into the page
 when it's built, so the page stays one file that works offline. The tests compare what is really
 painted with the tokens (`colorOf`), so a color that didn't make it into the page fails a test.

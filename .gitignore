@@ -5,7 +5,7 @@
 __pycache__/
 *.pyc
 
-# Coverage of the tool (sh tools/coverage.sh)
+# Coverage of the tool (sh tools/py/coverage.sh)
 .venv-coverage/
 .coverage
 .coverage.*

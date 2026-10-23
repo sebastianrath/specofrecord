@@ -6,7 +6,8 @@ import os
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 PLUGIN = os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(_HERE)), '.claude-plugin', 'plugin.json'))
-CMD = 'sor' if PLUGIN else 'python3 tools/sor.py'
+# A checkout of this repository keeps the tool in tools/py; a copy of the tool somewhere else (the plugin's, vendored into a project) in tools/.
+CMD = 'sor' if PLUGIN else 'python3 tools/py/sor.py' if os.path.basename(os.path.dirname(_HERE)) == 'py' else 'python3 tools/sor.py'
 
 
 def getenv(name):
