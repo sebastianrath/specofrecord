@@ -51,6 +51,7 @@ The user says what to build or change, in their own words, and mentions Spec of 
   for what you claimed, and `sor release --all` (a sub-agent: see "Claims").
 - Then tell the user in plain words what you wrote or changed: the clauses, the code, the test results and anything left
   undecided (the `open:` questions). Leave out command output unless something failed.
+- Ask so the user understands in easy terms what you want to know: no flag or command names, just what you did, what you want next and what they trust you on.
 - Explain the tool's words when you use them: say "I saved the agreed state" or "the specs and the code agree", and
   explain the file `sor/sor-lock.json` only if asked.
 
@@ -78,8 +79,7 @@ and the changed parts under a claimed part; `sor lock <ids>` locks only the ids 
 - Other agents hold claims: lock only your own clauses; `--all` is refused while they hold claims.
 - Failures that were already there: add `--allow-incomplete` and say so; it does not cover a test of code shared with a changed clause.
 - A person checks a `manual:` test: `sor lock --confirm <test>` is for people, never for you.
-- The user is asked before `--allow-behind`, `--already-fits`, `--allow-incomplete`, `--confirm`, `--results` or `--targets` runs, so say in a line why you need it and wait.
-- A lock is refused while a test that is not `manual:` or `runs on:` has no passing result: the `tests (N)` block of `sor status`
+- The user is asked before `--allow-behind`, `--already-fits`, `--allow-incomplete`, `--confirm`, `--results` or `--targets` runs, so say in a line why you need it and wait.- A lock is refused while a test that is not `manual:` or `runs on:` has no passing result: the `tests (N)` block of `sor status`
   lists them and says the way out (for a test nobody can run yet, a `manual:` line saying what a person checks).
 - The lock takes the code of the clauses and the glue files with it (a file that is only glue, such as `__init__.py`,
   goes with every lock). If `sor status` still lists something afterwards, claim that clause or part and lock it.
