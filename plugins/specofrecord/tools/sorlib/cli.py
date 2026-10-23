@@ -470,7 +470,20 @@ def cmd_lock(args):
     if err or (targets and not args.run_tests):
         print(f'lock refused:\n  {err or "--targets runs the tests of a target: add --run-tests"}')
         return 2
+    ahead = None
     if args.run_tests:
+        # A lock that is refused whatever the tests say starts no test and no command a spec declares, so it does not wait for them. The person
+        # is still asked before the call: the hook reads the command line, before `sor` starts. This saves the run, not the question.
+        ahead = lockfile.refusals_ahead(project, scan, findings, old, confirm, scope, allow_behind, () if wanted and not ids else already_fits)
+        early = reasons + ahead[1]
+        if wanted:   # a lock of one language has refusals of its own that read no result either
+            early = early + lockfile.language_refusals_ahead(project, scan, every, old, wanted, set(already_fits))
+        if early:
+            print('lock refused:')
+            for r in early:
+                print('  ' + r)
+            print('  no test was run: none of this depends on a test result')
+            return 2
         try:
             ran, summary, notes, by_target = run_tests(project, targets, confirmed=confirm)
         except targetrun.TargetError as e:
@@ -479,7 +492,7 @@ def cmd_lock(args):
         print_results(ran)
         for note in notes:
             print('note: ' + note)
-        print_coverage(summary, False)
+        print_coverage(summary, False, web_label(project, by_target))
         print_target_coverage(by_target, False)
         results = {k: r['status'] for k, r in ran.items() if r['status'] in ('pass', 'fail')}
         sources = {k: 'command' if r.get('target') else 'run' for k, r in ran.items() if r['status'] in ('pass', 'fail')}   # a row of a target has its name
@@ -497,7 +510,7 @@ def cmd_lock(args):
         with open(args.results, encoding='utf8') as fh:
             results = json.load(fh)
         sources = {k: 'file' for k in results}
-    entries, more = lockfile.accept(project, scan, results, args.allow_incomplete, findings, old, confirm, scope, allow_behind, () if wanted and not ids else already_fits, sources)
+    entries, more = lockfile.accept(project, scan, results, args.allow_incomplete, findings, old, confirm, scope, allow_behind, () if wanted and not ids else already_fits, sources, ahead)
     lines, glue = {}, {}
     if wanted:
         lines, glue, more_lines = lockfile.accept_language(project, scan, results, args.allow_incomplete, every, old, wanted, set(already_fits), sources)
@@ -757,14 +770,23 @@ def print_target_coverage(covered, detail):
                     print(f'  {100 * ran / total:5.0f}%  {ran:>3}/{total:<3}  {key}')
 
 
-def print_coverage(summary, detail):
+def web_label(project, by_target):
+    """The name of the web target when the run of another target printed its figures too: a figure that stands next to those of a target says
+    whose it is, or `clause coverage 0.0%` beside 63 passing tests of `unit` reads as if nothing were covered. None when the web run is alone."""
+    found = testrun.web_targets(project)
+    # the target is the part `targets/<name>`, and the part that holds the `path` rule may be one inside it: the name is the first step after `targets/`
+    return found[0].part.id.split('/')[1] if by_target and found else None
+
+
+def print_coverage(summary, detail, name=None):
     if summary is None:   # only the tests of a target ran
         return
     fc, lc = summary['clause_coverage'], summary['line_coverage']
+    label = f' {name}' if name else ''
     if fc is not None:
-        print(f'clause coverage {fc:.1f}% ({len(summary["unproven"])} rules and gives without a passing test)')
+        print(f'clause coverage{label} {fc:.1f}% ({len(summary["unproven"])} rules and gives without a passing test{" of its run" if name else ""})')
     if lc is not None:
-        print(f'line coverage {lc:.1f}% ({summary["lines"][0]} of {summary["lines"][1]} marked code lines ran)')
+        print(f'line coverage{label} {lc:.1f}% ({summary["lines"][0]} of {summary["lines"][1]} marked code lines ran)')
     if detail:
         print()
         print('not proven by a passing test:')
@@ -837,7 +859,7 @@ def cmd_test(args):
         print('note: ' + note)
     for hint in targetrun.hints(project, targets):
         print('note: ' + hint)
-    print_coverage(summary, args.coverage)
+    print_coverage(summary, args.coverage, web_label(project, by_target))
     print_target_coverage(by_target, args.coverage)
     if args.out:
         with open(args.out, 'w', encoding='utf8') as fh:

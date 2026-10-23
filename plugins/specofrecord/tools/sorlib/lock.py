@@ -27,7 +27,7 @@ import os
 import shutil
 import time
 
-from .model import LEGACY_ROOT_KEY, Item, Problem, Row, listed, test_keyword
+from .model import LEGACY_ROOT_KEY, ROOT, Item, Problem, Row, listed, test_keyword
 
 
 
@@ -624,8 +624,8 @@ CODE_BUILT = ('new', 'changed', 'built')   # the findings of a clause that is ne
 
 
 def no_code_after(project, scan, findings, keys, allowed):
-    """[(key, [targets])] of the clauses among `keys` that are being locked with a change of their own (CODE_BUILT) and have code in
-    some target but none in a target that applies to them (`Targets:`), and that are not allowed to. Only a project that says its
+    """[(key, [targets], [targets that have its code])] of the clauses among `keys` that are being locked with a change of their own
+    (CODE_BUILT) and have code in some target but none in a target that applies to them (`Targets:`), and that are not allowed to. Only a project that says its
     targets is asked, and only a clause with a change of its own: a project that adds a second target does not find every clause it
     has locked refused, a bug fix in old code is not told to add the other language, and what stays unbuilt shows in the note
     of `sor status` (`lint.no_code_for_target`), which counts the same way."""
@@ -636,7 +636,7 @@ def no_code_after(project, scan, findings, keys, allowed):
     for key in sorted({f.key for f in findings if f.status in CODE_BUILT} & set(have) & set(keys)):
         late = sorted(t for t in project.targets_applying_to(key) if t not in have[key] and t not in allowed)
         if late:
-            out.append((key, late))
+            out.append((key, late, sorted(have[key])))
     return out
 
 
@@ -688,15 +688,11 @@ def result_language(key, languages, bare=None):
     return languages[0], None
 
 
-def accept(project, scan, results, allow_incomplete, findings=(), old=None, confirm=(), scope=None, allow_behind=(), already_fits=(), sources=None):
-    """The entries `sor lock` would write, or the reasons it refuses. `confirm` names manual
-    tests a person has just checked; earlier confirmations carry over while they still stand.
-    `scope`: lock keys to accept; every other key keeps its entry from `old` (SPEC §11).
-    `allow_behind`: targets that may stay behind the clause, or lack code for it (`sor lock --allow-behind`).
-    `already_fits`: targets whose code was checked against the changed clause and needs no change (`sor lock --already-fits`): they are
-    marked built for it and confirmed, and nothing is behind for them.
-    `sources`: {key of `results`: where it came from, one of VIA}, which becomes `via` on the result in the lock; a result with no source gets no label."""
-    sources = sources or {}
+def refusals_ahead(project, scan, findings=(), old=None, confirm=(), scope=None, allow_behind=(), already_fits=()):
+    """`(entries, reasons)`: the entries `sor lock` would write before a test result is put into them, and the reasons it would refuse that
+    do not depend on a test result: a clause that is behind or has no code in a target that applies to it, and a `--already-fits` or
+    `--confirm` that names nothing. `sor lock --run-tests` asks for them first, so that no test runs and no command a spec declares
+    starts for a lock that is refused whatever the tests say. `accept` takes them as its `ahead`, so that nothing is worked out twice."""
     old = upgrade(old, scan) if old else old
     entries = snapshot(project, scan)
     built_for(project, entries, old)
@@ -731,9 +727,17 @@ def accept(project, scan, results, allow_incomplete, findings=(), old=None, conf
         reasons.append(f'behind  {key}  its code in {", ".join(late)} was accepted for an older text of the clause: rebuild it '
                        f'(change that code). Only when the user has said that {", ".join(late)} is rebuilt later, lock again with '
                        '--allow-behind <language>; it then stays listed as behind')
-    for key, late in no_code_after(project, scan, findings, entries if scope is None else scope, set(allow_behind)):
-        reasons.append(f'no code  {key}  it applies to {", ".join(late)} (`Targets:`) and has no code there: add the code, or limit its part '
-                       f'with `Targets:`. Only when the user has said that {", ".join(late)} comes later, lock again with '
+    for key, late, where in no_code_after(project, scan, findings, entries if scope is None else scope, set(allow_behind)):
+        there, here, part = ', '.join(late), ', '.join(where), owners.get(key)
+        # `Targets:` limits a whole part, and in the root file it is the default of the whole project: say so, or the advice limits more than the clause
+        if part is not None and part.key == ROOT:
+            way = (f'move the clause to a part of its own and write `Targets: {here}` there (in the root file `Targets:` is the default of '
+                   'the whole project)')
+        else:
+            way = (f'when everything in {part.key if part is not None else "its part"} is for {here} only, write `Targets: {here}` under the '
+                   '`Why:` line of that part (the line limits every clause in it)')
+        reasons.append(f'no code  {key}  it applies to {there} (`Targets:`) and has no code there; its code is in {here}. Add the code in {there}, '
+                       f'or, {way}. Only when the user has said that {there} comes later, lock again with '
                        '--allow-behind <language>; the note of `sor status` keeps listing it')
     still = checked_manual(project, scan, old or {})
     for key in confirm:
@@ -744,6 +748,22 @@ def accept(project, scan, results, allow_incomplete, findings=(), old=None, conf
     for key, e in entries.items():
         if e.get('result') == 'manual' and (key in confirm or key in still):
             e['result'] = 'checked'
+    return entries, reasons
+
+
+def accept(project, scan, results, allow_incomplete, findings=(), old=None, confirm=(), scope=None, allow_behind=(), already_fits=(), sources=None, ahead=None):
+    """The entries `sor lock` would write, or the reasons it refuses. `confirm` names manual
+    tests a person has just checked; earlier confirmations carry over while they still stand.
+    `scope`: lock keys to accept; every other key keeps its entry from `old` (SPEC §11).
+    `allow_behind`: targets that may stay behind the clause, or lack code for it (`sor lock --allow-behind`).
+    `already_fits`: targets whose code was checked against the changed clause and needs no change (`sor lock --already-fits`): they are
+    marked built for it and confirmed, and nothing is behind for them.
+    `ahead`: what `refusals_ahead` gave for these same arguments, when the caller asked for it before the tests ran.
+    `sources`: {key of `results`: where it came from, one of VIA}, which becomes `via` on the result in the lock; a result with no source gets no label."""
+    sources = sources or {}
+    entries, reasons = ahead if ahead is not None else refusals_ahead(project, scan, findings, old, confirm, scope, allow_behind, already_fits)
+    reasons = list(reasons)
+    owners = owner_parts(project)
     for key, res in results.items():
         base, _, target = key.partition('@')   # `greet/test:hello@py`: the result of the test code in one language
         if scope is not None and base not in scope:
@@ -919,6 +939,14 @@ def accept_language(project, scan, results, allow_incomplete, findings, old, wan
             if g in entries and entries[g] != old.get(g):
                 glue[g] = entries[g]
     return lines, glue, reasons
+
+
+def language_refusals_ahead(project, scan, findings, old, wanted, already_fits=()):
+    """The reasons `accept_language` refuses that do not depend on a test result: the clause is not locked as it reads now, drift, code that
+    is behind, no code in the language, shared code, an `--already-fits` that clears nothing. `sor lock --run-tests` asks for them before the
+    tests run. It is `accept_language` itself with no results and `--allow-incomplete`, the only two things that make it read a result, so
+    nothing is worked out a second way and what is said here is what the lock says."""
+    return accept_language(project, scan, {}, True, findings, old, wanted, already_fits)[2]
 
 
 def is_manual(test):

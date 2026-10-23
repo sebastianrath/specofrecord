@@ -582,5 +582,124 @@ class TestLockingWithTheResultsOfARun(Runs):
         self.assertEqual(flows.lock_bytes(self.dir), before)
 
 
+class TestARefusalThatNoTestCanChange(Runs):
+    """What `sor lock --run-tests --targets` refuses whatever the tests say is refused before any command starts: the command is text in a spec,
+    so the person is asked before it runs, and it takes as long as the tests take, and no result of it can make the lock go through."""
+    BYE_PY = '# @clause greet/bye\nBYE = "Bye"\n# @clause end\n'
+
+    def test_a_problem_in_the_code_is_refused_before_a_command_starts(self):
+        loose = os.path.join(self.dir, 'src_py', 'loose.py')
+        write(self.dir, 'src_py/loose.py', 'LOOSE = 1\n')                  # a line in no region: `sor check` says so at once
+        self.plan('py', {TEST: 'pass'})
+        code, out = self.out('lock', '--all', '--run-tests', '--targets', 'py')
+        self.assertEqual(code, 2, out)
+        self.assertIn('code outside any @clause region', out)
+        self.assertIn('no test was run', out)
+        self.assertNotIn('ran the tests of py', out)
+        self.assertEqual((self.ran('py'), self.ran('ts')), (0, 0))
+        self.assertFalse(os.path.exists(os.path.join(self.dir, 'sor', 'sor-lock.json')))   # a refusal writes nothing
+        os.remove(loose)
+        self.out('lock', '--all', '--run-tests', '--targets', 'py')
+        self.assertEqual(self.ran('py'), 1)                                   # without the fault the command starts, as it always did
+
+    def test_a_clause_with_no_code_in_a_target_that_applies_is_refused_before_a_command_starts(self):
+        self.assertEqual(self.sor('lock', '--all', '--allow-incomplete', '--allow-behind', 'py,ts')[0], 0)
+        write(self.dir, 'src_py/bye.py', self.BYE_PY)                         # built in Python only
+        self.plan('py', {TEST: 'pass'})
+        code, out = self.out('lock', 'greet/bye', '--run-tests', '--targets', 'py')
+        self.assertEqual(code, 2, out)
+        self.assertIn('no code  greet/bye  it applies to ts', out)
+        self.assertIn('no test was run', out)
+        self.assertEqual(self.ran('py'), 0)
+
+    def locked_with_everything_behind(self):
+        self.assertEqual(self.sor('lock', '--all', '--allow-incomplete', '--allow-behind', 'py,ts')[0], 0)
+        self.plan('py', {TEST: 'pass'})
+
+    def lock_of_py(self, clause='greet/hello'):
+        started = self.ran('py')
+        code, out = self.out('lock', f'{clause}@py', '--run-tests', '--targets', 'py')
+        self.assertEqual(code, 2, out)
+        self.assertIn('no test was run', out)
+        self.assertEqual(self.ran('py'), started)                                   # the command did not start again
+        return out
+
+    def test_a_lock_of_one_language_is_refused_before_a_command_starts_when_its_clause_changed(self):
+        self.locked_with_everything_behind()
+        flows.replace_in(self.spec_file, 'The greeting is "Hello".', 'The greeting is "Hi".')
+        self.assertIn('lock it first', self.lock_of_py())
+
+    def test_a_lock_of_one_language_is_refused_before_a_command_starts_when_its_code_drifted(self):
+        self.plan('py', {TEST: 'pass'})
+        self.plan('ts', {TEST: 'pass'})
+        code, out = self.out('lock', '--all', '--run-tests', '--targets', 'py,ts')    # locked with a passing test in both languages
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.ran('py'), 1)
+        write(self.dir, 'src_py/greet.py', self.PY.replace('Hello', 'Hallo'))        # then its code changed and the clause did not
+        self.assertIn('drift  greet/hello@py', self.lock_of_py())
+
+    def test_a_lock_of_one_language_is_refused_before_a_command_starts_when_the_clause_has_no_code_there(self):
+        self.locked_with_everything_behind()
+        self.assertIn('no code  greet/bye@py', self.lock_of_py('greet/bye'))
+
+    def test_a_refusal_that_needs_a_result_still_comes_after_the_run(self):
+        self.assertEqual(self.sor('lock', '--all', '--allow-incomplete', '--allow-behind', 'py,ts')[0], 0)
+        self.plan('py', {TEST: 'fail'})
+        code, out = self.out('lock', 'greet/hello@py', '--run-tests', '--targets', 'py')
+        self.assertEqual(code, 2, out)
+        self.assertIn(f'{TEST}@py (failed)', out)
+        self.assertNotIn('no test was run', out)
+        self.assertEqual(self.ran('py'), 1)
+
+
+class TestTheFiguresOfTheWebRunNextToThoseOfATarget(Runs):
+    """A figure that stands next to those of a target says whose it is: `clause coverage 0.0%` beside 63 passing tests of a target reads as if
+    nothing were covered, when it is the web run's, in which every test was left to CI."""
+    SUMMARY = {'clause_coverage': 0.0, 'line_coverage': None, 'unproven': ['a', 'b'], 'lines': (0, 0), 'by_clause': {}}
+
+    def web_target(self, name='web'):
+        import types
+        return [types.SimpleNamespace(part=types.SimpleNamespace(id=f'targets/{name}'))]
+
+    def printed(self, name):
+        from sorlib import cli
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            cli.print_coverage(self.SUMMARY, False, name)
+        return out.getvalue()
+
+    def test_a_web_run_that_is_alone_keeps_its_plain_line(self):
+        self.assertEqual(self.printed(None), 'clause coverage 0.0% (2 rules and gives without a passing test)\n')
+
+    def test_a_web_run_next_to_a_target_says_it_is_the_web_run(self):
+        self.assertEqual(self.printed('web'), 'clause coverage web 0.0% (2 rules and gives without a passing test of its run)\n')
+
+    def test_the_label_is_the_name_of_the_web_target_and_only_when_a_target_printed_its_figures(self):
+        from unittest import mock
+        from sorlib import cli, testrun
+        project = Project(self.dir)
+        with mock.patch.object(testrun, 'web_targets', return_value=self.web_target('browser')):
+            self.assertEqual(cli.web_label(project, {'py': {}}), 'browser')
+            self.assertIsNone(cli.web_label(project, {}))
+        with mock.patch.object(testrun, 'web_targets', return_value=[]):
+            self.assertIsNone(cli.web_label(project, {'py': {}}))
+
+    def test_the_label_is_the_name_of_the_target_when_the_path_rule_is_in_a_part_inside_it(self):
+        from unittest import mock
+        from sorlib import cli, testrun
+        with mock.patch.object(testrun, 'web_targets', return_value=self.web_target('web/page')):   # the part `targets/web/page` is the target `web`
+            self.assertEqual(cli.web_label(Project(self.dir), {'py': {}}), 'web')
+
+    def test_sor_test_labels_the_figures_of_the_web_run_when_a_target_runs_too(self):
+        from unittest import mock
+        from sorlib import testrun
+        self.plan('py', {TEST: 'pass'})
+        with mock.patch.object(testrun, 'web_targets', return_value=self.web_target()), \
+                mock.patch.object(testrun, 'run', return_value=({}, dict(self.SUMMARY))):
+            code, out = self.out('test', '--targets', 'py')
+        self.assertIn('clause coverage web 0.0% (2 rules and gives without a passing test of its run)', out)
+        self.assertIn('clause coverage py ', out)
+
+
 if __name__ == '__main__':
     unittest.main()

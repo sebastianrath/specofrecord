@@ -394,6 +394,9 @@ class TestAClauseWithNoCodeInALanguageThatApplies(Targeted):
         code, out, _ = self.sor('lock', 'greet/bye')
         self.assertEqual(code, 2, out)
         self.assertIn('no code  greet/bye  it applies to ts', out)
+        self.assertIn('its code is in py', out)                            # where the code is, so the way out is not a guess
+        self.assertIn('when everything in greet is for py only, write `Targets: py` under the `Why:` line of that part '
+                      '(the line limits every clause in it)', out)         # `Targets:` limits the whole part, not the clause
         self.assertNotIn('--allow-behind ts', out)                         # no flag ready to copy: it is the user's call
         self.assertEqual(flows.lock_bytes(self.dir), before)
         code, out, _ = self.sor('lock', 'greet/bye', '--allow-behind', 'ts')
@@ -402,6 +405,17 @@ class TestAClauseWithNoCodeInALanguageThatApplies(Targeted):
         self.assertEqual(code, 0, status)
         self.assertIn(self.NOTE, status)
         self.assertIn(self.NOTE, self.sor('check')[1])                     # the refusal and the note agree on what lacks code
+
+    def test_a_clause_of_the_root_file_is_told_to_move_and_not_to_limit_the_default_of_the_project(self):
+        flows.replace_in(os.path.join(self.spec, 'SPECOFRECORD.md'), '- **out-of-scope** - everything else.',
+                         '- **out-of-scope** - everything else.\n- **top** - A rule of the whole project.')
+        write(self.dir, 'src_py/top.py', '# @clause top\nTOP = 1\n# @clause end\n')
+        code, out, _ = self.sor('lock', 'top')
+        self.assertEqual(code, 2, out)
+        self.assertIn('no code  top  it applies to ts', out)
+        self.assertIn('move the clause to a part of its own and write `Targets: py` there', out)
+        self.assertIn('in the root file `Targets:` is the default of the whole project', out)
+        self.assertNotIn('under the `Why:` line', out)                     # that would drop `ts` for every clause of the project
 
     def test_a_clause_that_is_new_is_asked_too(self):
         self.build(rules=['- **hello** - The greeting is "Hello".', '- **bye** - The farewell is "Bye".', '- **extra** - Says it twice.'])

@@ -101,6 +101,14 @@ or `sor check` reports `code outside any @clause region`. `sor test --targets py
 runs: say in a line what the command is and wait. SPEC §9 has the whole rule (more targets, `lcov:`, the checks `sor check`
 makes).
 
+**A web target next to a target with a test command (a page and the logic behind it).** The root file names the target whose
+tests run through a command, `Targets: unit`, and the web target's part, `sor/targets/web.md`, says `Targets: web` under its
+`Why:` line. Without that line the clauses of the web target apply to `unit` too, and `sor lock` refuses them with `no code ...
+it applies to unit`, because the page (`web/index.html`) belongs to the web target and not to `unit`. The refusal names the
+target that has the code: write that target's name in `Targets:` of the part that holds only clauses of that target (the line
+limits every clause in the part, and in the root file it is the default of the project, so a clause of the root file moves to a
+part of its own first). Do not answer it with `--allow-behind`, which says the code comes later. The browser tests of the web target say `runs on: browser` and stay out of the lock (`reference/ci-evidence.md`).
+
 ## The smallest example: hello world
 Two files. `sor/SPECOFRECORD.md`:
 
