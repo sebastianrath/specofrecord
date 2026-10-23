@@ -46,3 +46,14 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## Ideas from other projects
+
+No code from these projects is in this repository. They are named because ideas or names were taken from them, and
+because their licenses are different from ours.
+
+| Project | License | What it was used for |
+|---|---|---|
+| [Drift](https://github.com/fiberplane/drift) (`fiberplane/drift`) | MIT | The idea of linking a document to the code it describes, and flagging the document when that code changes. It binds Markdown to files or code symbols and keeps a fingerprint of the code in a lock file. Spec of Record links a clause to its code with `@clause` markers and `code:` anchors, and keeps their hashes in `sor-lock.json`. |
+| [Spec Kit](https://github.com/github/spec-kit) (`github/spec-kit`) | MIT, Copyright GitHub, Inc. | The idea of assessing a bug before fixing it, which the way Spec of Record handles bug reports follows (see `DECISIONS.md`). |
+| [facts](https://github.com/av/facts) (`av/facts`) | None stated, so all rights are reserved | Nothing. It was only looked at to avoid a name clash, and it is why the name "Fact-driven development" was dropped. |
