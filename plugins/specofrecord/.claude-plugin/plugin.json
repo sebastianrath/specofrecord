@@ -3,6 +3,8 @@
   "description": "Spec of Record: keep a project's specification as clauses that code is built from, with an edit guard, a workflow skill and the `sor` command",
   "version": "0.3.1",
   "license": "MIT",
+  "homepage": "https://specofrecord.org",
+  "repository": "https://github.com/sebastianrath/specofrecord",
   "author": {
     "name": "Sebastian Rath",
     "url": "https://sebastianrath.io"

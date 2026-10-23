@@ -20,6 +20,7 @@ the tools and the questions people ask. This README only says what is in this re
 | [`examples/solar-system/`](examples/solar-system) | A complete project built with it, where planets orbit and you click one for a fun fact. Specs in `sor/`, the built page in `out/`. A good place to read real clauses next to their code. |
 | [`editors/vscode/`](editors/vscode) | The VS Code extension. It shows, inside the editor, which code comes from which clause and whether they still agree. It ships the JavaScript tool (`tools/js`) and runs it on the editor's own Node, so it needs no Python. |
 | [`.github/workflows/`](.github/workflows) | The builds. One makes the plugin zip, with `tools/` bundled, and the other makes the extension's `.vsix`. |
+| [`SECURITY.md`](SECURITY.md) | How to report a security problem privately, and what is in scope. |
 | [`DECISIONS.md`](DECISIONS.md) | The design decisions behind the format, and the alternatives that were dropped. |
 | [`AGENTS.md`](AGENTS.md), [`CLAUDE.md`](CLAUDE.md) | How a coding agent works in a project with a `sor/` folder. `CLAUDE.md` imports the plugin's skill, so the workflow is written once. |
 | [`index.html`](index.html), [`social/`](social) | The project page and its banner. |

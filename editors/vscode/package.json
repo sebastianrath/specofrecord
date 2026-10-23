@@ -10,6 +10,8 @@
   "main": "./src/extension.js",
   "activationEvents": ["workspaceContains:**/sor/SPECOFRECORD.md", "workspaceContains:**/sor/CLAUSES.md"],
   "repository": { "type": "git", "url": "https://github.com/sebastianrath/specofrecord.git", "directory": "editors/vscode" },
+  "homepage": "https://specofrecord.org",
+  "bugs": { "url": "https://github.com/sebastianrath/specofrecord/issues" },
   "contributes": {
     "languages": [
       {
