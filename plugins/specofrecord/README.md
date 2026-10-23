@@ -138,4 +138,4 @@ simply left out). What your project handles itself:
 it into this plugin, and `sh plugins/sync-tools.sh --check` to see whether the copy is current. Check the
 plugin with `claude plugin validate plugins/specofrecord --strict`.
 
-Spec text: Sebastian Rath, CC BY 4.0. A license for the code has not been chosen yet.
+The spec text is by Sebastian Rath, CC BY 4.0. The code in this plugin is MIT (the `LICENSE` file next to this README).
