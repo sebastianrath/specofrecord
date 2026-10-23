@@ -1,6 +1,6 @@
 'use strict';
 // The sor tool's reading half in JavaScript, for an editor that has no Python: `markers --json`, `status --json` and `parts --json`
-// print what `python3 tools/sor.py` prints for them (same fields, same positions). It reads the project and writes nothing: no claim is
+// print what `python3 tools/py/sor.py` prints for them (same fields, same positions). It reads the project and writes nothing: no claim is
 // touched, no lock is written, no test is run, and the `problems` the Python status lists are not worked out here.
 const index = require('./sorlib/index');
 
@@ -8,7 +8,7 @@ const USAGE = `usage: sor.js [-C PROJECT] markers --json [ID | FILE:LINE]
        sor.js [-C PROJECT] status --json
        sor.js [-C PROJECT] parts --json
 
-The reading half of sor in JavaScript. Every other command, and every output without --json, is the Python tool's: python3 tools/sor.py.`;
+The reading half of sor in JavaScript. Every other command, and every output without --json, is the Python tool's: python3 tools/py/sor.py.`;
 
 function parse(argv) {
   const args = { root: '.', cmd: null, json: false, rest: [] };

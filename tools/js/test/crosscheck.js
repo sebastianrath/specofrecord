@@ -1,5 +1,5 @@
 'use strict';
-// Answers the questions in a job file with the JavaScript copy of the rules, so that tools/test_sor_js.py can put the answers next
+// Answers the questions in a job file with the JavaScript copy of the rules, so that tools/py/test_sor_js.py can put the answers next
 // to the Python tool's own. Not a test by itself.
 //
 //   node tools/js/test/crosscheck.js jobs.json   prints the answers as JSON on one line

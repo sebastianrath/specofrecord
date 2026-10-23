@@ -1,6 +1,6 @@
 'use strict';
 // Reads a spec folder (sor/) into parts, items, table rows and values (SPEC §1-3), and resolves {references} by looking outward from where
-// they are written (SPEC §4): `tools/sorlib/model.py` in JavaScript, for the questions an editor asks. What `sor check` says about a spec (the
+// they are written (SPEC §4): `tools/py/sorlib/model.py` in JavaScript, for the questions an editor asks. What `sor check` says about a spec (the
 // problems of the parts, items and references) is not here, and neither is the "did you mean" of a broken reference.
 const crypto = require('crypto');
 const fs = require('fs');

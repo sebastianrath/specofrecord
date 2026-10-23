@@ -1,5 +1,5 @@
 'use strict';
-// The machine-readable views of a project (`tools/sorlib/index.py`, `views.part_info`, `blame.py`): what an editor reads to show clauses, code and
+// The machine-readable views of a project (`tools/py/sorlib/index.py`, `views.part_info`, `blame.py`): what an editor reads to show clauses, code and
 // what changed. Positions are counted in code points, as in the Python tool's JSON, not in UTF-16 units.
 const { spawnSync } = require('child_process');
 const path = require('path');

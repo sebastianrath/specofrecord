@@ -13,7 +13,7 @@ import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(ROOT, 'tools'))
+sys.path.insert(0, os.path.join(ROOT, 'tools', 'py'))
 from sorlib import markers as _tool   # noqa: E402  (only for the table of types)
 
 def sha(text):
@@ -405,7 +405,7 @@ STARTERS.append({'name': 'a file nobody listed', 'path': 'LICENSE', 'starters': 
 doc = {
     'about': 'Rows of input and expected output for how Spec of Record hashes code and writes the lock (SPEC section 11). Any implementation '
              'of the tool runs every row. The expected texts are written by hand and the hashes are computed with SHA-256 alone, never with the tool. '
-             'A line in a row is one string; a text is one string. Run them with tools/test_sor_vectors.py.',
+             'A line in a row is one string; a text is one string. Run them with tools/py/test_sor_vectors.py.',
     'format': 3,
     'style_of': {'how': 'style_of(path) -> style: the style of the lower-cased file name if it is one of the known names, else of the text after its last dot if the name has a dot, else "safe". A style is family[-keep][+kinds]; see SPEC section 11.', 'rows': STYLE},
     'split_lines': {'how': 'split_lines(text) -> lines: a line ends at LF, CRLF or CR and nowhere else; no empty last line for a final break.', 'rows': SPLIT},

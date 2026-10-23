@@ -7,7 +7,7 @@ root=$(cd "$(dirname "$0")/../../.." && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 cp -R "$root/examples/solar-system" "$tmp/p"
-sor() { python3 "$root/tools/sor.py" -C "$tmp/p" "$@"; }
+sor() { python3 "$root/tools/py/sor.py" -C "$tmp/p" "$@"; }
 bad=0
 expect() {  # expect <exit code wanted> <label> <command...>: runs the command, shows the first lines of its output
   want=$1; label=$2; shift 2

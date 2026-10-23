@@ -1,5 +1,5 @@
 'use strict';
-// Every region under the project's code roots, checked against the project's ids (`Scan` of `tools/sorlib/markers.py`): which files are
+// Every region under the project's code roots, checked against the project's ids (`Scan` of `tools/py/sorlib/markers.py`): which files are
 // code, the regions of each, the keys of a region (items, rows, parts, tests and glue) and the hashes of the code of each key, in all and
 // per target. What is wrong with the markers (the problems of the scan) is not here.
 const fs = require('fs');

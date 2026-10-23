@@ -10,7 +10,7 @@ standard library program), the project page `index.html` with its claims demo, a
 extension is not covered, it was not run here.
 
 Ground rules from `CLAUDE.md` still apply. Never run `lock` or `claim` against `examples/` or `editors/vscode`, always use a
-temporary copy. `sor` here means `python3 tools/sor.py -C <project>`.
+temporary copy. `sor` here means `python3 tools/py/sor.py -C <project>`.
 
 ## Run (agent path)
 
@@ -27,7 +27,7 @@ It ends with `smoke passed`. The commands it covers are `parts --tree`, `status`
 `release --all --as smoke` and `test --list`. To try one command yourself, copy a project first. `sor.py` always needs `-C`.
 
 ```bash
-T=$(mktemp -d) && cp -R examples/solar-system "$T/p" && python3 tools/sor.py -C "$T/p" show clock
+T=$(mktemp -d) && cp -R examples/solar-system "$T/p" && python3 tools/py/sor.py -C "$T/p" show clock
 ```
 
 ### The project page and its claims demo
@@ -71,7 +71,7 @@ That selects Saturn, and the panel reads "Saturn is less dense than water." with
 
 ### Tests
 ```bash
-python3 -m unittest discover -s tools -p 'test_sor_docs.py'
+python3 -m unittest discover -s tools/py -p 'test_sor_docs.py'
 ```
 
 ```bash
@@ -83,7 +83,7 @@ sh plugins/sync-tools.sh --check
 ```
 
 The first two take a few seconds each. The third currently fails, see Gotchas. The whole suite is
-`python3 -m unittest discover -s tools -p 'test_*.py'`. It ran 1354 tests and passed in about 57 seconds here. The twelve minutes in `CLAUDE.md` are for the run with `SOR_COMPARE_JS=1`.
+`python3 -m unittest discover -s tools/py -p 'test_*.py'`. It ran 1354 tests and passed in about 57 seconds here. The twelve minutes in `CLAUDE.md` are for the run with `SOR_COMPARE_JS=1`.
 
 ## Run (human path)
 Open `examples/solar-system/out/index.html` from disk, or `index.html`, in any browser. Only the server path above was tried here.
@@ -110,9 +110,9 @@ Open `examples/solar-system/out/index.html` from disk, or `index.html`, in any b
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `no such file or directory: python3 tools/sor.py -C ...` in zsh | The command was held in a variable and zsh did not split it. Use a function (`sor() { python3 tools/sor.py -C "$T/p" "$@"; }`) or the smoke script. |
+| `no such file or directory: python3 tools/py/sor.py -C ...` in zsh | The command was held in a variable and zsh did not split it. Use a function (`sor() { python3 tools/py/sor.py -C "$T/p" "$@"; }`) or the smoke script. |
 | `Error: no body "Saturn"` from `clickBody` | Use the lowercase id, `clickBody('saturn')`. |
 | Screenshot shows the footer, not the demo | The page scrolled on its own. Use the scroll snippet above, then screenshot. |
-| `env: sor: No such file or directory` inside a script | `sor` is a shell function there, `env` cannot run it. Call `python3 tools/sor.py` or run it in a subshell. |
+| `env: sor: No such file or directory` inside a script | `sor` is a shell function there, `env` cannot run it. Call `python3 tools/py/sor.py` or run it in a subshell. |
 
 Stop the server with Ctrl-C, or run `pkill -f "http.server 8765"`.

@@ -1,6 +1,6 @@
 'use strict';
 // Runs vectors/hashing.json: rows of input and expected output for how the tool hashes code and writes the lock (SPEC §11). The
-// Python tool runs the same rows in tools/test_sor_vectors.py, and the two have to give the same answer for every one, or a lock
+// Python tool runs the same rows in tools/py/test_sor_vectors.py, and the two have to give the same answer for every one, or a lock
 // written by one would show as drift in the other.
 //
 //   node tools/js/test/vectors.js
@@ -63,7 +63,7 @@ check('every type this port knows has a row, so that it cannot map one different
   for (const n of [...markers.LANGUAGES_BY_NAME.keys(), ...markers.LANGUAGES_BY_EXACT_NAME.keys()]) {
     if (!styles.has(`x/${n}`)) missing.push(`style_of ${n}`);
   }
-  assert.deepStrictEqual(missing, [], 'a type without a row: the table here has drifted from the one in tools/sorlib/markers.py');
+  assert.deepStrictEqual(missing, [], 'a type without a row: the table here has drifted from the one in tools/py/sorlib/markers.py');
 });
 
 // ---- every row ---------------------------------------------------------------------------------------------------------------
