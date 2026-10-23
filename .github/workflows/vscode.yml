@@ -110,7 +110,7 @@ jobs:
         run: node editors/vscode/test/bundle.js
       # compares the tool with the Python tool, which the runner has, on a project in many states and on anchors in every language
       - name: The tool against the Python tool
-        run: python3 -m unittest tools.test_sor_js tools.test_sor_jsreader
+        run: python3 -m unittest discover -s tools/py -p 'test_sor_js*.py'
 
   attest:
     name: Attest the .vsix
