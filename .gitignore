@@ -1,0 +1,33 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Coverage of the tool (sh tools/py/coverage.sh)
+.venv-coverage/
+.coverage
+.coverage.*
+htmlcov/
+
+# Spec of Record: files the tool writes next to a project while agents work (the lock file itself is committed)
+.sor-claims.json
+.sor-claims.lock
+.sor-claims.json.*.tmp
+.sor-lock.mutex
+sor-lock.json.*.tmp
+.sor-test-*
+
+# VS Code extension: the editor downloaded for the test run, installed dependencies, built packages
+.vscode-test/
+node_modules/
+*.vsix
+
+# Claude Code: personal settings (the shared .claude/settings.json is committed)
+.claude/settings.local.json
+# Claude Code: the folders where it keeps a checkout of its own for each session
+.claude/worktrees/
+
+# Built plugin zips and .vsix packages
+dist/

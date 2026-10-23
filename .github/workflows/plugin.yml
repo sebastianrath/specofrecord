@@ -1,0 +1,96 @@
+# Builds the Claude Code plugin (plugins/specofrecord, with its bundled copy of the `sor` tool) as a zip.
+#
+# Every push and pull request: the unit tests, then `plugins/build-plugin.py`, which checks that the bundled copy of
+# tools/ is current, zips the plugin, unpacks the zip into a folder with a space in its name and runs it from unrelated
+# folders (the launcher, a symlink to it, the commands that start a project, and the hook commands from hooks.json).
+# The tool needs Python 3.9 and nothing else, so one job runs in the python:3.9 image and the others on a current Python. The JavaScript tool in tools/js
+# (the VS Code extension runs it) is tested against the Python tool too, on Node 16 in the first job and on the current Node in the others.
+#
+# Releases are made by release.yml, which runs this workflow on a tag `v<version>` and attaches the zip, its checksum and
+# its attestation to one GitHub release, together with the VS Code extension. This workflow only builds and tests.
+# Marketplace installs read the committed plugins/specofrecord folder, not this zip: the zip is for
+# `claude --plugin-dir` and for people without the marketplace.
+name: Plugin
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      artifact:
+        description: Name of the artifact that holds the zip and its checksum
+        value: ${{ jobs.python39.outputs.artifact }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: plugin-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  python39:
+    name: Build on Python 3.9
+    runs-on: ubuntu-latest
+    container: python:3.9
+    outputs:
+      artifact: ${{ steps.artifact.outputs.name }}
+    steps:
+      - uses: actions/checkout@v4.4.0
+      # The artifact is named after the version, like the zip inside it and the release tag: sor-plugin-v0.1.14. On a tag it is the tag's, which build-plugin.py has checked against plugin.json.
+      - name: Name the artifact
+        id: artifact
+        run: |
+          case "$GITHUB_REF" in
+            refs/tags/v*) version="${GITHUB_REF_NAME#v}" ;;
+            *) version=$(python3 -c "import json; print(json.load(open('plugins/specofrecord/.claude-plugin/plugin.json'))['version'])") ;;
+          esac
+          echo "name=sor-plugin-v$version" >> "$GITHUB_OUTPUT"
+      # The tests of the JavaScript tool (tools/js, which the VS Code extension runs) need node and skip themselves without it. Node 16 is the oldest it
+      # supports (the Node of VS Code 1.80), so this job, which is also the oldest Python, runs them on it.
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: 16
+      - name: Python and Node versions
+        run: |
+          python3 --version
+          node --version
+          git --version
+      - name: Compile every file
+        run: python3 -m compileall -q tools plugins
+      - name: Unit tests
+        run: python3 -m unittest discover -s tools/py -p 'test_*.py'
+      - name: Build the plugin and smoke test the zip
+        run: |
+          args=""
+          case "$GITHUB_REF" in
+            refs/tags/v*) args="--expect-version ${GITHUB_REF_NAME#v}" ;;
+          esac
+          python3 plugins/build-plugin.py --out dist $args
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: dist/
+          if-no-files-found: error
+
+  latest:
+    name: Build on ${{ matrix.os }}, current Python
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: 'lts/*'
+      - name: Unit tests
+        run: python3 -m unittest discover -s tools/py -p 'test_*.py'
+      - name: Build the plugin and smoke test the zip
+        run: python3 plugins/build-plugin.py --out dist

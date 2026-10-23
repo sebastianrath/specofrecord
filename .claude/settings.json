@@ -1,0 +1,72 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"$CLAUDE_PROJECT_DIR\"; [ -f \"$d/tools/py/sor.py\" ] || { d=\"$PWD\"; while [ \"$d\" != / ] && [ ! -f \"$d/tools/py/sor.py\" ]; do d=$(dirname \"$d\"); done; }; [ -f \"$d/tools/py/sor.py\" ] || { echo \"sor guard: tools/py/sor.py not found (CLAUDE_PROJECT_DIR=$CLAUDE_PROJECT_DIR); the edit guard did not run\" >&2; exit 1; }; SOR_ENFORCE_CLAIMS=1 python3 \"$d/tools/py/sor.py\" hook pre-edit || exit 1",
+            "timeout": 30,
+            "statusMessage": "Checking clauses first"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"$CLAUDE_PROJECT_DIR\"; [ -f \"$d/tools/py/sor.py\" ] || { d=\"$PWD\"; while [ \"$d\" != / ] && [ ! -f \"$d/tools/py/sor.py\" ]; do d=$(dirname \"$d\"); done; }; [ -f \"$d/tools/py/sor.py\" ] || exit 0; python3 \"$d/tools/py/sor.py\" hook pre-bash || exit 1",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"$CLAUDE_PROJECT_DIR\"; [ -f \"$d/tools/py/sor.py\" ] || { d=\"$PWD\"; while [ \"$d\" != / ] && [ ! -f \"$d/tools/py/sor.py\" ]; do d=$(dirname \"$d\"); done; }; [ -f \"$d/tools/py/sor.py\" ] || exit 0; SOR_ENFORCE_CLAIMS=1 python3 \"$d/tools/py/sor.py\" hook post-bash || exit 1",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"$CLAUDE_PROJECT_DIR\"; [ -f \"$d/tools/py/sor.py\" ] || { d=\"$PWD\"; while [ \"$d\" != / ] && [ ! -f \"$d/tools/py/sor.py\" ]; do d=$(dirname \"$d\"); done; }; [ -f \"$d/tools/py/sor.py\" ] || { echo \"sor guard: tools/py/sor.py not found (CLAUDE_PROJECT_DIR=$CLAUDE_PROJECT_DIR); the edit guard did not run\" >&2; exit 1; }; python3 \"$d/tools/py/sor.py\" hook post-read || exit 1",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"$CLAUDE_PROJECT_DIR\"; [ -f \"$d/tools/py/sor.py\" ] || { d=\"$PWD\"; while [ \"$d\" != / ] && [ ! -f \"$d/tools/py/sor.py\" ]; do d=$(dirname \"$d\"); done; }; [ -f \"$d/tools/py/sor.py\" ] || exit 0; SOR_ENFORCE_CLAIMS=1 python3 \"$d/tools/py/sor.py\" hook post-bash || exit 1",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"$CLAUDE_PROJECT_DIR\"; [ -f \"$d/tools/py/sor.py\" ] || { d=\"$PWD\"; while [ \"$d\" != / ] && [ ! -f \"$d/tools/py/sor.py\" ]; do d=$(dirname \"$d\"); done; }; [ -f \"$d/tools/py/sor.py\" ] || exit 0; python3 \"$d/tools/py/sor.py\" hook session-end || exit 1",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

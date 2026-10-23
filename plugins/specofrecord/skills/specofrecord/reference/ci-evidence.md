@@ -1,0 +1,58 @@
+# Tests that CI proves
+
+Some tests need a place: an operating system, a GPU, a database replica, an hour nobody wants to wait. The spec says so with
+one line, and the lock stops waiting for them. A CI job proves them instead.
+
+## The line
+```
+- **payment** - totals match the replica.
+  expect: total = {order.total}
+  runs on: linux+db, windows
+```
+`runs on:` names the environments the test must pass in. A comma separates environments. A plus joins the names one machine must
+provide together, so `linux+db` is one machine with both. A name is lowercase letters, digits, dots, dashes and underscores.
+`sor check` reports a bad line under a test and a `runs on:` line on a `manual:` test. Under anything but a test the line is plain text.
+
+## What you do
+- Write `runs on:` only when the person says where the test can run. Never to get past a test that fails: moving a failing test
+  to `runs on:` is weakening it.
+- `sor lock` records the test as `deferred`, does not wait for it, and names the tests that just became deferred. Say in your
+  report which tests are left to CI.
+- `sor test` leaves deferred tests out. `sor test --list` shows what a run would run and what it leaves to CI. `--provides linux`
+  also runs the tests whose environment this machine provides, `--all` runs every one, and naming a test by its own id runs it.
+- A person owns the CI setup. Never write or edit an evidence file so that `sor verify` passes: a job writes them.
+
+## What a CI job does
+1. It runs the tests it provides: `sor test --provides linux,db --out results.json` for a web project, or its own framework for
+   tests written there (`sor test --list --json` names them, with their environments).
+2. `sor evidence --job linux-db --provides linux,db --results results.json` writes one file for the job. Only tests that say
+   `runs on:` and name an environment the job provides are kept; the rest are named in the output. One file per job, so two jobs
+   never write the same file. `--commit SHA` and `--run ID` add the commit and the CI run the job saw; `sor verify` names them next to
+   the job. A file written without them is the same as before, and one written with them is evidence format 2: an older `sor` refuses it.
+3. A last job runs `sor verify` over all the evidence files, downloaded CI artifacts or the committed evidence folder. A folder
+   is searched all the way down, so each artifact can stay in its own subfolder. Exit 0:
+   every environment of every deferred test has a current pass. Exit 1: one is missing, stale or failed. Exit 2: an evidence file
+   or a `runs on:` line is wrong.
+
+## A gate for pending changes
+`sor status` exits 0 when the clauses, the code and the lock agree, 1 when something is pending (a clause changed and its code not built, a language
+`behind`) and 2 when there is a problem or drift. A job that runs `python3 tools/sor.py status` fails the build on any of them, so a language that was
+let stay behind with `--allow-behind` cannot ship. Use it on the branch you release from: exit 1 also covers ordinary unlocked work, so a feature
+branch would fail all the time. A clause that has no code in a language that applies to it does not show up in the exit code; `sor status` and
+`sor check` print it as a note, and `sor check --strict` fails on that note, but also on every open question and size note.
+
+## Good to know
+- A result counts only for the fingerprint it was made for: the test (its rows and values too), what it refers to, and the text, rows,
+  values and code of every clause it proves, the code marked with a row included. Change any of them and the result is stale. There
+  are no timestamps. It does not cover code a test only uses as input, or code outside the marked regions. After a tool upgrade that
+  changes how code is hashed, the old evidence reads as stale until the jobs run again.
+- In a project with `Targets:` a test with test code in some languages takes one result for each: the job writes `greet/test:hello@py` and
+  `greet/test:hello@ts` (`sor evidence` refuses the plain id when two languages have test code, and names the keys). The fingerprint of a
+  language covers the code in that language only, so a TypeScript edit does not make the Python evidence stale, and `sor verify` has a row for
+  each language. After an upgrade, evidence written for the plain id of such a test proves nothing and `sor verify` says which keys the job has
+  to write instead. A test with no test code per language keeps its one result.
+- The lock never holds a result of a job, so it has the same bytes whatever ran where. Committing the evidence or keeping it as CI
+  artifacts is the team's choice.
+- A deferred test does not count for clause coverage until a run includes it. A project with a coverage budget gives that
+  test its own `runs on:` and has a job run it with `sor test --all`.
+- A failure that only CI sees does not free the code of a bug fix: change the test first, or give it a `bug:` line.

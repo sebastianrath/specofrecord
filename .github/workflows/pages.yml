@@ -1,0 +1,43 @@
+# Publishes the website to GitHub Pages: index.html and the static/ and social/ folders, nothing else.
+#
+# The custom domain (specofrecord.org and www.specofrecord.org) is set in the repository settings under Pages, not in a
+# CNAME file, because the site is deployed from a workflow.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths: ['index.html', 'static/**', 'social/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy the site
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # The images are in Git LFS, so the checkout has to fetch them. Without lfs the site would get pointer files.
+      - uses: actions/checkout@v4.4.0
+        with:
+          lfs: true
+      # Only these files go online. Everything else in the repository stays out of the site.
+      - name: Collect the site files
+        run: |
+          mkdir _site
+          cp -r index.html static social _site/
+      - uses: actions/upload-pages-artifact@v3.0.1
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4.0.5

@@ -1,0 +1,16 @@
+{
+  "name": "specofrecord",
+  "description": "Plugins for working with a Spec of Record: a project specification kept as clauses that code is built from",
+  "owner": {
+    "name": "Sebastian Rath",
+    "url": "https://sebastianrath.io"
+  },
+  "plugins": [
+    {
+      "name": "specofrecord",
+      "displayName": "Spec of Record",
+      "source": "./plugins/specofrecord",
+      "description": "Spec of Record: clauses that code is built from, with an edit guard, a workflow skill and the `sor` command"
+    }
+  ]
+}

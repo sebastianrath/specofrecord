@@ -1,0 +1,4483 @@
+{
+ "about": "Rows of input and expected output for how Spec of Record hashes code and writes the lock (SPEC section 11). Any implementation of the tool runs every row. The expected texts are written by hand and the hashes are computed with SHA-256 alone, never with the tool. A line in a row is one string; a text is one string. Run them with tools/py/test_sor_vectors.py.",
+ "format": 3,
+ "style_of": {
+  "how": "style_of(path) -> style: the style of the lower-cased file name if it is one of the known names, else of the text after its last dot if the name has a dot, else \"safe\". A style is family[-keep][+kinds]; see SPEC section 11.",
+  "rows": [
+   {
+    "name": "python by extension",
+    "path": "src/a.py",
+    "style": "python"
+   },
+   {
+    "name": "python, in capitals",
+    "path": "src_py/pkg/a.PY",
+    "style": "python"
+   },
+   {
+    "name": "python stubs",
+    "path": "x.pyi",
+    "style": "python"
+   },
+   {
+    "name": "python for windows",
+    "path": "x.pyw",
+    "style": "python"
+   },
+   {
+    "name": "cython",
+    "path": "x.pyx",
+    "style": "python"
+   },
+   {
+    "name": "starlark",
+    "path": "rules.bzl",
+    "style": "python"
+   },
+   {
+    "name": "bazel build files are known by their name, as written",
+    "path": "pkg/BUILD",
+    "style": "python"
+   },
+   {
+    "name": "a script called build is not bazel",
+    "path": "scripts/build",
+    "style": "safe"
+   },
+   {
+    "name": "nor is a file called workspace",
+    "path": "workspace",
+    "style": "safe"
+   },
+   {
+    "name": "shell",
+    "path": "run.sh",
+    "style": "hash"
+   },
+   {
+    "name": "bash",
+    "path": "run.bash",
+    "style": "hash"
+   },
+   {
+    "name": "zsh",
+    "path": "run.zsh",
+    "style": "hash"
+   },
+   {
+    "name": "ruby",
+    "path": "a.rb",
+    "style": "hash"
+   },
+   {
+    "name": "perl",
+    "path": "a.pl",
+    "style": "hash"
+   },
+   {
+    "name": "r",
+    "path": "a.r",
+    "style": "hash"
+   },
+   {
+    "name": "toml",
+    "path": "conf.toml",
+    "style": "hash"
+   },
+   {
+    "name": "elixir",
+    "path": "a.ex",
+    "style": "hash"
+   },
+   {
+    "name": "a Dockerfile is known by its name",
+    "path": "Dockerfile",
+    "style": "hash"
+   },
+   {
+    "name": "in any case, in a folder",
+    "path": "ci/dockerfile",
+    "style": "hash"
+   },
+   {
+    "name": "sql",
+    "path": "q.sql",
+    "style": "dash"
+   },
+   {
+    "name": "lua",
+    "path": "a.lua",
+    "style": "dash"
+   },
+   {
+    "name": "haskell keeps its indentation",
+    "path": "a.hs",
+    "style": "dash-keep"
+   },
+   {
+    "name": "elm",
+    "path": "a.elm",
+    "style": "dash-keep"
+   },
+   {
+    "name": "nim",
+    "path": "a.nim",
+    "style": "hash-keep"
+   },
+   {
+    "name": "coffeescript",
+    "path": "a.coffee",
+    "style": "hash-keep"
+   },
+   {
+    "name": "javascript has template literals",
+    "path": "a.js",
+    "style": "c+tick"
+   },
+   {
+    "name": "typescript",
+    "path": "a.ts",
+    "style": "c+tick"
+   },
+   {
+    "name": "typescript with jsx",
+    "path": "a.tsx",
+    "style": "c+tick"
+   },
+   {
+    "name": "go has raw strings with backticks, where a backslash is just a backslash",
+    "path": "a.go",
+    "style": "c+rawtick"
+   },
+   {
+    "name": "java has text blocks",
+    "path": "a.java",
+    "style": "c+triple"
+   },
+   {
+    "name": "kotlin",
+    "path": "a.kt",
+    "style": "c+triple"
+   },
+   {
+    "name": "swift",
+    "path": "a.swift",
+    "style": "c+triple"
+   },
+   {
+    "name": "c sharp",
+    "path": "a.cs",
+    "style": "c+triple"
+   },
+   {
+    "name": "dart has both kinds of triple quotes",
+    "path": "a.dart",
+    "style": "c+triple+triple1"
+   },
+   {
+    "name": "scala keeps its indentation, since scala 3 may leave out braces",
+    "path": "a.scala",
+    "style": "c-keep+triple"
+   },
+   {
+    "name": "f sharp",
+    "path": "a.fs",
+    "style": "c-keep"
+   },
+   {
+    "name": "c",
+    "path": "a.c",
+    "style": "c"
+   },
+   {
+    "name": "c plus plus",
+    "path": "a.cpp",
+    "style": "c"
+   },
+   {
+    "name": "a header",
+    "path": "a.h",
+    "style": "c"
+   },
+   {
+    "name": "objective c plus plus",
+    "path": "a.mm",
+    "style": "c"
+   },
+   {
+    "name": "rust",
+    "path": "a.rs",
+    "style": "c"
+   },
+   {
+    "name": "php",
+    "path": "a.php",
+    "style": "c"
+   },
+   {
+    "name": "html",
+    "path": "a.html",
+    "style": "c"
+   },
+   {
+    "name": "css",
+    "path": "a.css",
+    "style": "c"
+   },
+   {
+    "name": "json",
+    "path": "a.json",
+    "style": "c"
+   },
+   {
+    "name": "yaml is safe: a # line in a block scalar is text",
+    "path": "a.yml",
+    "style": "safe"
+   },
+   {
+    "name": "a makefile is known by its name and is safe",
+    "path": "Makefile",
+    "style": "safe"
+   },
+   {
+    "name": "erlang is not listed for hashing",
+    "path": "a.erl",
+    "style": "safe"
+   },
+   {
+    "name": "no extension",
+    "path": "LICENSE",
+    "style": "safe"
+   },
+   {
+    "name": "a dot only in the folder",
+    "path": "dir.py/file",
+    "style": "safe"
+   },
+   {
+    "name": "a dot in a folder of another file",
+    "path": "a.b/c",
+    "style": "safe"
+   },
+   {
+    "name": "an unlisted extension",
+    "path": "a.unknown",
+    "style": "safe"
+   },
+   {
+    "name": "the last dot counts",
+    "path": "a.py.txt",
+    "style": "safe"
+   },
+   {
+    "name": "a name that is only an extension",
+    "path": ".py",
+    "style": "python"
+   },
+   {
+    "name": "the table: .ada",
+    "path": "a.ada",
+    "style": "dash"
+   },
+   {
+    "name": "the table: .adb",
+    "path": "a.adb",
+    "style": "dash"
+   },
+   {
+    "name": "the table: .ads",
+    "path": "a.ads",
+    "style": "dash"
+   },
+   {
+    "name": "the table: .asp",
+    "path": "a.asp",
+    "style": "c"
+   },
+   {
+    "name": "the table: .aspx",
+    "path": "a.aspx",
+    "style": "c"
+   },
+   {
+    "name": "the table: .astro",
+    "path": "a.astro",
+    "style": "c"
+   },
+   {
+    "name": "the table: .awk",
+    "path": "a.awk",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .bas",
+    "path": "a.bas",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .bash",
+    "path": "a.bash",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .bat",
+    "path": "a.bat",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .bazel",
+    "path": "a.bazel",
+    "style": "python"
+   },
+   {
+    "name": "the table: .bzl",
+    "path": "a.bzl",
+    "style": "python"
+   },
+   {
+    "name": "the table: .c",
+    "path": "a.c",
+    "style": "c"
+   },
+   {
+    "name": "the table: .c++",
+    "path": "a.c++",
+    "style": "c"
+   },
+   {
+    "name": "the table: .cc",
+    "path": "a.cc",
+    "style": "c"
+   },
+   {
+    "name": "the table: .cjs",
+    "path": "a.cjs",
+    "style": "c+tick"
+   },
+   {
+    "name": "the table: .cl",
+    "path": "a.cl",
+    "style": "c"
+   },
+   {
+    "name": "the table: .cmake",
+    "path": "a.cmake",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .cmd",
+    "path": "a.cmd",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .coffee",
+    "path": "a.coffee",
+    "style": "hash-keep"
+   },
+   {
+    "name": "the table: .comp",
+    "path": "a.comp",
+    "style": "c"
+   },
+   {
+    "name": "the table: .cpp",
+    "path": "a.cpp",
+    "style": "c"
+   },
+   {
+    "name": "the table: .cppm",
+    "path": "a.cppm",
+    "style": "c"
+   },
+   {
+    "name": "the table: .cr",
+    "path": "a.cr",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .cs",
+    "path": "a.cs",
+    "style": "c+triple"
+   },
+   {
+    "name": "the table: .cshtml",
+    "path": "a.cshtml",
+    "style": "c"
+   },
+   {
+    "name": "the table: .csproj",
+    "path": "a.csproj",
+    "style": "c"
+   },
+   {
+    "name": "the table: .css",
+    "path": "a.css",
+    "style": "c"
+   },
+   {
+    "name": "the table: .cts",
+    "path": "a.cts",
+    "style": "c+tick"
+   },
+   {
+    "name": "the table: .cu",
+    "path": "a.cu",
+    "style": "c"
+   },
+   {
+    "name": "the table: .cuh",
+    "path": "a.cuh",
+    "style": "c"
+   },
+   {
+    "name": "the table: .cxx",
+    "path": "a.cxx",
+    "style": "c"
+   },
+   {
+    "name": "the table: .d",
+    "path": "a.d",
+    "style": "c"
+   },
+   {
+    "name": "the table: .dart",
+    "path": "a.dart",
+    "style": "c+triple+triple1"
+   },
+   {
+    "name": "the table: .dts",
+    "path": "a.dts",
+    "style": "c"
+   },
+   {
+    "name": "the table: .dtsi",
+    "path": "a.dtsi",
+    "style": "c"
+   },
+   {
+    "name": "the table: .ejs",
+    "path": "a.ejs",
+    "style": "c"
+   },
+   {
+    "name": "the table: .elm",
+    "path": "a.elm",
+    "style": "dash-keep"
+   },
+   {
+    "name": "the table: .erb",
+    "path": "a.erb",
+    "style": "c"
+   },
+   {
+    "name": "the table: .erl",
+    "path": "a.erl",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .ex",
+    "path": "a.ex",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .exs",
+    "path": "a.exs",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .f",
+    "path": "a.f",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .f03",
+    "path": "a.f03",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .f08",
+    "path": "a.f08",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .f90",
+    "path": "a.f90",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .f95",
+    "path": "a.f95",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .fish",
+    "path": "a.fish",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .for",
+    "path": "a.for",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .frag",
+    "path": "a.frag",
+    "style": "c"
+   },
+   {
+    "name": "the table: .fs",
+    "path": "a.fs",
+    "style": "c-keep"
+   },
+   {
+    "name": "the table: .fsi",
+    "path": "a.fsi",
+    "style": "c-keep"
+   },
+   {
+    "name": "the table: .fsproj",
+    "path": "a.fsproj",
+    "style": "c"
+   },
+   {
+    "name": "the table: .fsx",
+    "path": "a.fsx",
+    "style": "c-keep"
+   },
+   {
+    "name": "the table: .ftn",
+    "path": "a.ftn",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .gemspec",
+    "path": "a.gemspec",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .geom",
+    "path": "a.geom",
+    "style": "c"
+   },
+   {
+    "name": "the table: .glsl",
+    "path": "a.glsl",
+    "style": "c"
+   },
+   {
+    "name": "the table: .go",
+    "path": "a.go",
+    "style": "c+rawtick"
+   },
+   {
+    "name": "the table: .gql",
+    "path": "a.gql",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .gradle",
+    "path": "a.gradle",
+    "style": "c+triple+triple1"
+   },
+   {
+    "name": "the table: .graphql",
+    "path": "a.graphql",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .groovy",
+    "path": "a.groovy",
+    "style": "c+triple+triple1"
+   },
+   {
+    "name": "the table: .h",
+    "path": "a.h",
+    "style": "c"
+   },
+   {
+    "name": "the table: .h++",
+    "path": "a.h++",
+    "style": "c"
+   },
+   {
+    "name": "the table: .hbs",
+    "path": "a.hbs",
+    "style": "c"
+   },
+   {
+    "name": "the table: .hh",
+    "path": "a.hh",
+    "style": "c"
+   },
+   {
+    "name": "the table: .hlsl",
+    "path": "a.hlsl",
+    "style": "c"
+   },
+   {
+    "name": "the table: .hlsli",
+    "path": "a.hlsli",
+    "style": "c"
+   },
+   {
+    "name": "the table: .hpp",
+    "path": "a.hpp",
+    "style": "c"
+   },
+   {
+    "name": "the table: .hrl",
+    "path": "a.hrl",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .hs",
+    "path": "a.hs",
+    "style": "dash-keep"
+   },
+   {
+    "name": "the table: .htm",
+    "path": "a.htm",
+    "style": "c"
+   },
+   {
+    "name": "the table: .html",
+    "path": "a.html",
+    "style": "c"
+   },
+   {
+    "name": "the table: .hxx",
+    "path": "a.hxx",
+    "style": "c"
+   },
+   {
+    "name": "the table: .idr",
+    "path": "a.idr",
+    "style": "dash-keep"
+   },
+   {
+    "name": "the table: .inl",
+    "path": "a.inl",
+    "style": "c"
+   },
+   {
+    "name": "the table: .ino",
+    "path": "a.ino",
+    "style": "c"
+   },
+   {
+    "name": "the table: .ipp",
+    "path": "a.ipp",
+    "style": "c"
+   },
+   {
+    "name": "the table: .ixx",
+    "path": "a.ixx",
+    "style": "c"
+   },
+   {
+    "name": "the table: .java",
+    "path": "a.java",
+    "style": "c+triple"
+   },
+   {
+    "name": "the table: .jl",
+    "path": "a.jl",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .js",
+    "path": "a.js",
+    "style": "c+tick"
+   },
+   {
+    "name": "the table: .json",
+    "path": "a.json",
+    "style": "c"
+   },
+   {
+    "name": "the table: .json5",
+    "path": "a.json5",
+    "style": "c"
+   },
+   {
+    "name": "the table: .jsonc",
+    "path": "a.jsonc",
+    "style": "c"
+   },
+   {
+    "name": "the table: .jsp",
+    "path": "a.jsp",
+    "style": "c"
+   },
+   {
+    "name": "the table: .jsx",
+    "path": "a.jsx",
+    "style": "c+tick"
+   },
+   {
+    "name": "the table: .ksh",
+    "path": "a.ksh",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .kt",
+    "path": "a.kt",
+    "style": "c+triple"
+   },
+   {
+    "name": "the table: .kts",
+    "path": "a.kts",
+    "style": "c+triple"
+   },
+   {
+    "name": "the table: .less",
+    "path": "a.less",
+    "style": "c"
+   },
+   {
+    "name": "the table: .liquid",
+    "path": "a.liquid",
+    "style": "c"
+   },
+   {
+    "name": "the table: .lua",
+    "path": "a.lua",
+    "style": "dash"
+   },
+   {
+    "name": "the table: .m",
+    "path": "a.m",
+    "style": "c"
+   },
+   {
+    "name": "the table: .mdx",
+    "path": "a.mdx",
+    "style": "c"
+   },
+   {
+    "name": "the table: .mesh",
+    "path": "a.mesh",
+    "style": "c"
+   },
+   {
+    "name": "the table: .metal",
+    "path": "a.metal",
+    "style": "c"
+   },
+   {
+    "name": "the table: .mjs",
+    "path": "a.mjs",
+    "style": "c+tick"
+   },
+   {
+    "name": "the table: .ml",
+    "path": "a.ml",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .mli",
+    "path": "a.mli",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .mll",
+    "path": "a.mll",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .mly",
+    "path": "a.mly",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .mm",
+    "path": "a.mm",
+    "style": "c"
+   },
+   {
+    "name": "the table: .mts",
+    "path": "a.mts",
+    "style": "c+tick"
+   },
+   {
+    "name": "the table: .mustache",
+    "path": "a.mustache",
+    "style": "c"
+   },
+   {
+    "name": "the table: .nim",
+    "path": "a.nim",
+    "style": "hash-keep"
+   },
+   {
+    "name": "the table: .nims",
+    "path": "a.nims",
+    "style": "hash-keep"
+   },
+   {
+    "name": "the table: .nix",
+    "path": "a.nix",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .pas",
+    "path": "a.pas",
+    "style": "c"
+   },
+   {
+    "name": "the table: .php",
+    "path": "a.php",
+    "style": "c"
+   },
+   {
+    "name": "the table: .pl",
+    "path": "a.pl",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .plist",
+    "path": "a.plist",
+    "style": "c"
+   },
+   {
+    "name": "the table: .pm",
+    "path": "a.pm",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .pp",
+    "path": "a.pp",
+    "style": "c"
+   },
+   {
+    "name": "the table: .prisma",
+    "path": "a.prisma",
+    "style": "c"
+   },
+   {
+    "name": "the table: .props",
+    "path": "a.props",
+    "style": "c"
+   },
+   {
+    "name": "the table: .proto",
+    "path": "a.proto",
+    "style": "c"
+   },
+   {
+    "name": "the table: .ps1",
+    "path": "a.ps1",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .psm1",
+    "path": "a.psm1",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .purs",
+    "path": "a.purs",
+    "style": "dash-keep"
+   },
+   {
+    "name": "the table: .pxd",
+    "path": "a.pxd",
+    "style": "python"
+   },
+   {
+    "name": "the table: .pxi",
+    "path": "a.pxi",
+    "style": "python"
+   },
+   {
+    "name": "the table: .py",
+    "path": "a.py",
+    "style": "python"
+   },
+   {
+    "name": "the table: .pyi",
+    "path": "a.pyi",
+    "style": "python"
+   },
+   {
+    "name": "the table: .pyw",
+    "path": "a.pyw",
+    "style": "python"
+   },
+   {
+    "name": "the table: .pyx",
+    "path": "a.pyx",
+    "style": "python"
+   },
+   {
+    "name": "the table: .r",
+    "path": "a.r",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .rahit",
+    "path": "a.rahit",
+    "style": "c"
+   },
+   {
+    "name": "the table: .rake",
+    "path": "a.rake",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .razor",
+    "path": "a.razor",
+    "style": "c"
+   },
+   {
+    "name": "the table: .rb",
+    "path": "a.rb",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .rcall",
+    "path": "a.rcall",
+    "style": "c"
+   },
+   {
+    "name": "the table: .rchit",
+    "path": "a.rchit",
+    "style": "c"
+   },
+   {
+    "name": "the table: .resx",
+    "path": "a.resx",
+    "style": "c"
+   },
+   {
+    "name": "the table: .rgen",
+    "path": "a.rgen",
+    "style": "c"
+   },
+   {
+    "name": "the table: .rint",
+    "path": "a.rint",
+    "style": "c"
+   },
+   {
+    "name": "the table: .rmiss",
+    "path": "a.rmiss",
+    "style": "c"
+   },
+   {
+    "name": "the table: .rs",
+    "path": "a.rs",
+    "style": "c"
+   },
+   {
+    "name": "the table: .rss",
+    "path": "a.rss",
+    "style": "c"
+   },
+   {
+    "name": "the table: .sass",
+    "path": "a.sass",
+    "style": "c-keep"
+   },
+   {
+    "name": "the table: .sc",
+    "path": "a.sc",
+    "style": "c-keep+triple"
+   },
+   {
+    "name": "the table: .scala",
+    "path": "a.scala",
+    "style": "c-keep+triple"
+   },
+   {
+    "name": "the table: .scss",
+    "path": "a.scss",
+    "style": "c"
+   },
+   {
+    "name": "the table: .sh",
+    "path": "a.sh",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .sky",
+    "path": "a.sky",
+    "style": "python"
+   },
+   {
+    "name": "the table: .slang",
+    "path": "a.slang",
+    "style": "c"
+   },
+   {
+    "name": "the table: .sol",
+    "path": "a.sol",
+    "style": "c"
+   },
+   {
+    "name": "the table: .sql",
+    "path": "a.sql",
+    "style": "dash"
+   },
+   {
+    "name": "the table: .star",
+    "path": "a.star",
+    "style": "python"
+   },
+   {
+    "name": "the table: .storyboard",
+    "path": "a.storyboard",
+    "style": "c"
+   },
+   {
+    "name": "the table: .sty",
+    "path": "a.sty",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .styl",
+    "path": "a.styl",
+    "style": "c-keep"
+   },
+   {
+    "name": "the table: .sv",
+    "path": "a.sv",
+    "style": "c"
+   },
+   {
+    "name": "the table: .svelte",
+    "path": "a.svelte",
+    "style": "c"
+   },
+   {
+    "name": "the table: .svg",
+    "path": "a.svg",
+    "style": "c"
+   },
+   {
+    "name": "the table: .svh",
+    "path": "a.svh",
+    "style": "c"
+   },
+   {
+    "name": "the table: .swift",
+    "path": "a.swift",
+    "style": "c+triple"
+   },
+   {
+    "name": "the table: .targets",
+    "path": "a.targets",
+    "style": "c"
+   },
+   {
+    "name": "the table: .task",
+    "path": "a.task",
+    "style": "c"
+   },
+   {
+    "name": "the table: .tcl",
+    "path": "a.tcl",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .tesc",
+    "path": "a.tesc",
+    "style": "c"
+   },
+   {
+    "name": "the table: .tese",
+    "path": "a.tese",
+    "style": "c"
+   },
+   {
+    "name": "the table: .tex",
+    "path": "a.tex",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .tf",
+    "path": "a.tf",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .tfvars",
+    "path": "a.tfvars",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .thrift",
+    "path": "a.thrift",
+    "style": "c"
+   },
+   {
+    "name": "the table: .toml",
+    "path": "a.toml",
+    "style": "hash"
+   },
+   {
+    "name": "the table: .tpp",
+    "path": "a.tpp",
+    "style": "c"
+   },
+   {
+    "name": "the table: .ts",
+    "path": "a.ts",
+    "style": "c+tick"
+   },
+   {
+    "name": "the table: .tsx",
+    "path": "a.tsx",
+    "style": "c+tick"
+   },
+   {
+    "name": "the table: .twig",
+    "path": "a.twig",
+    "style": "c"
+   },
+   {
+    "name": "the table: .v",
+    "path": "a.v",
+    "style": "c"
+   },
+   {
+    "name": "the table: .vb",
+    "path": "a.vb",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .vbproj",
+    "path": "a.vbproj",
+    "style": "c"
+   },
+   {
+    "name": "the table: .vbs",
+    "path": "a.vbs",
+    "style": "safe"
+   },
+   {
+    "name": "the table: .vert",
+    "path": "a.vert",
+    "style": "c"
+   },
+   {
+    "name": "the table: .vhd",
+    "path": "a.vhd",
+    "style": "dash"
+   },
+   {
+    "name": "the table: .vhdl",
+    "path": "a.vhdl",
+    "style": "dash"
+   },
+   {
+    "name": "the table: .vue",
+    "path": "a.vue",
+    "style": "c"
+   },
+   {
+    "name": "the table: .wgsl",
+    "path": "a.wgsl",
+    "style": "c"
+   },
+   {
+    "name": "the table: .wsdl",
+    "path": "a.wsdl",
+    "style": "c"
+   },
+   {
+    "name": "the table: .xaml",
+    "path": "a.xaml",
+    "style": "c"
+   },
+   {
+    "name": "the table: .xhtml",
+    "path": "a.xhtml",
+    "style": "c"
+   },
+   {
+    "name": "the table: .xib",
+    "path": "a.xib",
+    "style": "c"
+   },
+   {
+    "name": "the table: .xml",
+    "path": "a.xml",
+    "style": "c"
+   },
+   {
+    "name": "the table: .xsd",
+    "path": "a.xsd",
+    "style": "c"
+   },
+   {
+    "name": "the table: .xsl",
+    "path": "a.xsl",
+    "style": "c"
+   },
+   {
+    "name": "the table: .xslt",
+    "path": "a.xslt",
+    "style": "c"
+   },
+   {
+    "name": "the table: .zig",
+    "path": "a.zig",
+    "style": "c"
+   },
+   {
+    "name": "the table: .zsh",
+    "path": "a.zsh",
+    "style": "hash"
+   },
+   {
+    "name": "the table, by name: cmakelists.txt",
+    "path": "x/cmakelists.txt",
+    "style": "hash"
+   },
+   {
+    "name": "the table, by name: containerfile",
+    "path": "x/containerfile",
+    "style": "hash"
+   },
+   {
+    "name": "the table, by name: dockerfile",
+    "path": "x/dockerfile",
+    "style": "hash"
+   },
+   {
+    "name": "the table, by name: gemfile",
+    "path": "x/gemfile",
+    "style": "hash"
+   },
+   {
+    "name": "the table, by name: rakefile",
+    "path": "x/rakefile",
+    "style": "hash"
+   },
+   {
+    "name": "the table, by name: vagrantfile",
+    "path": "x/vagrantfile",
+    "style": "hash"
+   },
+   {
+    "name": "the table, by exact name: BUILD",
+    "path": "x/BUILD",
+    "style": "python"
+   },
+   {
+    "name": "the table, by exact name: WORKSPACE",
+    "path": "x/WORKSPACE",
+    "style": "python"
+   }
+  ]
+ },
+ "split_lines": {
+  "how": "split_lines(text) -> lines: a line ends at LF, CRLF or CR and nowhere else; no empty last line for a final break.",
+  "rows": [
+   {
+    "name": "line feed, and no empty line after the last",
+    "text": "a\nb\n",
+    "lines": [
+     "a",
+     "b"
+    ]
+   },
+   {
+    "name": "carriage return and line feed",
+    "text": "a\r\nb",
+    "lines": [
+     "a",
+     "b"
+    ]
+   },
+   {
+    "name": "a lone carriage return",
+    "text": "a\rb",
+    "lines": [
+     "a",
+     "b"
+    ]
+   },
+   {
+    "name": "a form feed is not a line break",
+    "text": "a\fb\nc",
+    "lines": [
+     "a\fb",
+     "c"
+    ]
+   },
+   {
+    "name": "a vertical tab is not a line break",
+    "text": "a\u000bb",
+    "lines": [
+     "a\u000bb"
+    ]
+   },
+   {
+    "name": "a Unicode line separator is not a line break",
+    "text": "a b\nc",
+    "lines": [
+     "a b",
+     "c"
+    ]
+   },
+   {
+    "name": "an empty text has no lines",
+    "text": "",
+    "lines": []
+   },
+   {
+    "name": "one line feed is one empty line",
+    "text": "\n",
+    "lines": [
+     ""
+    ]
+   },
+   {
+    "name": "a blank line in the middle and at the end",
+    "text": "a\n\n",
+    "lines": [
+     "a",
+     ""
+    ]
+   },
+   {
+    "name": "no line feed at the end",
+    "text": "a",
+    "lines": [
+     "a"
+    ]
+   }
+  ]
+ },
+ "normalize": {
+  "how": "normalized(lines, style) -> text: the code as the lock sees it.",
+  "rows": [
+   {
+    "name": "c: the TypeScript row whose hash was pinned before the rule followed the file type",
+    "style": "c",
+    "lines": [
+     "  // note",
+     "export const total = (items: number[]) => {",
+     "    return items.reduce((a, b) => a + b, 0);   ",
+     "};",
+     "",
+     "/* block */"
+    ],
+    "normalized": "export const total = (items: number[]) => {\nreturn items.reduce((a, b) => a + b, 0);\n};",
+    "hash": "5502253e7c35"
+   },
+   {
+    "name": "c: `#include` and `#define` are code in C",
+    "style": "c",
+    "lines": [
+     "#include <stdio.h>",
+     "#define N 3",
+     "  int main(void) {",
+     "      return  N;",
+     "  }"
+    ],
+    "normalized": "#include <stdio.h>\n#define N 3\nint main(void) {\nreturn N;\n}",
+    "hash": "03f73544624d"
+   },
+   {
+    "name": "c: html keeps the spaces inside quotes and drops a comment line",
+    "style": "c",
+    "lines": [
+     "<!-- c -->",
+     "<p   class=\"a  b\">hi   there</p>"
+    ],
+    "normalized": "<p class=\"a  b\">hi there</p>",
+    "hash": "a10cf9686abb"
+   },
+   {
+    "name": "c: spaces inside quotes stay as written, outside they collapse",
+    "style": "c",
+    "lines": [
+     "x  =  \"a   b\"  +  'c  d'"
+    ],
+    "normalized": "x = \"a   b\" + 'c  d'",
+    "hash": "6a694c2590a0"
+   },
+   {
+    "name": "c: a comment after code is part of its line",
+    "style": "c",
+    "lines": [
+     "a();  // note"
+    ],
+    "normalized": "a(); // note",
+    "hash": "559e91a817b3"
+   },
+   {
+    "name": "c: a line that starts with /* and ends with */ is a comment even when code sits between",
+    "style": "c",
+    "lines": [
+     "/* a */ b(); /* c */",
+     "d();"
+    ],
+    "normalized": "d();",
+    "note": "known limit, pinned because locks depend on it",
+    "hash": "59246e7c774c"
+   },
+   {
+    "name": "c: blank lines and tabs go, lines keep their order",
+    "style": "c",
+    "lines": [
+     "\tone();",
+     "",
+     "\t\ttwo();",
+     "   "
+    ],
+    "normalized": "one();\ntwo();",
+    "hash": "ec20c1fb6bf5"
+   },
+   {
+    "name": "python: every statement carries its depth in levels",
+    "style": "python",
+    "lines": [
+     "def total(items):",
+     "    t = 0",
+     "    for i in items:",
+     "        t += i",
+     "    return t"
+    ],
+    "normalized": "0:def total(items):\n1:t = 0\n1:for i in items:\n2:t += i\n1:return t",
+    "hash": "47adda468a23"
+   },
+   {
+    "name": "python: two spaces instead of four is the same",
+    "style": "python",
+    "lines": [
+     "def total(items):",
+     "  t = 0",
+     "  for i in items:",
+     "    t += i",
+     "  return t"
+    ],
+    "normalized": "0:def total(items):\n1:t = 0\n1:for i in items:\n2:t += i\n1:return t",
+    "hash": "47adda468a23"
+   },
+   {
+    "name": "python: eight spaces instead of four is the same",
+    "style": "python",
+    "lines": [
+     "def total(items):",
+     "        t = 0",
+     "        for i in items:",
+     "                t += i",
+     "        return t"
+    ],
+    "normalized": "0:def total(items):\n1:t = 0\n1:for i in items:\n2:t += i\n1:return t",
+    "hash": "47adda468a23"
+   },
+   {
+    "name": "python: tabs count as eight columns and a level each",
+    "style": "python",
+    "lines": [
+     "def f():",
+     "\treturn 1"
+    ],
+    "normalized": "0:def f():\n1:return 1",
+    "hash": "66a9a3afaedb"
+   },
+   {
+    "name": "python: a line moved into the loop is a different text",
+    "style": "python",
+    "lines": [
+     "def total(items):",
+     "    t = 0",
+     "    for i in items:",
+     "        t += i",
+     "        return t"
+    ],
+    "normalized": "0:def total(items):\n1:t = 0\n1:for i in items:\n2:t += i\n2:return t",
+    "hash": "fe90361250da"
+   },
+   {
+    "name": "python: comment-only and blank lines go, a comment after code stays",
+    "style": "python",
+    "lines": [
+     "# about it",
+     "",
+     "x = 1  # one",
+     "    # indented comment",
+     "y = 2"
+    ],
+    "normalized": "0:x = 1 # one\n0:y = 2",
+    "hash": "1bd7e6932c02"
+   },
+   {
+    "name": "python: else and elif sit at the level of their if",
+    "style": "python",
+    "lines": [
+     "if x:",
+     "    a()",
+     "elif y:",
+     "    b()",
+     "else:",
+     "    c()"
+    ],
+    "normalized": "0:if x:\n1:a()\n0:elif y:\n1:b()\n0:else:\n1:c()",
+    "hash": "7ec5620ed396"
+   },
+   {
+    "name": "python: lines inside brackets carry no depth and a comment line there goes",
+    "style": "python",
+    "lines": [
+     "x = foo(",
+     "        1,   ",
+     "   # between",
+     "    2,",
+     ")",
+     "y = 3"
+    ],
+    "normalized": "0:x = foo(\n1,\n2,\n)\n0:y = 3",
+    "hash": "58ad5dfdc4ea"
+   },
+   {
+    "name": "python: a backslash continuation carries no depth",
+    "style": "python",
+    "lines": [
+     "total = a + \\",
+     "        b",
+     "next = 1"
+    ],
+    "normalized": "0:total = a + \\\nb\n0:next = 1",
+    "hash": "c5c78dabcd4a"
+   },
+   {
+    "name": "python: brackets and hashes inside strings are text",
+    "style": "python",
+    "lines": [
+     "x = \"(\" + '#'",
+     "y = 1"
+    ],
+    "normalized": "0:x = \"(\" + '#'\n0:y = 1",
+    "hash": "b80b734724b6"
+   },
+   {
+    "name": "python: a # line inside a multi-line string is text",
+    "style": "python",
+    "lines": [
+     "DOC = \"\"\"",
+     "# Heading",
+     "text",
+     "\"\"\"",
+     "run()"
+    ],
+    "normalized": "0:DOC = \"\"\"\n# Heading\ntext\n\"\"\"\n0:run()",
+    "hash": "0076a2ca2248"
+   },
+   {
+    "name": "python: a string a backslash continues does not blind the lines after it",
+    "style": "python",
+    "lines": [
+     "def f(items):",
+     "    for item in items:",
+     "        x = 'a\\",
+     "(b'",
+     "        y = 1",
+     "        z = 2",
+     "    return 3"
+    ],
+    "normalized": "0:def f(items):\n1:for item in items:\n2:x = 'a\\\n(b'\n2:y = 1\n2:z = 2\n1:return 3",
+    "hash": "03cd032a969b"
+   },
+   {
+    "name": "python: an escaped backslash at the end of a string continues nothing",
+    "style": "python",
+    "lines": [
+     "x = 'a\\\\'",
+     "# note",
+     "y = 1"
+    ],
+    "normalized": "0:x = 'a\\\\'\n0:y = 1",
+    "hash": "a193a250cd7a"
+   },
+   {
+    "name": "python: a tab goes to the next multiple of eight columns, also after spaces",
+    "style": "python",
+    "lines": [
+     "if x:",
+     "  \ty",
+     "          z"
+    ],
+    "normalized": "0:if x:\n1:y\n2:z",
+    "hash": "f2b9d09fff7d"
+   },
+   {
+    "name": "python: a piece that dips below its first line counts a level below it",
+    "style": "python",
+    "lines": [
+     "        a = 1",
+     "    b = 2",
+     "        c = 3"
+    ],
+    "normalized": "0:a = 1\n-1:b = 2\n0:c = 3",
+    "hash": "22342b421fcf"
+   },
+   {
+    "name": "python: the same piece in other columns is the same",
+    "style": "python",
+    "lines": [
+     "  a = 1",
+     "b = 2",
+     "  c = 3"
+    ],
+    "normalized": "0:a = 1\n-1:b = 2\n0:c = 3",
+    "hash": "22342b421fcf"
+   },
+   {
+    "name": "python: a shebang and a coding cookie are code",
+    "style": "python",
+    "lines": [
+     "#!/usr/bin/env python3",
+     "# -*- coding: latin-1 -*-",
+     "# plain",
+     "x = 1"
+    ],
+    "normalized": "0:#!/usr/bin/env python3\n0:# -*- coding: latin-1 -*-\n0:x = 1",
+    "hash": "83132c55dcb3"
+   },
+   {
+    "name": "python: an f-string that reuses its quote in a field, with a bracket in it, does not hide the nesting after it",
+    "style": "python",
+    "lines": [
+     "def clean(s):",
+     "    t = f\"{s.replace(\"(\", \"\")}\"",
+     "    if t:",
+     "        return t",
+     "    return None"
+    ],
+    "normalized": "0:def clean(s):\n1:t = f\"{s.replace(\"(\", \"\")}\"\n1:if t:\n2:return t\n1:return None",
+    "hash": "62e65e47590e"
+   },
+   {
+    "name": "python: a field of an f-string may span lines, and its lines carry no depth",
+    "style": "python",
+    "lines": [
+     "x = f\"{",
+     "    a +",
+     "    b",
+     "}\"",
+     "if x:",
+     "    pass"
+    ],
+    "normalized": "0:x = f\"{\na +\nb\n}\"\n0:if x:\n1:pass",
+    "hash": "485d818d1fce"
+   },
+   {
+    "name": "python: fields nested in a format spec close where they should",
+    "style": "python",
+    "lines": [
+     "x = f\"{a:{w}.{p}}\"",
+     "if x:",
+     "    pass"
+    ],
+    "normalized": "0:x = f\"{a:{w}.{p}}\"\n0:if x:\n1:pass",
+    "hash": "f10d4fc64221"
+   },
+   {
+    "name": "python: a # in a format spec is text, not a comment",
+    "style": "python",
+    "lines": [
+     "x = f\"{n:#x}\"",
+     "if x:",
+     "    pass"
+    ],
+    "normalized": "0:x = f\"{n:#x}\"\n0:if x:\n1:pass",
+    "hash": "a6bbb9261315"
+   },
+   {
+    "name": "python: a quote in a format spec is text, not a string",
+    "style": "python",
+    "lines": [
+     "x = f\"{n:'>10}\"",
+     "if x:",
+     "    pass"
+    ],
+    "normalized": "0:x = f\"{n:'>10}\"\n0:if x:\n1:pass",
+    "hash": "196c0840fc6d"
+   },
+   {
+    "name": "python: in a raw f-string a backslash before a brace does not hide the field",
+    "style": "python",
+    "lines": [
+     "x = rf\"\\{d[\"(\"]}\"",
+     "if x:",
+     "    pass"
+    ],
+    "normalized": "0:x = rf\"\\{d[\"(\"]}\"\n0:if x:\n1:pass",
+    "hash": "5e7d577830bd"
+   },
+   {
+    "name": "python: in an f-string that is not raw a backslash before a brace is text and the brace opens a field",
+    "style": "python",
+    "lines": [
+     "x = f\"\\{d[\"(\"]}\"",
+     "if x:",
+     "    pass"
+    ],
+    "normalized": "0:x = f\"\\{d[\"(\"]}\"\n0:if x:\n1:pass",
+    "hash": "be241679e8b9"
+   },
+   {
+    "name": "python: a backslash at the end of the text of an f-string goes on to the next line",
+    "style": "python",
+    "lines": [
+     "x = f\"ab\\",
+     "# still text {y}\"",
+     "z = 1"
+    ],
+    "normalized": "0:x = f\"ab\\\n# still text {y}\"\n0:z = 1",
+    "hash": "d5a9e74a2c00"
+   },
+   {
+    "name": "python: \\N{ in an f-string reads a name up to the next }",
+    "style": "python",
+    "lines": [
+     "x = f\"\\N{ab",
+     "y = 1"
+    ],
+    "normalized": "0:x = f\"\\N{ab\n0:y = 1",
+    "hash": "1acf4031d1e4"
+   },
+   {
+    "name": "python: a string nobody closes ends with its line",
+    "style": "python",
+    "lines": [
+     "x = \"abc",
+     "# a note",
+     "y = 1"
+    ],
+    "normalized": "0:x = \"abc\n0:y = 1",
+    "hash": "2617e6958047"
+   },
+   {
+    "name": "python: a triple-quoted f-string keeps its lines, whatever they start with",
+    "style": "python",
+    "lines": [
+     "s = f\"\"\"",
+     "# heading {x}",
+     "{y:>{w}}",
+     "\"\"\"",
+     "z = 2"
+    ],
+    "normalized": "0:s = f\"\"\"\n# heading {x}\n{y:>{w}}\n\"\"\"\n0:z = 2",
+    "hash": "6d557c1822af"
+   },
+   {
+    "name": "python: a name that ends in f is not a string prefix",
+    "style": "python",
+    "lines": [
+     "y = [1 if\"(\" else 2]",
+     "z = 1"
+    ],
+    "normalized": "0:y = [1 if\"(\" else 2]\n0:z = 1",
+    "hash": "d313c1412dec"
+   },
+   {
+    "name": "python: a name that ends in f is not a string prefix, also when the string has a brace",
+    "style": "python",
+    "lines": [
+     "y = [1 if\"{\" else 2]",
+     "z = 1"
+    ],
+    "normalized": "0:y = [1 if\"{\" else 2]\n0:z = 1",
+    "hash": "820ea8f2dadb"
+   },
+   {
+    "name": "python: a template string (Python 3.14) is read like an f-string",
+    "style": "python",
+    "lines": [
+     "def clean(s):",
+     "    x = t\"{s.replace(\"(\", \"\")}\"",
+     "    if x:",
+     "        return x",
+     "    return None"
+    ],
+    "normalized": "0:def clean(s):\n1:x = t\"{s.replace(\"(\", \"\")}\"\n1:if x:\n2:return x\n1:return None",
+    "hash": "105291262e10"
+   },
+   {
+    "name": "hash: a shebang is code, a comment line is not",
+    "style": "hash",
+    "lines": [
+     "#!/bin/sh",
+     "# a comment",
+     "ls"
+    ],
+    "normalized": "#!/bin/sh\nls",
+    "hash": "fa8ec872a6fe"
+   },
+   {
+    "name": "hash: indentation does not count",
+    "style": "hash",
+    "lines": [
+     "if true; then",
+     "        echo there",
+     "fi"
+    ],
+    "normalized": "if true; then\necho there\nfi",
+    "hash": "4cd341a7c7f2"
+   },
+   {
+    "name": "hash: a # line inside a here-document is text, and the comments after it are comments again",
+    "style": "hash",
+    "lines": [
+     "cat <<EOF",
+     "# not a comment",
+     "  text",
+     "EOF",
+     "# a comment",
+     "echo hi"
+    ],
+    "normalized": "cat <<EOF\n# not a comment\ntext\nEOF\necho hi",
+    "hash": "74d15f5585d9"
+   },
+   {
+    "name": "hash: a here-string opens no here-document",
+    "style": "hash",
+    "lines": [
+     "cat <<<\"x\"",
+     "# c",
+     "echo 1"
+    ],
+    "normalized": "cat <<<\"x\"\necho 1",
+    "hash": "9d578d803839"
+   },
+   {
+    "name": "hash: a # line inside a string over several lines is text",
+    "style": "hash",
+    "lines": [
+     "echo \"a",
+     "# inside",
+     "b\"",
+     "# outside",
+     "ls"
+    ],
+    "normalized": "echo \"a\n# inside\nb\"\nls",
+    "hash": "33dcda147383"
+   },
+   {
+    "name": "hash: a toml multi-line string keeps its # lines",
+    "style": "hash",
+    "lines": [
+     "text = \"\"\"",
+     "# a line",
+     "\"\"\"",
+     "# a comment",
+     "n = 1"
+    ],
+    "normalized": "text = \"\"\"\n# a line\n\"\"\"\nn = 1",
+    "hash": "55f18715b993"
+   },
+   {
+    "name": "hash: a Ruby interpolation line in a here-document is text",
+    "style": "hash",
+    "lines": [
+     "puts <<~TEXT",
+     "  #{name}",
+     "  # not a comment",
+     "TEXT",
+     "puts 1"
+    ],
+    "normalized": "puts <<~TEXT\n#{name}\n# not a comment\nTEXT\nputs 1",
+    "hash": "ed1280d913c2"
+   },
+   {
+    "name": "hash: an apostrophe in a comment opens nothing",
+    "style": "hash",
+    "lines": [
+     "# don't",
+     "ls  # it's here",
+     "# isn't",
+     "wc"
+    ],
+    "normalized": "ls # it's here\nwc",
+    "hash": "4c311d3073b3"
+   },
+   {
+    "name": "hash: a # inside a word is not a comment",
+    "style": "hash",
+    "lines": [
+     "echo ${#list}",
+     "# c",
+     "ls"
+    ],
+    "normalized": "echo ${#list}\nls",
+    "hash": "b20d607b4629"
+   },
+   {
+    "name": "hash: a quote nobody closes keeps the lines after it as code",
+    "style": "hash",
+    "lines": [
+     "echo 'x",
+     "# c"
+    ],
+    "normalized": "echo 'x\n# c",
+    "hash": "5ebc3d9ebf05"
+   },
+   {
+    "name": "hash: a magic comment is code",
+    "style": "hash",
+    "lines": [
+     "# frozen_string_literal: true",
+     "x = 1"
+    ],
+    "normalized": "# frozen_string_literal: true\nx = 1",
+    "hash": "56f4642e65f0"
+   },
+   {
+    "name": "hash: other comment forms are code",
+    "style": "hash",
+    "lines": [
+     "// a",
+     "x"
+    ],
+    "normalized": "// a\nx",
+    "hash": "1e7c9b19e029"
+   },
+   {
+    "name": "dash: -- lines, one-line block comments and a row of dashes are comments",
+    "style": "dash",
+    "lines": [
+     "-- one",
+     "/* about */",
+     "---- Section ----",
+     "select 1;",
+     "  -- two"
+    ],
+    "normalized": "select 1;",
+    "hash": "354b7196c9ba"
+   },
+   {
+    "name": "dash: a block comment that goes on with code is code",
+    "style": "dash",
+    "lines": [
+     "/* a */ select 1; /* b */"
+    ],
+    "normalized": "/* a */ select 1; /* b */",
+    "hash": "895affd7f48e"
+   },
+   {
+    "name": "dash: --> and --| are Haskell operators, so code",
+    "style": "dash",
+    "lines": [
+     "f",
+     "  --> g",
+     "  --| h"
+    ],
+    "normalized": "f\n--> g\n--| h",
+    "hash": "48218364a6b3"
+   },
+   {
+    "name": "dash: a Haskell pragma is code and a one-line block comment is not",
+    "style": "dash",
+    "lines": [
+     "{-# LANGUAGE Strict #-}",
+     "{- about -}",
+     "x = 1"
+    ],
+    "normalized": "{-# LANGUAGE Strict #-}\nx = 1",
+    "hash": "b68973c98a5b"
+   },
+   {
+    "name": "dash: // is code",
+    "style": "dash",
+    "lines": [
+     "arr",
+     "  // [(1, 2)]"
+    ],
+    "normalized": "arr\n// [(1, 2)]",
+    "hash": "a6834a6210a5"
+   },
+   {
+    "name": "safe: comments are code and spaces inside a line stay",
+    "style": "safe",
+    "lines": [
+     "% about it",
+     "f()  ->  ok."
+    ],
+    "normalized": "0:% about it\n0:f()  ->  ok.",
+    "hash": "8fc8e30d509f"
+   },
+   {
+    "name": "safe: blank lines and trailing spaces go",
+    "style": "safe",
+    "lines": [
+     "a   ",
+     "",
+     "   ",
+     "b\t"
+    ],
+    "normalized": "0:a\n0:b",
+    "hash": "044a38803df9"
+   },
+   {
+    "name": "safe: columns are counted from the smallest indentation of the lines kept",
+    "style": "safe",
+    "lines": [
+     "    a",
+     "  b",
+     "      c"
+    ],
+    "normalized": "2:a\n0:b\n4:c",
+    "hash": "6b23a0c2b22f"
+   },
+   {
+    "name": "safe: a tab is its own indentation and never eight spaces",
+    "style": "safe",
+    "lines": [
+     "a",
+     "\tb"
+    ],
+    "normalized": "0:a\n\\u0009:b",
+    "hash": "b2c9bbea3ade"
+   },
+   {
+    "name": "safe: the start every kept line has in common is dropped, tabs too",
+    "style": "safe",
+    "lines": [
+     "\ta",
+     "\t\tb"
+    ],
+    "normalized": "0:a\n\\u0009:b",
+    "hash": "b2c9bbea3ade"
+   },
+   {
+    "name": "safe: another whitespace character in the indentation is written out",
+    "style": "safe",
+    "lines": [
+     " a",
+     "b"
+    ],
+    "normalized": "\\u00a0:a\n0:b",
+    "hash": "73871f375251"
+   },
+   {
+    "name": "c: whitespace at the ends of a line is what Python strips: no-break space, form feed, U+001C",
+    "style": "c",
+    "lines": [
+     " a ",
+     "\fb\f",
+     "\u001cc\u001c"
+    ],
+    "normalized": "a\nb\nc",
+    "note": "a port has to strip the same characters",
+    "hash": "ea7fb08b7a2d"
+   },
+   {
+    "name": "c: U+0085 and U+001F are whitespace too, and a byte order mark is not",
+    "style": "c",
+    "lines": [
+     "d",
+     "\u001fe\u001f",
+     "﻿a",
+     "﻿// x"
+    ],
+    "normalized": "d\ne\n﻿a\n﻿// x",
+    "note": "whitespace is what Python strips, which is not what a regular expression or trim() of another language strips",
+    "hash": "1a156ad549d4"
+   },
+   {
+    "name": "c: a Unicode line separator inside a comment line or a string is just a character",
+    "style": "c",
+    "lines": [
+     "// a b",
+     "/* a b */",
+     "x(1);",
+     "y  =  \"a  \\   b\"  ;"
+    ],
+    "normalized": "x(1);\ny = \"a  \\   b\" ;",
+    "note": "a dot matches everything but a line feed",
+    "hash": "66dfca64a236"
+   },
+   {
+    "name": "dash: a Unicode line separator inside a comment line is just a character",
+    "style": "dash",
+    "lines": [
+     "-- a b",
+     "select 1"
+    ],
+    "normalized": "select 1",
+    "hash": "822ae07d4783"
+   },
+   {
+    "name": "hash: a Unicode line separator inside a comment line is just a character",
+    "style": "hash",
+    "lines": [
+     "# a b",
+     "ls"
+    ],
+    "normalized": "ls",
+    "hash": "c7b68ac37f36"
+   },
+   {
+    "name": "hash: a # in the middle of a word is no comment, so the quote after it opens a string",
+    "style": "hash",
+    "lines": [
+     "echo a#b '",
+     "# inside the string",
+     "'",
+     "ls"
+    ],
+    "normalized": "echo a#b '\n# inside the string\n'\nls",
+    "hash": "572f5b9e674c"
+   },
+   {
+    "name": "safe: moving the whole piece is not a change",
+    "style": "safe",
+    "lines": [
+     "  f(x) ->",
+     "      g(x)."
+    ],
+    "normalized": "0:f(x) ->\n4:g(x).",
+    "hash": "fa35656bb4f0"
+   },
+   {
+    "name": "dash-keep: a line moved out of a haskell do block is a different text",
+    "style": "dash-keep",
+    "lines": [
+     "main = do",
+     "  putStrLn \"a\"",
+     "putStrLn \"b\""
+    ],
+    "normalized": "0:main = do\n2:putStrLn \"a\"\n0:putStrLn \"b\"",
+    "hash": "21344d8bcef9"
+   },
+   {
+    "name": "dash-keep: a comment line goes and does not shift the columns",
+    "style": "dash-keep",
+    "lines": [
+     "      -- about it",
+     "main = do",
+     "  f"
+    ],
+    "normalized": "0:main = do\n2:f",
+    "hash": "4ad935b6b269"
+   },
+   {
+    "name": "hash-keep: a hash line goes and the nesting counts",
+    "style": "hash-keep",
+    "lines": [
+     "# about",
+     "proc f() =",
+     "  echo 1"
+    ],
+    "normalized": "0:proc f() =\n2:echo 1",
+    "hash": "8d876f9f2bc4"
+   },
+   {
+    "name": "c-keep: a comment line goes and the nesting counts",
+    "style": "c-keep",
+    "lines": [
+     "// c",
+     "def f =",
+     "  g"
+    ],
+    "normalized": "0:def f =\n2:g",
+    "hash": "31552dcc1742"
+   },
+   {
+    "name": "c+tick: a line that looks like a comment inside a template literal is text",
+    "style": "c+tick",
+    "lines": [
+     "const sql = `",
+     "// the query",
+     "SELECT 1",
+     "`;"
+    ],
+    "normalized": "const sql = `\n// the query\nSELECT 1\n`;",
+    "hash": "1ace0ffb45ab"
+   },
+   {
+    "name": "c: without the string kind the same lines lose the comment-looking one",
+    "style": "c",
+    "lines": [
+     "const sql = `",
+     "// the query",
+     "SELECT 1",
+     "`;"
+    ],
+    "normalized": "const sql = `\nSELECT 1\n`;",
+    "hash": "754ed81b75b5"
+   },
+   {
+    "name": "c+tick: after the string a comment is a comment again",
+    "style": "c+tick",
+    "lines": [
+     "const a = `x",
+     "// text",
+     "`;",
+     "// a comment",
+     "const b = 1;"
+    ],
+    "normalized": "const a = `x\n// text\n`;\nconst b = 1;",
+    "hash": "78735753f587"
+   },
+   {
+    "name": "c+tick: a string that closes on its line is not a multi-line string",
+    "style": "c+tick",
+    "lines": [
+     "const a = `x ${b} y`;",
+     "// a comment",
+     "const c = 1;"
+    ],
+    "normalized": "const a = `x ${b} y`;\nconst c = 1;",
+    "hash": "fc5dbc1b1af7"
+   },
+   {
+    "name": "c+triple: a text block keeps a comment-looking line",
+    "style": "c+triple",
+    "lines": [
+     "String s = \"\"\"",
+     "    // not a comment",
+     "    \"\"\";",
+     "// a comment"
+    ],
+    "normalized": "String s = \"\"\"\n// not a comment\n\"\"\";",
+    "hash": "c1d11cd96947"
+   },
+   {
+    "name": "c+triple+triple1: dart has triple single quotes",
+    "style": "c+triple+triple1",
+    "lines": [
+     "var s = '''",
+     "// not a comment",
+     "''';"
+    ],
+    "normalized": "var s = '''\n// not a comment\n''';",
+    "hash": "8cf68d4c54a1"
+   },
+   {
+    "name": "c+tick: a region that ends inside a string has lost its place, so none of its lines is dropped",
+    "style": "c+tick",
+    "lines": [
+     "const a = <p>use ` here</p>;",
+     "const q = `",
+     "// the query",
+     "`;",
+     "const z = 1;"
+    ],
+    "normalized": "const a = <p>use ` here</p>;\nconst q = `\n// the query\n`;\nconst z = 1;",
+    "hash": "ba5c4afc1ab3"
+   },
+   {
+    "name": "c+rawtick: a backslash does not escape the backtick, so a raw string can end in one",
+    "style": "c+rawtick",
+    "lines": [
+     "p := `C:\\`",
+     "q := `",
+     "// x",
+     "`",
+     "// a comment",
+     "r := 1"
+    ],
+    "normalized": "p := `C:\\`\nq := `\n// x\n`\nr := 1",
+    "hash": "e8c33644f0dd"
+   },
+   {
+    "name": "c+tick: backticks in a trailing comment open nothing",
+    "style": "c+tick",
+    "lines": [
+     "let fence = false;   // inside a ``` block: shaded",
+     "// a comment",
+     "const x = 1;"
+    ],
+    "normalized": "let fence = false; // inside a ``` block: shaded\nconst x = 1;",
+    "hash": "8f8098870e50"
+   },
+   {
+    "name": "c+tick: a backtick in a block comment or in another string opens nothing",
+    "style": "c+tick",
+    "lines": [
+     "/* a ` in a block",
+     "   comment */",
+     "const s = \"a `\";",
+     "// a comment",
+     "const t = 1;"
+    ],
+    "normalized": "/* a ` in a block\ncomment */\nconst s = \"a `\";\nconst t = 1;",
+    "hash": "103c2ff1deb0"
+   },
+   {
+    "name": "c+tick: an apostrophe is not a string",
+    "style": "c+tick",
+    "lines": [
+     "fn f<'a>(x: &'a str) {}",
+     "// a comment",
+     "let b = 1;"
+    ],
+    "normalized": "fn f<'a>(x: &'a str) {}\nlet b = 1;",
+    "hash": "165aab67371e"
+   },
+   {
+    "name": "c+tick: blank lines and runs of spaces inside the string are not seen",
+    "style": "c+tick",
+    "lines": [
+     "const a = `x",
+     "",
+     "   y    z",
+     "`;"
+    ],
+    "normalized": "const a = `x\ny z\n`;",
+    "note": "a limit, said in the SPEC",
+    "hash": "19fbabdb438d"
+   }
+  ]
+ },
+ "code_hash": {
+  "how": "code_hash(regions) -> hash: regions sorted by (file, start), each normalized by style_of(file), joined with \"\\n\\u0000\\n\", SHA-256 of the UTF-8, first 12 hex digits.",
+  "rows": [
+   {
+    "name": "one region",
+    "regions": [
+     {
+      "file": "src/a.ts",
+      "start": 1,
+      "lines": [
+       "  one();",
+       "  two();"
+      ]
+     }
+    ],
+    "hash": "ec20c1fb6bf5"
+   },
+   {
+    "name": "two regions of a file are joined in line order, whatever order they are given in",
+    "regions": [
+     {
+      "file": "src/a.ts",
+      "start": 20,
+      "lines": [
+       "two();"
+      ]
+     },
+     {
+      "file": "src/a.ts",
+      "start": 3,
+      "lines": [
+       "one();"
+      ]
+     }
+    ],
+    "hash": "4fd41aa01443"
+   },
+   {
+    "name": "regions of several files are joined in file order, each by the rule of its type",
+    "regions": [
+     {
+      "file": "src_ts/a.ts",
+      "start": 1,
+      "lines": [
+       "export const A = 1;"
+      ]
+     },
+     {
+      "file": "src_py/a.py",
+      "start": 1,
+      "lines": [
+       "def total(items):",
+       "    t = 0",
+       "    for i in items:",
+       "        t += i",
+       "    return t"
+      ]
+     }
+    ],
+    "hash": "afee56036c1d"
+   },
+   {
+    "name": "the same text in one region or two gives different hashes (the join counts)",
+    "regions": [
+     {
+      "file": "src/a.ts",
+      "start": 1,
+      "lines": [
+       "one();"
+      ]
+     },
+     {
+      "file": "src/a.ts",
+      "start": 5,
+      "lines": [
+       "two();"
+      ]
+     }
+    ],
+    "hash": "4fd41aa01443"
+   },
+   {
+    "name": "files are ordered by code point, so a file named with an astral character comes after one named with U+FF5E",
+    "regions": [
+     {
+      "file": "src/😀.ts",
+      "start": 1,
+      "lines": [
+       "two();"
+      ]
+     },
+     {
+      "file": "src/～.ts",
+      "start": 1,
+      "lines": [
+       "one();"
+      ]
+     }
+    ],
+    "hash": "4fd41aa01443"
+   },
+   {
+    "name": "no regions is the hash of an empty text",
+    "regions": [],
+    "hash": "e3b0c44298fc"
+   },
+   {
+    "name": "a region of only comments and blanks is the hash of an empty text",
+    "regions": [
+     {
+      "file": "src/a.ts",
+      "start": 1,
+      "lines": [
+       "// only",
+       ""
+      ]
+     }
+    ],
+    "hash": "e3b0c44298fc"
+   },
+   {
+    "name": "a shell and a Python file of one clause",
+    "regions": [
+     {
+      "file": "a/run.sh",
+      "start": 1,
+      "lines": [
+       "# c",
+       "ls"
+      ]
+     },
+     {
+      "file": "b/x.py",
+      "start": 1,
+      "lines": [
+       "x = 1"
+      ]
+     }
+    ],
+    "hash": "d5ef5ad43d1a"
+   }
+  ]
+ },
+ "text_hash": {
+  "how": "text_hash(text) -> hash: SHA-256 of the UTF-8, first 12 hex digits (lock.h).",
+  "rows": [
+   {
+    "name": "the empty text",
+    "input": "",
+    "hash": "e3b0c44298fc"
+   },
+   {
+    "name": "ascii",
+    "input": "abc",
+    "hash": "ba7816bf8f01"
+   },
+   {
+    "name": "non-ascii is read as UTF-8",
+    "input": "é",
+    "hash": "4a99557e4033"
+   },
+   {
+    "name": "a line feed counts",
+    "input": "a\n",
+    "hash": "87428fc52280"
+   },
+   {
+    "name": "a part face with a value",
+    "input": "Camera\nWhy: it moves",
+    "hash": "f1ed3b1412c2"
+   }
+  ]
+ },
+ "targets_digest": {
+  "how": "digest(targets) -> hash: text_hash of the lines \"<target>:<code>\" in the order of the target names, joined by LF. It is the `code` of a clause that keeps its code per target.",
+  "rows": [
+   {
+    "name": "one target",
+    "targets": {
+     "py": {
+      "code": "a1b2c3d4e5f6"
+     }
+    },
+    "digest": "31448b7f898b"
+   },
+   {
+    "name": "targets in the order of their names, whatever order they come in",
+    "targets": {
+     "ts": {
+      "code": "0f1e2d3c4b5a"
+     },
+     "py": {
+      "code": "a1b2c3d4e5f6"
+     }
+    },
+    "digest": "6423277cf92e"
+   },
+   {
+    "name": "targets are ordered by code point, so an astral name comes after U+FF5E",
+    "targets": {
+     "😀": {
+      "code": "0f1e2d3c4b5a"
+     },
+     "～": {
+      "code": "a1b2c3d4e5f6"
+     }
+    },
+    "digest": "47ff9c63f460"
+   },
+   {
+    "name": "code in no target is the target `*`",
+    "targets": {
+     "*": {
+      "code": "123456789abc"
+     },
+     "py": {
+      "code": "a1b2c3d4e5f6"
+     }
+    },
+    "digest": "808a40e8988e"
+   }
+  ]
+ },
+ "fold": {
+  "how": "fold(file entries) -> entries: a line of kind \"code\" goes into the entry named by its `of` as targets[<target>], with every field it has but kind, of and target ({code, built}, and fits when the language was confirmed to fit), and that entry gets code = digest(targets); a line without its clause is dropped.",
+  "rows": [
+   {
+    "name": "a line goes into its clause and the clause gets the digest of its targets as its code",
+    "file": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1"
+     },
+     "g/h@py": {
+      "kind": "code",
+      "of": "g/h",
+      "target": "py",
+      "code": "a1b2c3d4e5f6",
+      "built": "text1"
+     },
+     "g/h@ts": {
+      "kind": "code",
+      "of": "g/h",
+      "target": "ts",
+      "code": "0f1e2d3c4b5a",
+      "built": "text0"
+     }
+    },
+    "entries": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1",
+      "code": "6423277cf92e",
+      "targets": {
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "text1"
+       },
+       "ts": {
+        "code": "0f1e2d3c4b5a",
+        "built": "text0"
+       }
+      }
+     }
+    }
+   },
+   {
+    "name": "a clause that keeps one joined code is left as it is",
+    "file": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1",
+      "code": "123456789abc"
+     }
+    },
+    "entries": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1",
+      "code": "123456789abc"
+     }
+    }
+   },
+   {
+    "name": "every field of a line goes into its clause, not only code and built",
+    "file": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1"
+     },
+     "g/h@ts": {
+      "kind": "code",
+      "of": "g/h",
+      "target": "ts",
+      "code": "0f1e2d3c4b5a",
+      "built": "text1",
+      "fits": true,
+      "later": "x"
+     }
+    },
+    "entries": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1",
+      "code": "c9a0dd4410c6",
+      "targets": {
+       "ts": {
+        "code": "0f1e2d3c4b5a",
+        "built": "text1",
+        "fits": true,
+        "later": "x"
+       }
+      }
+     }
+    }
+   },
+   {
+    "name": "a test with a result on each line gets the result of its lines: pass when all passed",
+    "file": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt"
+     },
+     "g/test:h@py": {
+      "kind": "code",
+      "of": "g/test:h",
+      "built": "tt",
+      "target": "py",
+      "code": "a1b2c3d4e5f6",
+      "result": "pass"
+     },
+     "g/test:h@ts": {
+      "kind": "code",
+      "of": "g/test:h",
+      "built": "tt",
+      "target": "ts",
+      "code": "0f1e2d3c4b5a",
+      "result": "pass"
+     }
+    },
+    "entries": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt",
+      "result": "pass",
+      "code": "6423277cf92e",
+      "targets": {
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "tt",
+        "result": "pass"
+       },
+       "ts": {
+        "code": "0f1e2d3c4b5a",
+        "built": "tt",
+        "result": "pass"
+       }
+      }
+     }
+    }
+   },
+   {
+    "name": "one failed line makes the test fail",
+    "file": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt"
+     },
+     "g/test:h@py": {
+      "kind": "code",
+      "of": "g/test:h",
+      "built": "tt",
+      "target": "py",
+      "code": "a1b2c3d4e5f6",
+      "result": "pass"
+     },
+     "g/test:h@ts": {
+      "kind": "code",
+      "of": "g/test:h",
+      "built": "tt",
+      "target": "ts",
+      "code": "0f1e2d3c4b5a",
+      "result": "fail"
+     }
+    },
+    "entries": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt",
+      "result": "fail",
+      "code": "6423277cf92e",
+      "targets": {
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "tt",
+        "result": "pass"
+       },
+       "ts": {
+        "code": "0f1e2d3c4b5a",
+        "built": "tt",
+        "result": "fail"
+       }
+      }
+     }
+    }
+   },
+   {
+    "name": "a line that has not passed and none that failed leave the test at none",
+    "file": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt"
+     },
+     "g/test:h@py": {
+      "kind": "code",
+      "of": "g/test:h",
+      "built": "tt",
+      "target": "py",
+      "code": "a1b2c3d4e5f6",
+      "result": "pass"
+     },
+     "g/test:h@ts": {
+      "kind": "code",
+      "of": "g/test:h",
+      "built": "tt",
+      "target": "ts",
+      "code": "0f1e2d3c4b5a",
+      "result": "none"
+     }
+    },
+    "entries": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt",
+      "result": "none",
+      "code": "6423277cf92e",
+      "targets": {
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "tt",
+        "result": "pass"
+       },
+       "ts": {
+        "code": "0f1e2d3c4b5a",
+        "built": "tt",
+        "result": "none"
+       }
+      }
+     }
+    }
+   },
+   {
+    "name": "a test whose lines carry no result keeps the result of its own entry",
+    "file": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt",
+      "result": "manual"
+     },
+     "g/test:h@py": {
+      "kind": "code",
+      "of": "g/test:h",
+      "built": "tt",
+      "target": "py",
+      "code": "a1b2c3d4e5f6"
+     }
+    },
+    "entries": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt",
+      "result": "manual",
+      "code": "31448b7f898b",
+      "targets": {
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "tt"
+       }
+      }
+     }
+    }
+   },
+   {
+    "name": "a line whose clause is not in the file is dropped",
+    "file": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1"
+     },
+     "g/x@py": {
+      "kind": "code",
+      "of": "g/x",
+      "target": "py",
+      "code": "a1b2c3d4e5f6",
+      "built": "text1"
+     }
+    },
+    "entries": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1"
+     }
+    }
+   }
+  ]
+ },
+ "marker": {
+  "how": "parse_marker(path, line, starters) -> null | {code, words}: a marker is `@clause` after a comment starter, the whole line or after code (a line marker). Every file has the starters // # /* <!-- -- ; as runs (// and ///, ; and ;;), its type adds more (SPEC section 10), and `starters` are those its target declares, which add and never take away. Words are what follows `@clause` without a closing */ --> or *); REM and :: count only at the start of a line.",
+  "rows": [
+   {
+    "name": "a line comment",
+    "path": "a.js",
+    "line": "// @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "a hash",
+    "path": "a.py",
+    "line": "# @clause a/b c/d",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b",
+      "c/d"
+     ]
+    }
+   },
+   {
+    "name": "a doubled starter is the whole marker",
+    "path": "a.clj",
+    "line": ";; @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "three slashes",
+    "path": "a.rs",
+    "line": "/// @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "a doc block opener",
+    "path": "a.js",
+    "line": "/** @clause a/b */",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "three dashes",
+    "path": "a.sql",
+    "line": "--- @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "an html comment",
+    "path": "a.html",
+    "line": "<!-- @clause a/b -->",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "code before the marker makes it a line marker",
+    "path": "a.js",
+    "line": "x = 1;  // @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "x = 1;",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "a marker with no id",
+    "path": "a.js",
+    "line": "// @clause",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": []
+    }
+   },
+   {
+    "name": "the end of a region",
+    "path": "a.js",
+    "line": "// @clause end",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "end"
+     ]
+    }
+   },
+   {
+    "name": "a word that only starts with clause is not the marker",
+    "path": "a.js",
+    "line": "// @clauses a/b",
+    "starters": [],
+    "marker": null
+   },
+   {
+    "name": "a letter of another alphabet after clause makes it another word",
+    "path": "a.js",
+    "line": "// @clauseé a/b",
+    "starters": [],
+    "marker": null
+   },
+   {
+    "name": "a Unicode line separator in the words separates them",
+    "path": "a.js",
+    "line": "// @clause a/b c",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b",
+      "c"
+     ]
+    }
+   },
+   {
+    "name": "words are separated by whatever Python takes for whitespace",
+    "path": "a.js",
+    "line": "// @clause a/b cd",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b",
+      "c",
+      "d"
+     ]
+    }
+   },
+   {
+    "name": "whitespace between the starter and the word is whatever Python takes for whitespace",
+    "path": "a.js",
+    "line": "//@clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "a quote before the word is not a starter in a javascript file",
+    "path": "a.js",
+    "line": "assert(!x, '@clause end has no lens');",
+    "starters": [],
+    "marker": null
+   },
+   {
+    "name": "erlang percent",
+    "path": "a.erl",
+    "line": "% @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "erlang double percent",
+    "path": "a.erl",
+    "line": "%% @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "erlang line marker",
+    "path": "a.erl",
+    "line": "f() -> ok.  % @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "f() -> ok.",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "fortran bang",
+    "path": "a.f90",
+    "line": "! @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "visual basic quote",
+    "path": "a.vb",
+    "line": "' @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "batch rem, in any case",
+    "path": "a.bat",
+    "line": "Rem @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "batch colons",
+    "path": "a.cmd",
+    "line": ":: @clause a/b",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "batch rem only at the start of a line",
+    "path": "a.bat",
+    "line": "echo REM @clause a/b",
+    "starters": [],
+    "marker": null
+   },
+   {
+    "name": "ocaml comment: the closing star paren is not an id",
+    "path": "a.ml",
+    "line": "(* @clause a/b *)",
+    "starters": [],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "percent in a type that does not list it",
+    "path": "a.js",
+    "line": "% @clause a/b",
+    "starters": [],
+    "marker": null
+   },
+   {
+    "name": "percent in a type nobody listed",
+    "path": "a.xyz",
+    "line": "% @clause a/b",
+    "starters": [],
+    "marker": null
+   },
+   {
+    "name": "a starter the target declares",
+    "path": "a.xyz",
+    "line": "% @clause a/b",
+    "starters": [
+     "%"
+    ],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "a declared starter is a run",
+    "path": "a.xyz",
+    "line": "%% @clause a/b",
+    "starters": [
+     "%"
+    ],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "a declared starter of two characters",
+    "path": "a.xyz",
+    "line": "|| @clause a/b",
+    "starters": [
+     "||"
+    ],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   },
+   {
+    "name": "a declared starter adds and takes nothing away",
+    "path": "a.xyz",
+    "line": "// @clause a/b",
+    "starters": [
+     "%"
+    ],
+    "marker": {
+     "code": "",
+     "words": [
+      "a/b"
+     ]
+    }
+   }
+  ]
+ },
+ "starters_of": {
+  "how": "starters_of(path) -> [starter]: the comment starters, besides // # /* <!-- -- ; (SPEC section 10), that a marker may follow in a file of that type: the `starters` column of the table, in order. A row for every extension in it.",
+  "rows": [
+   {
+    "name": "the starters of .ada",
+    "path": "a.ada",
+    "starters": []
+   },
+   {
+    "name": "the starters of .adb",
+    "path": "a.adb",
+    "starters": []
+   },
+   {
+    "name": "the starters of .ads",
+    "path": "a.ads",
+    "starters": []
+   },
+   {
+    "name": "the starters of .asp",
+    "path": "a.asp",
+    "starters": []
+   },
+   {
+    "name": "the starters of .aspx",
+    "path": "a.aspx",
+    "starters": []
+   },
+   {
+    "name": "the starters of .astro",
+    "path": "a.astro",
+    "starters": []
+   },
+   {
+    "name": "the starters of .awk",
+    "path": "a.awk",
+    "starters": []
+   },
+   {
+    "name": "the starters of .bas",
+    "path": "a.bas",
+    "starters": [
+     "'"
+    ]
+   },
+   {
+    "name": "the starters of .bash",
+    "path": "a.bash",
+    "starters": []
+   },
+   {
+    "name": "the starters of .bat",
+    "path": "a.bat",
+    "starters": [
+     "rem"
+    ]
+   },
+   {
+    "name": "the starters of .bazel",
+    "path": "a.bazel",
+    "starters": []
+   },
+   {
+    "name": "the starters of .bzl",
+    "path": "a.bzl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .c",
+    "path": "a.c",
+    "starters": []
+   },
+   {
+    "name": "the starters of .c++",
+    "path": "a.c++",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cc",
+    "path": "a.cc",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cjs",
+    "path": "a.cjs",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cl",
+    "path": "a.cl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cmake",
+    "path": "a.cmake",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cmd",
+    "path": "a.cmd",
+    "starters": [
+     "rem"
+    ]
+   },
+   {
+    "name": "the starters of .coffee",
+    "path": "a.coffee",
+    "starters": []
+   },
+   {
+    "name": "the starters of .comp",
+    "path": "a.comp",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cpp",
+    "path": "a.cpp",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cppm",
+    "path": "a.cppm",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cr",
+    "path": "a.cr",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cs",
+    "path": "a.cs",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cshtml",
+    "path": "a.cshtml",
+    "starters": []
+   },
+   {
+    "name": "the starters of .csproj",
+    "path": "a.csproj",
+    "starters": []
+   },
+   {
+    "name": "the starters of .css",
+    "path": "a.css",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cts",
+    "path": "a.cts",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cu",
+    "path": "a.cu",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cuh",
+    "path": "a.cuh",
+    "starters": []
+   },
+   {
+    "name": "the starters of .cxx",
+    "path": "a.cxx",
+    "starters": []
+   },
+   {
+    "name": "the starters of .d",
+    "path": "a.d",
+    "starters": []
+   },
+   {
+    "name": "the starters of .dart",
+    "path": "a.dart",
+    "starters": []
+   },
+   {
+    "name": "the starters of .dts",
+    "path": "a.dts",
+    "starters": []
+   },
+   {
+    "name": "the starters of .dtsi",
+    "path": "a.dtsi",
+    "starters": []
+   },
+   {
+    "name": "the starters of .ejs",
+    "path": "a.ejs",
+    "starters": []
+   },
+   {
+    "name": "the starters of .elm",
+    "path": "a.elm",
+    "starters": []
+   },
+   {
+    "name": "the starters of .erb",
+    "path": "a.erb",
+    "starters": []
+   },
+   {
+    "name": "the starters of .erl",
+    "path": "a.erl",
+    "starters": [
+     "%"
+    ]
+   },
+   {
+    "name": "the starters of .ex",
+    "path": "a.ex",
+    "starters": []
+   },
+   {
+    "name": "the starters of .exs",
+    "path": "a.exs",
+    "starters": []
+   },
+   {
+    "name": "the starters of .f",
+    "path": "a.f",
+    "starters": [
+     "!"
+    ]
+   },
+   {
+    "name": "the starters of .f03",
+    "path": "a.f03",
+    "starters": [
+     "!"
+    ]
+   },
+   {
+    "name": "the starters of .f08",
+    "path": "a.f08",
+    "starters": [
+     "!"
+    ]
+   },
+   {
+    "name": "the starters of .f90",
+    "path": "a.f90",
+    "starters": [
+     "!"
+    ]
+   },
+   {
+    "name": "the starters of .f95",
+    "path": "a.f95",
+    "starters": [
+     "!"
+    ]
+   },
+   {
+    "name": "the starters of .fish",
+    "path": "a.fish",
+    "starters": []
+   },
+   {
+    "name": "the starters of .for",
+    "path": "a.for",
+    "starters": [
+     "!"
+    ]
+   },
+   {
+    "name": "the starters of .frag",
+    "path": "a.frag",
+    "starters": []
+   },
+   {
+    "name": "the starters of .fs",
+    "path": "a.fs",
+    "starters": [
+     "(*"
+    ]
+   },
+   {
+    "name": "the starters of .fsi",
+    "path": "a.fsi",
+    "starters": [
+     "(*"
+    ]
+   },
+   {
+    "name": "the starters of .fsproj",
+    "path": "a.fsproj",
+    "starters": []
+   },
+   {
+    "name": "the starters of .fsx",
+    "path": "a.fsx",
+    "starters": [
+     "(*"
+    ]
+   },
+   {
+    "name": "the starters of .ftn",
+    "path": "a.ftn",
+    "starters": [
+     "!"
+    ]
+   },
+   {
+    "name": "the starters of .gemspec",
+    "path": "a.gemspec",
+    "starters": []
+   },
+   {
+    "name": "the starters of .geom",
+    "path": "a.geom",
+    "starters": []
+   },
+   {
+    "name": "the starters of .glsl",
+    "path": "a.glsl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .go",
+    "path": "a.go",
+    "starters": []
+   },
+   {
+    "name": "the starters of .gql",
+    "path": "a.gql",
+    "starters": []
+   },
+   {
+    "name": "the starters of .gradle",
+    "path": "a.gradle",
+    "starters": []
+   },
+   {
+    "name": "the starters of .graphql",
+    "path": "a.graphql",
+    "starters": []
+   },
+   {
+    "name": "the starters of .groovy",
+    "path": "a.groovy",
+    "starters": []
+   },
+   {
+    "name": "the starters of .h",
+    "path": "a.h",
+    "starters": []
+   },
+   {
+    "name": "the starters of .h++",
+    "path": "a.h++",
+    "starters": []
+   },
+   {
+    "name": "the starters of .hbs",
+    "path": "a.hbs",
+    "starters": []
+   },
+   {
+    "name": "the starters of .hh",
+    "path": "a.hh",
+    "starters": []
+   },
+   {
+    "name": "the starters of .hlsl",
+    "path": "a.hlsl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .hlsli",
+    "path": "a.hlsli",
+    "starters": []
+   },
+   {
+    "name": "the starters of .hpp",
+    "path": "a.hpp",
+    "starters": []
+   },
+   {
+    "name": "the starters of .hrl",
+    "path": "a.hrl",
+    "starters": [
+     "%"
+    ]
+   },
+   {
+    "name": "the starters of .hs",
+    "path": "a.hs",
+    "starters": []
+   },
+   {
+    "name": "the starters of .htm",
+    "path": "a.htm",
+    "starters": []
+   },
+   {
+    "name": "the starters of .html",
+    "path": "a.html",
+    "starters": []
+   },
+   {
+    "name": "the starters of .hxx",
+    "path": "a.hxx",
+    "starters": []
+   },
+   {
+    "name": "the starters of .idr",
+    "path": "a.idr",
+    "starters": []
+   },
+   {
+    "name": "the starters of .inl",
+    "path": "a.inl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .ino",
+    "path": "a.ino",
+    "starters": []
+   },
+   {
+    "name": "the starters of .ipp",
+    "path": "a.ipp",
+    "starters": []
+   },
+   {
+    "name": "the starters of .ixx",
+    "path": "a.ixx",
+    "starters": []
+   },
+   {
+    "name": "the starters of .java",
+    "path": "a.java",
+    "starters": []
+   },
+   {
+    "name": "the starters of .jl",
+    "path": "a.jl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .js",
+    "path": "a.js",
+    "starters": []
+   },
+   {
+    "name": "the starters of .json",
+    "path": "a.json",
+    "starters": []
+   },
+   {
+    "name": "the starters of .json5",
+    "path": "a.json5",
+    "starters": []
+   },
+   {
+    "name": "the starters of .jsonc",
+    "path": "a.jsonc",
+    "starters": []
+   },
+   {
+    "name": "the starters of .jsp",
+    "path": "a.jsp",
+    "starters": []
+   },
+   {
+    "name": "the starters of .jsx",
+    "path": "a.jsx",
+    "starters": []
+   },
+   {
+    "name": "the starters of .ksh",
+    "path": "a.ksh",
+    "starters": []
+   },
+   {
+    "name": "the starters of .kt",
+    "path": "a.kt",
+    "starters": []
+   },
+   {
+    "name": "the starters of .kts",
+    "path": "a.kts",
+    "starters": []
+   },
+   {
+    "name": "the starters of .less",
+    "path": "a.less",
+    "starters": []
+   },
+   {
+    "name": "the starters of .liquid",
+    "path": "a.liquid",
+    "starters": []
+   },
+   {
+    "name": "the starters of .lua",
+    "path": "a.lua",
+    "starters": []
+   },
+   {
+    "name": "the starters of .m",
+    "path": "a.m",
+    "starters": [
+     "%"
+    ]
+   },
+   {
+    "name": "the starters of .mdx",
+    "path": "a.mdx",
+    "starters": []
+   },
+   {
+    "name": "the starters of .mesh",
+    "path": "a.mesh",
+    "starters": []
+   },
+   {
+    "name": "the starters of .metal",
+    "path": "a.metal",
+    "starters": []
+   },
+   {
+    "name": "the starters of .mjs",
+    "path": "a.mjs",
+    "starters": []
+   },
+   {
+    "name": "the starters of .ml",
+    "path": "a.ml",
+    "starters": [
+     "(*"
+    ]
+   },
+   {
+    "name": "the starters of .mli",
+    "path": "a.mli",
+    "starters": [
+     "(*"
+    ]
+   },
+   {
+    "name": "the starters of .mll",
+    "path": "a.mll",
+    "starters": [
+     "(*"
+    ]
+   },
+   {
+    "name": "the starters of .mly",
+    "path": "a.mly",
+    "starters": [
+     "(*"
+    ]
+   },
+   {
+    "name": "the starters of .mm",
+    "path": "a.mm",
+    "starters": []
+   },
+   {
+    "name": "the starters of .mts",
+    "path": "a.mts",
+    "starters": []
+   },
+   {
+    "name": "the starters of .mustache",
+    "path": "a.mustache",
+    "starters": []
+   },
+   {
+    "name": "the starters of .nim",
+    "path": "a.nim",
+    "starters": []
+   },
+   {
+    "name": "the starters of .nims",
+    "path": "a.nims",
+    "starters": []
+   },
+   {
+    "name": "the starters of .nix",
+    "path": "a.nix",
+    "starters": []
+   },
+   {
+    "name": "the starters of .pas",
+    "path": "a.pas",
+    "starters": [
+     "(*"
+    ]
+   },
+   {
+    "name": "the starters of .php",
+    "path": "a.php",
+    "starters": []
+   },
+   {
+    "name": "the starters of .pl",
+    "path": "a.pl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .plist",
+    "path": "a.plist",
+    "starters": []
+   },
+   {
+    "name": "the starters of .pm",
+    "path": "a.pm",
+    "starters": []
+   },
+   {
+    "name": "the starters of .pp",
+    "path": "a.pp",
+    "starters": [
+     "(*"
+    ]
+   },
+   {
+    "name": "the starters of .prisma",
+    "path": "a.prisma",
+    "starters": []
+   },
+   {
+    "name": "the starters of .props",
+    "path": "a.props",
+    "starters": []
+   },
+   {
+    "name": "the starters of .proto",
+    "path": "a.proto",
+    "starters": []
+   },
+   {
+    "name": "the starters of .ps1",
+    "path": "a.ps1",
+    "starters": []
+   },
+   {
+    "name": "the starters of .psm1",
+    "path": "a.psm1",
+    "starters": []
+   },
+   {
+    "name": "the starters of .purs",
+    "path": "a.purs",
+    "starters": []
+   },
+   {
+    "name": "the starters of .pxd",
+    "path": "a.pxd",
+    "starters": []
+   },
+   {
+    "name": "the starters of .pxi",
+    "path": "a.pxi",
+    "starters": []
+   },
+   {
+    "name": "the starters of .py",
+    "path": "a.py",
+    "starters": []
+   },
+   {
+    "name": "the starters of .pyi",
+    "path": "a.pyi",
+    "starters": []
+   },
+   {
+    "name": "the starters of .pyw",
+    "path": "a.pyw",
+    "starters": []
+   },
+   {
+    "name": "the starters of .pyx",
+    "path": "a.pyx",
+    "starters": []
+   },
+   {
+    "name": "the starters of .r",
+    "path": "a.r",
+    "starters": []
+   },
+   {
+    "name": "the starters of .rahit",
+    "path": "a.rahit",
+    "starters": []
+   },
+   {
+    "name": "the starters of .rake",
+    "path": "a.rake",
+    "starters": []
+   },
+   {
+    "name": "the starters of .razor",
+    "path": "a.razor",
+    "starters": []
+   },
+   {
+    "name": "the starters of .rb",
+    "path": "a.rb",
+    "starters": []
+   },
+   {
+    "name": "the starters of .rcall",
+    "path": "a.rcall",
+    "starters": []
+   },
+   {
+    "name": "the starters of .rchit",
+    "path": "a.rchit",
+    "starters": []
+   },
+   {
+    "name": "the starters of .resx",
+    "path": "a.resx",
+    "starters": []
+   },
+   {
+    "name": "the starters of .rgen",
+    "path": "a.rgen",
+    "starters": []
+   },
+   {
+    "name": "the starters of .rint",
+    "path": "a.rint",
+    "starters": []
+   },
+   {
+    "name": "the starters of .rmiss",
+    "path": "a.rmiss",
+    "starters": []
+   },
+   {
+    "name": "the starters of .rs",
+    "path": "a.rs",
+    "starters": []
+   },
+   {
+    "name": "the starters of .rss",
+    "path": "a.rss",
+    "starters": []
+   },
+   {
+    "name": "the starters of .sass",
+    "path": "a.sass",
+    "starters": []
+   },
+   {
+    "name": "the starters of .sc",
+    "path": "a.sc",
+    "starters": []
+   },
+   {
+    "name": "the starters of .scala",
+    "path": "a.scala",
+    "starters": []
+   },
+   {
+    "name": "the starters of .scss",
+    "path": "a.scss",
+    "starters": []
+   },
+   {
+    "name": "the starters of .sh",
+    "path": "a.sh",
+    "starters": []
+   },
+   {
+    "name": "the starters of .sky",
+    "path": "a.sky",
+    "starters": []
+   },
+   {
+    "name": "the starters of .slang",
+    "path": "a.slang",
+    "starters": []
+   },
+   {
+    "name": "the starters of .sol",
+    "path": "a.sol",
+    "starters": []
+   },
+   {
+    "name": "the starters of .sql",
+    "path": "a.sql",
+    "starters": []
+   },
+   {
+    "name": "the starters of .star",
+    "path": "a.star",
+    "starters": []
+   },
+   {
+    "name": "the starters of .storyboard",
+    "path": "a.storyboard",
+    "starters": []
+   },
+   {
+    "name": "the starters of .sty",
+    "path": "a.sty",
+    "starters": [
+     "%"
+    ]
+   },
+   {
+    "name": "the starters of .styl",
+    "path": "a.styl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .sv",
+    "path": "a.sv",
+    "starters": []
+   },
+   {
+    "name": "the starters of .svelte",
+    "path": "a.svelte",
+    "starters": []
+   },
+   {
+    "name": "the starters of .svg",
+    "path": "a.svg",
+    "starters": []
+   },
+   {
+    "name": "the starters of .svh",
+    "path": "a.svh",
+    "starters": []
+   },
+   {
+    "name": "the starters of .swift",
+    "path": "a.swift",
+    "starters": []
+   },
+   {
+    "name": "the starters of .targets",
+    "path": "a.targets",
+    "starters": []
+   },
+   {
+    "name": "the starters of .task",
+    "path": "a.task",
+    "starters": []
+   },
+   {
+    "name": "the starters of .tcl",
+    "path": "a.tcl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .tesc",
+    "path": "a.tesc",
+    "starters": []
+   },
+   {
+    "name": "the starters of .tese",
+    "path": "a.tese",
+    "starters": []
+   },
+   {
+    "name": "the starters of .tex",
+    "path": "a.tex",
+    "starters": [
+     "%"
+    ]
+   },
+   {
+    "name": "the starters of .tf",
+    "path": "a.tf",
+    "starters": []
+   },
+   {
+    "name": "the starters of .tfvars",
+    "path": "a.tfvars",
+    "starters": []
+   },
+   {
+    "name": "the starters of .thrift",
+    "path": "a.thrift",
+    "starters": []
+   },
+   {
+    "name": "the starters of .toml",
+    "path": "a.toml",
+    "starters": []
+   },
+   {
+    "name": "the starters of .tpp",
+    "path": "a.tpp",
+    "starters": []
+   },
+   {
+    "name": "the starters of .ts",
+    "path": "a.ts",
+    "starters": []
+   },
+   {
+    "name": "the starters of .tsx",
+    "path": "a.tsx",
+    "starters": []
+   },
+   {
+    "name": "the starters of .twig",
+    "path": "a.twig",
+    "starters": []
+   },
+   {
+    "name": "the starters of .v",
+    "path": "a.v",
+    "starters": []
+   },
+   {
+    "name": "the starters of .vb",
+    "path": "a.vb",
+    "starters": [
+     "'"
+    ]
+   },
+   {
+    "name": "the starters of .vbproj",
+    "path": "a.vbproj",
+    "starters": []
+   },
+   {
+    "name": "the starters of .vbs",
+    "path": "a.vbs",
+    "starters": [
+     "'"
+    ]
+   },
+   {
+    "name": "the starters of .vert",
+    "path": "a.vert",
+    "starters": []
+   },
+   {
+    "name": "the starters of .vhd",
+    "path": "a.vhd",
+    "starters": []
+   },
+   {
+    "name": "the starters of .vhdl",
+    "path": "a.vhdl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .vue",
+    "path": "a.vue",
+    "starters": []
+   },
+   {
+    "name": "the starters of .wgsl",
+    "path": "a.wgsl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .wsdl",
+    "path": "a.wsdl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .xaml",
+    "path": "a.xaml",
+    "starters": []
+   },
+   {
+    "name": "the starters of .xhtml",
+    "path": "a.xhtml",
+    "starters": []
+   },
+   {
+    "name": "the starters of .xib",
+    "path": "a.xib",
+    "starters": []
+   },
+   {
+    "name": "the starters of .xml",
+    "path": "a.xml",
+    "starters": []
+   },
+   {
+    "name": "the starters of .xsd",
+    "path": "a.xsd",
+    "starters": []
+   },
+   {
+    "name": "the starters of .xsl",
+    "path": "a.xsl",
+    "starters": []
+   },
+   {
+    "name": "the starters of .xslt",
+    "path": "a.xslt",
+    "starters": []
+   },
+   {
+    "name": "the starters of .zig",
+    "path": "a.zig",
+    "starters": []
+   },
+   {
+    "name": "the starters of .zsh",
+    "path": "a.zsh",
+    "starters": []
+   },
+   {
+    "name": "a file nobody listed",
+    "path": "LICENSE",
+    "starters": []
+   }
+  ]
+ },
+ "lock_render": {
+  "how": "render(entries, fmt) -> text of the lock file (fmt null: the format the entries need, 3 when a line of `targets` holds more than code and built, 2 when a clause has `targets`, else 1): a clause with `targets` loses `targets` and `code` and gets a line `<clause>@<target>` of kind \"code\" per target; keys sorted, one entry per line, entry keys sorted, separators \", \" and \": \", non-ASCII as written; a fmt above 1 opens with its marker line.",
+  "rows": [
+   {
+    "name": "sorted keys, one entry per line, entry keys sorted",
+    "fmt": 1,
+    "entries": {
+     "b/item": {
+      "kind": "item",
+      "text": "x",
+      "code": "c"
+     },
+     "a": {
+      "kind": "part",
+      "text": "y"
+     }
+    },
+    "text": "{\n\"a\": {\"kind\": \"part\", \"text\": \"y\"},\n\"b/item\": {\"code\": \"c\", \"kind\": \"item\", \"text\": \"x\"}\n}\n"
+   },
+   {
+    "name": "non-ascii is written as it is",
+    "fmt": 1,
+    "entries": {
+     "é": {
+      "kind": "part",
+      "text": "ü"
+     }
+    },
+    "text": "{\n\"é\": {\"kind\": \"part\", \"text\": \"ü\"}\n}\n"
+   },
+   {
+    "name": "keys are ordered by code point, so an astral key comes after U+FF5E",
+    "fmt": 1,
+    "entries": {
+     "😀": {
+      "kind": "part",
+      "text": "y"
+     },
+     "～": {
+      "kind": "part",
+      "text": "z"
+     }
+    },
+    "text": "{\n\"～\": {\"kind\": \"part\", \"text\": \"z\"},\n\"😀\": {\"kind\": \"part\", \"text\": \"y\"}\n}\n"
+   },
+   {
+    "name": "a test entry with a result",
+    "fmt": 1,
+    "entries": {
+     "a/test:x": {
+      "kind": "test",
+      "result": "pass",
+      "text": "t"
+     }
+    },
+    "text": "{\n\"a/test:x\": {\"kind\": \"test\", \"result\": \"pass\", \"text\": \"t\"}\n}\n"
+   },
+   {
+    "name": "a test entry says where its result came from, and the key sorts last",
+    "fmt": 1,
+    "entries": {
+     "a/test:x": {
+      "kind": "test",
+      "via": "file",
+      "result": "pass",
+      "text": "t"
+     }
+    },
+    "text": "{\n\"a/test:x\": {\"kind\": \"test\", \"result\": \"pass\", \"text\": \"t\", \"via\": \"file\"}\n}\n"
+   },
+   {
+    "name": "no entries is an empty line between the braces",
+    "fmt": 1,
+    "entries": {},
+    "text": "{\n\n}\n"
+   },
+   {
+    "name": "a later format opens with its marker, then the entries as before",
+    "fmt": 2,
+    "entries": {
+     "a": {
+      "kind": "part",
+      "text": "y"
+     }
+    },
+    "text": "{\n\"*format\": 2,\n\"a\": {\"kind\": \"part\", \"text\": \"y\"}\n}\n"
+   },
+   {
+    "name": "a clause with code per target: its own line without code, then a line for each target",
+    "fmt": null,
+    "entries": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1",
+      "code": "ignored",
+      "targets": {
+       "ts": {
+        "code": "0f1e2d3c4b5a",
+        "built": "text0"
+       },
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "text1"
+       }
+      }
+     },
+     "g/b": {
+      "kind": "item",
+      "text": "t2",
+      "code": "123456789abc"
+     }
+    },
+    "text": "{\n\"*format\": 2,\n\"g/b\": {\"code\": \"123456789abc\", \"kind\": \"item\", \"text\": \"t2\"},\n\"g/h\": {\"kind\": \"item\", \"refs\": {\"x\": \"r1\"}, \"text\": \"text1\"},\n\"g/h@py\": {\"built\": \"text1\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"py\"},\n\"g/h@ts\": {\"built\": \"text0\", \"code\": \"0f1e2d3c4b5a\", \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"ts\"}\n}\n"
+   },
+   {
+    "name": "a line that says more than code and built makes the lock format 3",
+    "fmt": null,
+    "entries": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1",
+      "code": "ignored",
+      "targets": {
+       "ts": {
+        "code": "0f1e2d3c4b5a",
+        "built": "text1",
+        "fits": true
+       },
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "text1"
+       }
+      }
+     }
+    },
+    "text": "{\n\"*format\": 3,\n\"g/h\": {\"kind\": \"item\", \"refs\": {\"x\": \"r1\"}, \"text\": \"text1\"},\n\"g/h@py\": {\"built\": \"text1\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"py\"},\n\"g/h@ts\": {\"built\": \"text1\", \"code\": \"0f1e2d3c4b5a\", \"fits\": true, \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"ts\"}\n}\n"
+   },
+   {
+    "name": "a test with a result on each line: the result is on the lines and not on the test, and the lock is format 3",
+    "fmt": null,
+    "entries": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt",
+      "result": "fail",
+      "code": "ignored",
+      "targets": {
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "tt",
+        "result": "pass"
+       },
+       "ts": {
+        "code": "0f1e2d3c4b5a",
+        "built": "tt",
+        "result": "fail"
+       }
+      }
+     }
+    },
+    "text": "{\n\"*format\": 3,\n\"g/test:h\": {\"kind\": \"test\", \"text\": \"tt\"},\n\"g/test:h@py\": {\"built\": \"tt\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/test:h\", \"result\": \"pass\", \"target\": \"py\"},\n\"g/test:h@ts\": {\"built\": \"tt\", \"code\": \"0f1e2d3c4b5a\", \"kind\": \"code\", \"of\": \"g/test:h\", \"result\": \"fail\", \"target\": \"ts\"}\n}\n"
+   },
+   {
+    "name": "a test with a result and a source on each line: the source is on the lines, never on the test, and the lock is format 3",
+    "fmt": null,
+    "entries": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt",
+      "result": "pass",
+      "code": "ignored",
+      "targets": {
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "tt",
+        "result": "pass",
+        "via": "command"
+       },
+       "ts": {
+        "code": "0f1e2d3c4b5a",
+        "built": "tt",
+        "result": "pass",
+        "via": "file"
+       }
+      }
+     }
+    },
+    "text": "{\n\"*format\": 3,\n\"g/test:h\": {\"kind\": \"test\", \"text\": \"tt\"},\n\"g/test:h@py\": {\"built\": \"tt\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/test:h\", \"result\": \"pass\", \"target\": \"py\", \"via\": \"command\"},\n\"g/test:h@ts\": {\"built\": \"tt\", \"code\": \"0f1e2d3c4b5a\", \"kind\": \"code\", \"of\": \"g/test:h\", \"result\": \"pass\", \"target\": \"ts\", \"via\": \"file\"}\n}\n"
+   },
+   {
+    "name": "a test whose lines carry no result keeps its result and the lock stays format 2",
+    "fmt": null,
+    "entries": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt",
+      "result": "manual",
+      "code": "ignored",
+      "targets": {
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "tt"
+       }
+      }
+     }
+    },
+    "text": "{\n\"*format\": 2,\n\"g/test:h\": {\"kind\": \"test\", \"result\": \"manual\", \"text\": \"tt\"},\n\"g/test:h@py\": {\"built\": \"tt\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/test:h\", \"target\": \"py\"}\n}\n"
+   },
+   {
+    "name": "a higher format than the entries need is written as asked, with plain lines",
+    "fmt": 3,
+    "entries": {
+     "g/h": {
+      "kind": "item",
+      "refs": {
+       "x": "r1"
+      },
+      "text": "text1",
+      "code": "ignored",
+      "targets": {
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "text1"
+       }
+      }
+     }
+    },
+    "text": "{\n\"*format\": 3,\n\"g/h\": {\"kind\": \"item\", \"refs\": {\"x\": \"r1\"}, \"text\": \"text1\"},\n\"g/h@py\": {\"built\": \"text1\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"py\"}\n}\n"
+   },
+   {
+    "name": "the format follows the entries: none with a line is format 1 with no marker",
+    "fmt": null,
+    "entries": {
+     "g/b": {
+      "kind": "item",
+      "text": "t2",
+      "code": "123456789abc"
+     }
+    },
+    "text": "{\n\"g/b\": {\"code\": \"123456789abc\", \"kind\": \"item\", \"text\": \"t2\"}\n}\n"
+   }
+  ]
+ }
+}

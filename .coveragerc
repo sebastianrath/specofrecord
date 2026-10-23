@@ -1,0 +1,17 @@
+# Coverage of the tool (tools/py/sorlib and tools/py/sor.py) over its own tests; run it with `sh tools/py/coverage.sh`.
+[run]
+source = tools/py
+branch = True
+parallel = True
+omit =
+    tools/py/test_*.py
+    tools/py/coverage_site/*
+
+[report]
+show_missing = True
+skip_empty = True
+precision = 1
+sort = Cover
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:

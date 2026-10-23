@@ -1,0 +1,1852 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spec of Record (SoR) | Spec-driven development with AI</title>
+<meta name="description" content="Spec of Record keeps AI-built software understandable. One plain-language spec stays in sync with the code, so the whole team can review and change it.">
+<meta name="author" content="Sebastian Rath">
+<link rel="canonical" href="https://specofrecord.org/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Spec of Record">
+<meta property="og:title" content="Spec of Record (SoR) | Spec-driven development with AI">
+<meta property="og:description" content="Spec of Record keeps AI-built software understandable. One plain-language spec stays in sync with the code, so the whole team can review and change it.">
+<meta property="og:url" content="https://specofrecord.org/">
+<meta property="og:image" content="https://specofrecord.org/social/banner.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Spec of Record banner showing one spec clause linked to the two pieces of code built from it">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Caveat:wght@600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff;
+    --ink: #111111;
+    --muted: #555555;
+    --line: #dcdcdc;
+    --soft: #f4f4f4;
+    --link: #0047b3;
+    --warn-bg: #fff1c2; --warn-ink: #4a3600; --warn-line: #e2c565;
+    --sans: "Atkinson Hyperlegible", Verdana, sans-serif;
+    --mono: "Atkinson Hyperlegible Mono", ui-monospace, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141414; --ink: #ececec; --muted: #a8a8a8; --line: #333333;
+      --soft: #1f1f1f; --link: #8cb4ff;
+      --warn-bg: #3a2f08; --warn-ink: #ffe9a8; --warn-line: #6b5a1c;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141414; --ink: #ececec; --muted: #a8a8a8; --line: #333333;
+    --soft: #1f1f1f; --link: #8cb4ff;
+    --warn-bg: #3a2f08; --warn-ink: #ffe9a8; --warn-line: #6b5a1c;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 18px/1.65 var(--sans); }
+  main { max-width: 740px; margin: 0 auto; padding: 48px 16px 80px; }
+  @media (min-width: 720px) { main { padding: 72px 32px 96px; } }
+  h1 { font-size: 2.6rem; line-height: 1.1; margin: 0 0 10px; }
+  .sub { margin: 0 0 8px; }
+  .authors { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-wrap: wrap; gap: 2px 18px; font-size: .92rem; }
+  .authors a { color: var(--muted); text-decoration: none; }
+  .authors a:hover { color: var(--link); }
+  .authors li { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 16px; line-height: 1.5; }
+  .authors .gh, .authors .lic { display: inline-flex; align-items: center; gap: 5px; text-decoration: none; }
+  .authors .gh svg { flex: none; }
+  .authors .gh:hover, .authors .lic:hover { color: var(--link); }
+  .authors .lic { position: relative; }
+  .authors .lic::after { content: attr(data-tip); position: absolute; top: calc(100% + 4px); left: 50%; transform: translateX(-50%); z-index: 5; white-space: nowrap; padding: 3px 8px; font-size: .75rem; line-height: 1.3; color: var(--bg); background: var(--ink); border-radius: 4px; pointer-events: none; opacity: 0; transition: opacity .12s; }
+  .authors .lic:hover::after, .authors .lic:focus-visible::after { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .authors .lic::after { transition: none; } }
+  h2 { font-size: 1.35rem; margin: 52px 0 12px; padding-top: 16px; border-top: 1px solid var(--line); }
+  h3 { font-size: 1.2rem; margin: 26px 0 4px; }
+  strong, b, th, h1, h3, h4 { font-weight: 400; }
+  h2 { font-weight: 700; }
+  .specbox strong, dialog h3, dialog h4 { font-weight: 700; }
+  p, ul, ol, dl { margin: 0 0 1em; }
+  li { margin-bottom: .4em; }
+  a { color: var(--link); }
+  code, pre { font-family: var(--mono); font-size: .84em; }
+  pre { background: var(--soft); border: 1px solid var(--line); padding: 14px 16px; overflow-x: auto; line-height: 1.6; margin: 0 0 1em; }
+  .meta { color: var(--muted); font-size: .92rem; margin-bottom: 32px; }
+
+  nav.toc { background: var(--soft); padding: 14px 20px; font-size: .95rem; }
+  nav.toc ol { margin: 0; padding-left: 20px; columns: 2; column-gap: 32px; }
+  @media (max-width: 560px) { nav.toc ol { columns: 1; } }
+  nav.toc li { margin: 2px 0; break-inside: avoid; }
+
+  .pair { display: grid; gap: 12px; }
+  .pair { position: relative; }
+  @media (min-width: 680px) { .pair { margin-top: 34px; } }
+  @media (max-width: 679px) { .pair { gap: 36px; } }   /* room for the arrow and its word between the stacked boxes */
+  .pair-arrow { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 3; color: var(--t-m); }
+  .pair-arrow path { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+  .pair-arrow .head { fill: currentColor; stroke: none; }
+  .pair-arrow .label { font: 600 28px/1 'Caveat', 'Bradley Hand', 'Segoe Script', cursive; fill: currentColor; stroke: none; paint-order: stroke; }
+  .pair-arrow .label.halo { stroke: var(--bg); stroke-width: 5px; stroke-linejoin: round; }
+  @media (min-width: 680px) { .pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); } }
+  .pair > div { min-width: 0; display: flex; flex-direction: column; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .pair .fe-file { position: static; z-index: auto; }
+  .pair pre[hidden] { display: none; }
+  .pair .specbox, .pair pre { flex: 1; margin: 0; border: 0; border-radius: 0; background: var(--soft); }
+  .pair pre { font-size: 12.5px; padding: 14px 12px; }
+  .specbox { background: var(--soft); border: 1px solid var(--line); padding: 14px 16px; line-height: 1.6; margin: 0 0 1em; }
+  .specbox p { margin: 0; }
+  .specbox .dots { color: var(--muted); font-family: var(--mono); font-size: .84em; margin: 0; }
+  .shot { display: block; width: 100%; height: auto; margin: 0 0 1em; }
+
+  .tw { overflow-x: auto; margin: 0 0 1em; }
+  table { border-collapse: collapse; width: 100%; font-size: .94rem; line-height: 1.5; }
+  th, td { text-align: left; vertical-align: top; padding: 9px 14px 9px 0; border-bottom: 1px solid var(--line); }
+  th { border-bottom: 2px solid var(--ink); }
+  tr.proposal td { color: color-mix(in srgb, var(--muted) 60%, var(--bg)); }
+
+  sup a { text-decoration: none; padding: 0 2px; }
+  .note { margin: 0 0 .6em; }
+  footer { color: var(--muted); font-size: .82rem; line-height: 1.5; margin-top: 60px; padding-top: 16px; border-top: 1px solid var(--line); }
+  footer p { margin: 0 0 .4em; }
+  footer a { color: inherit; }
+  .anchor { margin-left: .4em; color: var(--muted); text-decoration: none; font-weight: 400; opacity: 0; transition: opacity .15s; }
+  .draftbar { position: sticky; top: 0; z-index: 10; background: var(--warn-bg); color: var(--warn-ink); border-bottom: 1px solid var(--warn-line); padding: 9px 16px; text-align: center; font-size: .92rem; line-height: 1.4; }
+  h2, h3 { scroll-margin-top: 72px; }
+  .draftbar strong { text-transform: uppercase; letter-spacing: .05em; }
+  .nb { white-space: nowrap; }
+  h2:hover .anchor, h3:hover .anchor, .anchor:focus-visible { opacity: 1; }
+  .anchor:hover { color: var(--link); }
+  @media (hover: none) { .anchor { opacity: .5; } }
+  .steps { margin: 0 0 24px; }
+  .step { display: flex; align-items: flex-start; gap: 14px; margin: 0 0 12px; }
+  .step .install { flex: 1; min-width: 0; margin: 0; }
+  .num { flex: none; width: 3.6rem; text-align: right; font-size: 2rem; line-height: 1.1; color: var(--muted); }
+  @media (max-width: 480px) { .step { gap: 8px; } .num { width: 2.6rem; font-size: 1.5rem; } }
+  .install { border: 1px solid var(--line); border-radius: 8px; background: var(--soft); margin: 0 0 24px; padding-bottom: 8px; }
+  .install-head { padding: 10px 14px 8px; margin-bottom: 4px; font-size: 1.05rem; color: var(--ink); border-bottom: 1px solid var(--line); }
+  .install-head.has-tabs { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
+  .agent-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .agent-tab { font: inherit; font-size: .9rem; font-weight: 400; line-height: 1.3; padding: 3px 12px; cursor: default; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; }
+  .agent-tab[aria-selected="true"] { color: var(--link); border-color: var(--link); }
+  .agent-tab[aria-disabled="true"] { background: transparent; color: color-mix(in srgb, var(--ink) 38%, var(--bg)); border-color: color-mix(in srgb, var(--line) 65%, var(--bg)); cursor: not-allowed; }
+  .agent-tab[data-tip] { position: relative; }
+  .agent-tab[data-tip]::after { content: attr(data-tip); position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); z-index: 5; white-space: nowrap; padding: 3px 8px; font-size: .75rem; font-weight: 400; line-height: 1.3; color: var(--bg); background: var(--ink); border-radius: 4px; pointer-events: none; opacity: 0; transition: opacity .12s; }
+  .agent-tab[data-tip]:last-child::after { left: auto; right: 0; transform: none; }
+  .agent-tab[data-tip]:hover::after, .agent-tab[data-tip]:focus-visible::after, .agent-tab[data-tip].tip::after { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .agent-tab[data-tip]::after { transition: none; } }
+  @media (max-width: 480px) { .agent-tabs { gap: 4px; } .agent-tab { font-size: .85rem; padding: 3px 9px; } }
+  .agent-tab.with-logo { display: inline-flex; align-items: center; gap: 6px; }
+  .agent-tab .logo { width: 1.05em; height: 1.05em; flex: none; fill: currentColor; }
+  .opt { display: inline-block; margin-left: 4px; padding: 0 9px; font-size: .75rem; font-weight: 400; letter-spacing: .05em; text-transform: uppercase; line-height: 1.6; vertical-align: 2px; color: var(--ink); background: var(--bg); border: 1px solid var(--ink); border-radius: 999px; }
+  .install-note { margin: 2px 14px 4px; font-size: .9rem; color: var(--muted); }
+  .cmd { display: flex; align-items: center; gap: 12px; padding: 4px 14px 0; }
+  .cmd-lines { flex: 1; min-width: 0; }
+  .cmd-lines code { display: block; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .9rem; line-height: 1.6; padding: 6px 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
+  .cmd-lines code.sh::before { content: "$ "; color: var(--muted); }
+  .install-shot { display: block; width: calc(100% - 28px); height: auto; margin: 8px 14px 6px; border: 1px solid var(--line); border-radius: 6px; }
+  .install-label { margin: 10px 14px 0; font-size: .75rem; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+  .install-steps { margin: 6px 14px 4px; padding-left: 1.5rem; font-size: .95rem; line-height: 1.7; }
+  .install-copy { flex: none; font: inherit; font-size: .8rem; cursor: pointer; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 4px 14px; }
+  .install-copy:hover, .install-copy:focus-visible { border-color: var(--link); color: var(--link); }
+  .agent-tab[aria-controls] { cursor: pointer; }
+  .agent-tab[aria-controls]:hover, .agent-tab[aria-controls]:focus-visible { border-color: var(--link); }
+  [role="tabpanel"][hidden] { display: none; }
+  .install-more { margin: 2px 0 0; }
+  .install-more summary { cursor: pointer; padding: 2px 14px; font-size: .9rem; color: var(--muted); }
+  .install-more summary:hover, .install-more summary:focus-visible { color: var(--link); }
+  .install-more summary code { font-size: .85em; }
+  .install, .pair { --t-k: #cf222e; --t-s: #0a3069; --t-f: #8250df; --t-m: #0047b3; --t-c: #5b636b; --bubble: #e6eefb; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .install, :root:not([data-theme="light"]) .pair { --t-k: #ff7b72; --t-s: #a5d6ff; --t-f: #d2a8ff; --t-m: #8cb4ff; --t-c: #9aa4ae; --bubble: #26324a; } }
+  :root[data-theme="dark"] .install, :root[data-theme="dark"] .pair { --t-k: #ff7b72; --t-s: #a5d6ff; --t-f: #d2a8ff; --t-m: #8cb4ff; --t-c: #9aa4ae; --bubble: #26324a; }
+  .cmd.prompt-row { display: block; padding: 2px 14px 12px; }
+  .prompt-row .cmd-lines { overflow: visible; }
+  .prompt-row .cmd-lines code { font-family: inherit; font-size: .95rem; line-height: 1.5; background: var(--bubble); border: 1px solid var(--line); border-radius: 14px 14px 4px 14px; padding: 10px 14px; margin-left: auto; width: fit-content; max-width: 94%; }
+  .cmd-lines.prompt code { white-space: normal; overflow-wrap: break-word; }
+  .steps, .fold { position: relative; }
+  .steps.collapsible, .fold.collapsible { margin-bottom: 8px; overflow: hidden; transition: max-height .25s ease; }
+  .steps.collapsible.is-collapsed::after, .fold.collapsible.is-collapsed::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 64px; pointer-events: none; background: linear-gradient(to bottom, transparent, var(--bg)); }
+  .lvl { display: block; font-size: .72rem; line-height: 1.3; color: var(--muted); }
+  .steps-more { margin: 0 0 24px; text-align: center; }
+  .steps-more[hidden] { display: none; }
+  .steps-toggle { font: inherit; font-size: .9rem; font-weight: 400; line-height: 1.4; cursor: pointer; background: var(--soft); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 6px 18px; }
+  .steps-toggle:hover, .steps-toggle:focus-visible { border-color: var(--link); color: var(--link); }
+  @media (prefers-reduced-motion: reduce) { .steps.collapsible, .fold.collapsible { transition: none; } }
+/* full-example css start */
+  .more { margin: 12px 0 1em; display: flex; justify-content: center; }
+  .more[hidden] { display: none; }
+  .open-example { font: inherit; font-size: .9rem; font-weight: 400; line-height: 1.4; cursor: pointer; background: var(--soft); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 6px 18px; }
+  .open-example:hover, .open-example:focus-visible { border-color: var(--link); color: var(--link); }
+
+  #full-example { --chip: #e6eefb; --on: #fff1b8; --hover: rgba(0,71,179,.07);
+    --t-k: #cf222e; --t-s: #0a3069; --t-n: #0550ae; --t-c: #5b636b; --t-f: #8250df; --t-b: #953800; --t-m: #0047b3; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) #full-example { --chip: #26324a; --on: #4a3f12; --hover: rgba(140,180,255,.10);
+      --t-k: #ff7b72; --t-s: #a5d6ff; --t-n: #79c0ff; --t-c: #9aa4ae; --t-f: #d2a8ff; --t-b: #ffa657; --t-m: #8cb4ff; }
+  }
+  :root[data-theme="dark"] #full-example { --chip: #26324a; --on: #4a3f12; --hover: rgba(140,180,255,.10);
+    --t-k: #ff7b72; --t-s: #a5d6ff; --t-n: #79c0ff; --t-c: #9aa4ae; --t-f: #d2a8ff; --t-b: #ffa657; --t-m: #8cb4ff; }
+
+  #full-example { width: min(90vw, 1400px); height: min(88vh, 860px); max-width: none; max-height: none; padding: 0; margin: auto;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); box-shadow: 0 20px 60px rgba(0,0,0,.35); font-size: 16px; line-height: 1.6; }
+  #full-example[open] { display: flex; flex-direction: column; }
+  #full-example::backdrop { background: rgba(0,0,0,.55); }
+  @media (max-width: 899px) { #full-example { width: 100vw; height: 100vh; height: 100dvh; max-height: none; border: 0; border-radius: 0; } }
+  #full-example button { font: inherit; }
+
+  .fe-head { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .fe-title { font-weight: 700; margin-right: auto; }
+  .fe-close { cursor: pointer; border: 1px solid var(--line); background: var(--soft); color: var(--ink); border-radius: 6px; padding: 5px 12px; }
+  .fe-close:hover { border-color: var(--link); }
+  .fe-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 200px 5fr 6fr; }
+  .fe-pane { min-height: 0; overflow: auto; }
+  .fe-stack { display: none; }
+  @media (max-width: 899px) {
+    .fe-head { flex-wrap: nowrap; }
+    .fe-title { min-width: 0; font-size: .95rem; line-height: 1.3; }
+    .fe-close { flex: none; }
+    .fe-body { grid-template-columns: 1fr; }
+    .fe-pane { display: none; }
+    .fe-stack { display: block; min-height: 0; overflow: auto; }
+  }
+  .fe-file { position: sticky; top: 0; z-index: 2; display: flex; align-items: flex-end; padding: 6px 8px 0; font-family: var(--mono); font-size: .78rem; color: var(--ink); border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--soft) 90%, var(--ink)); }
+  .fe-file .tab { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px 7px; margin-bottom: -1px; background: var(--soft); border: 1px solid var(--line); border-bottom-color: var(--soft); border-top: 2px solid var(--link); border-radius: 6px 6px 0 0; max-width: 100%; }
+  .fe-file .ic { width: 13px; height: 13px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linejoin: round; color: var(--muted); }
+  .fe-file .tab-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fe-file { gap: 2px; }
+  .fe-file button.tab { font: inherit; color: inherit; cursor: default; }
+  .fe-file .tab.off { background: transparent; border-color: transparent; color: var(--muted); cursor: pointer; margin-bottom: 0; }
+  .fe-file .tab.off:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, transparent); }
+
+  .fe-spec { border-right: 1px solid var(--line); }
+  .fe-doc { padding: 14px 24px 48px; }
+  .fe-doc h3 { font-size: 1.35rem; line-height: 1.7rem; margin: 0 0 6px; }
+  .fe-doc h4 { font-size: 1.05rem; line-height: 1.7rem; margin: 0 0 6px; }
+  .fe-doc .hash { color: var(--muted); font-weight: 400; }
+  .blk { border-radius: 8px; padding: 8px 12px; margin: 0 -12px 6px; cursor: pointer; }
+  .blk:hover { background: var(--hover); }
+  .blk.on, .blk.hl, .blk.hl:hover { background: var(--on); }
+  .blk.nocode { cursor: default; }
+  .blk.nocode:hover { background: none; }
+  .blk p { margin: 0; }
+  .lead { font-weight: 700; }
+  .rname { font-family: var(--mono); font-weight: 600; font-size: .9em; margin-right: 6px; }
+  .val { background: var(--chip); border-radius: 4px; padding: 0 5px; }
+  .tags { margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag { font-family: var(--mono); font-size: .7rem; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; }
+  .tag-test { font-style: italic; }
+  .blk:focus-visible, .rg:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+
+  .fe-code, .fe-spec { background: var(--soft); }
+  .fe-code pre[hidden] { display: none; }
+  .fe-code pre { display: inline-block; min-width: 100%; margin: 0; border: 0; background: none; padding: 10px 0 48px; font-size: 13px; line-height: 1.55; overflow: visible; counter-reset: ln; }
+  .ln { display: block; position: relative; padding: 0 18px 0 56px; white-space: pre; min-height: 1.55em; counter-increment: ln; }
+  .ln::before { content: counter(ln); position: absolute; left: 0; width: 40px; text-align: right; color: var(--muted); opacity: .75; }
+  .rg { display: block; border-left: 3px solid transparent; }
+  .rg[data-id] { cursor: pointer; }
+  .rg[data-id]:hover { background: var(--hover); }
+  .rg.on { background: var(--on); border-left-color: var(--link); }
+  .rg[data-id].on, .rg[data-id].on:hover, .rg[data-id].hl, .rg[data-id].hl:hover { background: var(--on); border-left-color: var(--link); }
+  .t-k { color: var(--t-k); } .t-s { color: var(--t-s); } .t-n { color: var(--t-n); } .t-c { color: var(--t-c); font-style: italic; }
+  .t-f { color: var(--t-f); } .t-b { color: var(--t-b); } .t-m { color: var(--t-m); font-weight: 600; font-style: normal; }
+  .fe-files { padding: 12px 10px; background: color-mix(in srgb, var(--soft) 94%, var(--ink)); border-right: 1px solid var(--line); }
+  .fe-files .fe-tree { background: none; border: 0; padding: 0; overflow: visible; font-size: .78rem; }
+  .fe-files .here { display: none; }
+  .fe-tree li[data-file] > .n { cursor: pointer; border-radius: 4px; padding: 0 5px; margin-left: -5px; }
+  .fe-tree li[data-file]:hover > .n { background: var(--hover); }
+  .fe-tree li[data-file]:focus-visible { outline: 2px solid var(--link); outline-offset: 1px; border-radius: 4px; }
+  .fe-tree li.f.hl > .n, .fe-tree li.f.on > .n { background: var(--on); color: var(--ink); }
+  /* a block says which clause it is, and whether it has a test, in a tooltip */
+  .fe-spec .blk[data-tip] { position: relative; }
+  .fe-spec .blk[data-tip]::after { content: attr(data-tip); position: absolute; left: 12px; bottom: 100%; margin-bottom: -2px; z-index: 6; pointer-events: none; opacity: 0; transition: opacity .12s; width: max-content; max-width: calc(100% - 24px); font-family: var(--mono); font-size: .72rem; line-height: 1.4; background: var(--ink); color: var(--bg); padding: 3px 8px; border-radius: 4px; }
+  .fe-spec .blk[data-tip]:hover::after, .fe-spec .blk[data-tip]:focus-visible::after { opacity: 1; transition-delay: .25s; }
+  /* line numbers, as in an editor: one number per line of the markdown file, blank lines included (a wrapped line keeps its number) */
+  .fe-spec .fe-doc { padding-left: 68px; counter-reset: md; }
+  .fe-spec .fe-doc > h3, .fe-spec .fe-doc > h4, .fe-spec .fe-doc > .blk, .fe-spec .fe-doc > .md-gap { position: relative; counter-increment: md; }
+  .fe-spec .fe-doc > h3::before, .fe-spec .fe-doc > h4::before, .fe-spec .fe-doc > .blk::before, .fe-spec .fe-doc > .md-gap::before { content: counter(md); position: absolute; left: -44px; width: 36px; text-align: right; font-family: var(--mono); font-size: .78rem; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--muted); opacity: .75; }
+  .fe-spec .fe-doc > .blk::before { top: 8px; line-height: 1.6rem; }
+  .fe-spec .fe-doc > .blk.sub::before { top: 0; }
+  .fe-spec .fe-doc > h3::before, .fe-spec .fe-doc > h4::before { top: 0; left: -56px; line-height: 1.7rem; }
+  .fe-spec .fe-doc > .md-gap { height: 1.6rem; margin: 0 -12px 6px; padding: 0 12px; }
+  .fe-spec .fe-doc > .md-gap::before { top: 0; line-height: 1.6rem; }
+  /* a test: its head line names the rule it proves, its do / expect lines follow as lines of their own */
+  .blk.test-head { margin-bottom: 0; padding-bottom: 2px; }
+  .blk.sub { margin-bottom: 0; padding-top: 0; padding-bottom: 0; }
+  .blk.sub.last { margin-bottom: 6px; padding-bottom: 8px; }
+  .blk.sub p { font-family: var(--mono); font-size: .86rem; line-height: 1.6rem; }
+  .kw { color: var(--muted); margin-right: 4px; }
+  /* a reference to something in another file, or a function name: inline code in a small frame */
+  .ref { font-family: var(--mono); font-size: .88em; color: #8b3a2f; background: color-mix(in srgb, var(--ink) 6%, transparent); border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent); border-radius: 6px; padding: 1px 6px; overflow-wrap: anywhere; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ref { color: #f0a89c; } }
+  :root[data-theme="dark"] .ref { color: #f0a89c; }
+  .fe-explain { padding: 12px 24px 0; font-size: .92rem; color: var(--muted); }
+  .fe-explain p { margin: 0 0 6px; }
+  /* A file tree: folders in bold with an icon, files nested under them with connector lines, the current file marked. */
+  .fe-tree { font-family: var(--mono); font-size: .8rem; line-height: 1.5; background: var(--soft); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; overflow-x: auto; }
+  .fe-tree ul { list-style: none; margin: 0; padding: 0 0 0 20px; }
+  .fe-tree > ul { padding-left: 0; }
+  .fe-tree li { position: relative; margin: 0; padding: 2px 0; white-space: nowrap; }
+  .fe-tree ul ul > li::before { content: ""; position: absolute; left: -12px; top: 0; bottom: 0; border-left: 1px solid var(--muted); opacity: .55; }
+  .fe-tree ul ul > li::after { content: ""; position: absolute; left: -12px; top: 12px; width: 9px; border-top: 1px solid var(--muted); opacity: .55; }
+  .fe-tree ul ul > li:last-child::before { bottom: auto; height: 12px; }
+  .fe-tree .ic { width: 14px; height: 14px; vertical-align: -2px; margin-right: 6px; fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linejoin: round; color: var(--muted); }
+  .fe-tree .d > .n { font-weight: 700; color: var(--ink); }
+  .fe-tree .cur > .n { background: var(--chip); border-radius: 4px; padding: 0 6px; margin-left: -6px; color: var(--ink); font-weight: 600; }
+  .fe-tree .here { color: var(--muted); font-style: italic; margin-left: 8px; }
+  .fe-doc { padding-top: 6px; }
+
+  /* Narrow screens: one column, each spec item with the code it is about right below it (built by the script). */
+  .fe-pick { display: flex; gap: 6px; overflow-x: auto; padding: 10px 14px 0; background: color-mix(in srgb, var(--soft) 90%, var(--ink)); }
+  .fe-pick button { flex: none; font: inherit; font-family: var(--mono); font-size: .78rem; cursor: pointer; color: var(--muted); background: transparent; border: 1px solid transparent; border-bottom: 0; border-radius: 6px 6px 0 0; padding: 6px 12px; }
+  .fe-pick button.cur { color: var(--ink); background: var(--soft); border-color: var(--line); border-top: 2px solid var(--link); }
+  .fe-stack .fe-file { position: static; }
+  .fe-stack .fe-doc { padding: 6px 14px 40px; }
+  .fe-stack .md-gap { display: none; }
+  .fe-stack .fe-doc h4 { margin-top: 22px; }
+  .fe-stack .blk { cursor: default; margin-bottom: 4px; }
+  .fe-stack .blk:hover { background: none; }
+  .fe-inline-code { margin: 4px 0 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--soft); overflow: hidden; }
+  .fe-inline-code::before { content: attr(data-file); display: block; padding: 4px 12px; font-family: var(--mono); font-size: .72rem; color: var(--muted); border-bottom: 1px solid var(--line); }
+  .fe-inline-code pre { margin: 0; border: 0; background: none; padding: 8px 0; font-size: 13px; line-height: 1.55; overflow-x: auto; counter-reset: ln; }
+  .fe-inline-code pre + pre { border-top: 1px dashed var(--line); }
+  .path { font-family: var(--mono); font-weight: 400; margin-left: 6px; }
+/* full-example css end */
+
+  /* Two agents claiming, changing, locking and releasing clauses. The spec is on the left, its code blocks on the right: one clause can own blocks that are not next to each other. */
+  .cl { margin: 0 0 1em; --ca: #da7758; --cb: #3f7fdc; --t-k: #cf222e; --t-s: #0a3069; --t-f: #8250df; --t-m: #0047b3; --cl-no: #b3261e; --t-n: #0550ae; --chip: #e6eefb; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .cl { --cb: #6ea4ff; --t-k: #ff7b72; --t-s: #a5d6ff; --t-f: #d2a8ff; --t-m: #8cb4ff; --cl-no: #ff8a80; --t-n: #79c0ff; --chip: #26324a; } }
+  :root[data-theme="dark"] .cl { --t-n: #79c0ff; --chip: #26324a; --cb: #6ea4ff; --t-k: #ff7b72; --t-s: #a5d6ff; --t-f: #d2a8ff; --t-m: #8cb4ff; --cl-no: #ff8a80; }
+  .cl-stage { position: relative; }
+  .cl-box { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--soft); }
+  .cl-head, .cl-grid { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); }
+  .cl-head .fe-file { position: static; z-index: auto; height: 36px; }
+  .cl-spec, .cl-code { position: relative; min-width: 0; border-top: 1px solid var(--line); --c: var(--muted); transition: background-color .42s, box-shadow .42s; }
+  .cl-spec { grid-column: 1; padding: 10px 76px 10px 16px; border-right: 1px solid var(--line); font-size: .92rem; line-height: 1.5; }
+  .cl-code { grid-column: 2; }
+  .cl-spec p { margin: 0; }
+  .cl-id { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; font-family: var(--mono); font-size: .76rem; line-height: 1.4; font-weight: 600; color: var(--muted); }
+  .cl-code pre { margin: 0; border: 0; background: none; padding: 10px 76px 10px 14px; font-size: 12px; line-height: 1.55; overflow: hidden; }
+  /* whoever holds a clause shuts all its cells: tinted, hatched and framed. The encircled padlock is open while claimed and closed once locked. */
+  .cl [data-by="a"] { --c: var(--ca); }
+  .cl [data-by="b"] { --c: var(--cb); }
+  .cl-spec[data-st], .cl-code[data-st] { background-color: color-mix(in srgb, var(--c) 14%, var(--soft)); background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 24%, transparent) 0 1.5px, transparent 1.5px 8px); box-shadow: inset 0 0 0 2px var(--c); }
+  .cl-bd { display: none; flex: none; width: 20px; height: 20px; padding: 4px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px var(--soft); }
+  .cl-bd-code { position: absolute; right: 10px; top: 8px; width: 28px; height: 28px; padding: 6px; }
+  .cl [data-st] > .cl-bd, .cl [data-st] > .cl-id > .cl-bd { display: block; animation: cl-pop .42s ease-out; }
+  .cl-bd .sh-c { display: none; }
+  .cl [data-st="locked"] .cl-bd .sh-c { display: inline; }
+  .cl [data-st="locked"] .cl-bd .sh-o { display: none; }
+  @keyframes cl-pop { from { transform: scale(.3); } 60% { transform: scale(1.2); } to { transform: scale(1); } }
+  .cl-id::after { margin-left: auto; font-weight: 400; color: var(--c); }
+  .cl-spec[data-st="claimed"] .cl-id::after { content: "claimed"; }
+  .cl-spec[data-st="locked"] .cl-id::after { content: "locked"; font-weight: 600; }
+  .cl-spec[data-refused] .cl-id::after { content: none; }
+  .cl-no { margin-left: auto; display: none; color: var(--cl-no); font-weight: 600; }
+  .cl-spec[data-refused] .cl-no { display: inline; }
+  .cl [data-edit] { background-image: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--c) 32%, transparent) 50%, transparent 70%), repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 24%, transparent) 0 1.5px, transparent 1.5px 8px); background-size: 260% 100%, auto; animation: cl-sweep 1.56s linear infinite; }
+  @keyframes cl-sweep { from { background-position: 130% 0, 0 0; } to { background-position: -30% 0, 0 0; } }
+  /* a changed value stays yellow for about two seconds, then fades out as the next step begins */
+  .cl .chg { border-radius: 3px; animation: cl-chg 3.12s ease-out forwards; }
+  @keyframes cl-chg { 0%, 78% { background-color: #ffd84d; box-shadow: 0 0 0 3px #ffd84d; color: #111; } 100% { background-color: transparent; box-shadow: 0 0 0 3px transparent; } }
+  .cl-agents { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+  .clawd { position: absolute; left: 0; top: 0; width: 36px; height: 24px; opacity: 0; will-change: transform; }
+  .cl.on .clawd { opacity: 1; }
+  /* the three looks are 128 px drawings of the same size, shown at 0.3 (a 12 x 8 pixel body at 3 px a pixel); each stands on its own feet line */
+  .clawd img { display: none; position: absolute; left: -1.2px; width: 38.4px; height: 38.4px; max-width: none; image-rendering: pixelated; }
+  .clawd .m-idle, .clawd .m-waiting { top: -7.2px; }
+  /* the typing Clawd is an SVG whose body block is 16 pixels wide: at 0.06 of its drawing size the block is as wide as the others' head (24 px), and its feet stand on the same line */
+  .clawd .m-detective { top: -10.2px; }   /* on a spec: the detective GIF, 128 px drawn at 0.3 */
+  .clawd .m-typing { left: -16.3px; top: -11.9px; width: 53.4px; height: 37.5px; }
+  .clawd[data-mode="idle"] .m-idle, .clawd[data-mode="waiting"] .m-waiting, .clawd[data-mode="detective"] .m-detective, .clawd[data-mode="typing"] .m-typing { display: block; }
+  .clawd.b img { filter: hue-rotate(190deg); }
+  /* a thin grey timeline of the steps. A round thumb glides along it as the steps pass, and can be dragged: it follows the pointer smoothly, then slides back to the start of the step it is in. */
+  .cl-tl { position: relative; display: flex; align-items: center; gap: 3px; margin: 2px 0 0; padding: 8px 0; color: var(--muted); cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .cl-tl b { position: relative; flex: 1; height: 4px; border-radius: 2px; overflow: hidden; background: var(--line); }
+  .cl-tl b i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: currentColor; opacity: .55; }
+  .cl-thumb { position: absolute; left: 0; top: 50%; z-index: 1; width: 14px; height: 14px; margin: -7px 0 0 -7px; padding: 0; border-radius: 50%; background: var(--muted); border: 2px solid var(--bg); box-shadow: 0 0 0 1px var(--muted); cursor: grab; will-change: transform; }
+  .cl-tl.drag, .cl-tl.drag .cl-thumb { cursor: grabbing; }
+  .cl-thumb:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+  .cl-tl u { flex: none; margin-left: 5px; font-size: .85rem; line-height: 1; text-decoration: none; opacity: .55; }
+  .cl-tl u.again { animation: cl-again 1.44s ease-out; }
+  @keyframes cl-again { 0% { opacity: 1; transform: rotate(-200deg); } 100% { opacity: .55; transform: none; } }
+  .cl-cap { display: flex; align-items: baseline; gap: 12px; margin: 8px 0 0; font-size: .92rem; line-height: 1.5; color: var(--muted); min-height: 3em; }
+  .cl-cap span { flex: 1; }
+  .cl-pause { flex: none; font: inherit; font-size: .8rem; cursor: pointer; background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 1px 10px; }
+  .cl-pause:hover, .cl-pause:focus-visible { border-color: var(--link); color: var(--link); }
+  @media (max-width: 679px) {
+    .cl-grid { grid-template-columns: minmax(0, 1fr); }
+    .cl-spec, .cl-code { grid-column: 1; grid-row: auto !important; }
+    .cl-spec { border-right: 0; border-bottom: 1px dashed var(--line); }
+    .cl-gap { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .cl *, .cl-spec, .cl-code { animation: none !important; transition: none !important; } }
+</style>
+<script>
+    !function(t,e){var o,n,p,r;e.__SV||(window.posthog && window.posthog.__loaded)||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}p||((p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",p.onerror=function(){p=null},(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r));var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],Object.defineProperty(u,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e}}),Object.defineProperty(u.people,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(){return u.toString(1)+".people (stub)"}}),o="vu pu gu mu init Gu Qu Hu Wu Xu il Vu Yu ju oc ac lc uc cc hc capture getExtension Zu hu gc calculateEventProperties vc register register_once register_for_session unregister unregister_for_session zu mc getFeatureFlag getFeatureFlagPayload getFeatureFlagResult getAllFeatureFlags isFeatureEnabled reloadFeatureFlags updateFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSurveysLoaded onSessionId getSurveys getActiveMatchingSurveys onActiveMatchingSurveysChanged renderSurvey displaySurvey cancelPendingSurvey canRenderSurvey canRenderSurveyAsync wc identify setPersonProperties unsetPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset kc shutdown setIdentity clearIdentity get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException addExceptionStep captureLog startExceptionAutocapture stopExceptionAutocapture loadToolbar get_property getSessionProperty yc nc createPersonProfile setInternalOrTestUser bc xu ku opt_in_capturing opt_out_capturing Su has_opted_in_capturing has_opted_out_capturing get_explicit_consent_status is_capturing clear_opt_in_out_capturing tc debug nl Os getPageViewId captureTraceFeedback captureTraceMetric Du".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+    posthog.init('phc_u2Cxq8iAft9sHLPrxcKGa26v8NVJXWAcYb5udDbjiRp6', {
+        api_host: 'https://t.specofrecord.org', // your managed reverse proxy domain
+        ui_host: 'https://us.posthog.com', // necessary because you're using a proxy, this way links will point back to PostHog properly
+        defaults: '2026-05-30',
+        person_profiles: 'identified_only', // or 'always' to create profiles for anonymous users as well
+        persistence: 'memory',   // no cookie and no local storage
+        respect_dnt: true,
+        sanitize_properties: function (props) {   // a link to a selection (#sel=...) carries page text: send the address without it
+          Object.keys(props).forEach(function (k) { if (typeof props[k] === 'string' && props[k].indexOf('#sel=') > -1) props[k] = props[k].split('#sel=')[0]; });
+          return props;
+        },
+    })
+</script>
+</head>
+<body>
+<div class="draftbar"><strong>Draft proposal</strong> · Version 0.1</div>
+<main>
+
+<h1>Spec of Record <span style="font-weight:400;opacity:.6">(SoR)</span></h1>
+<ul class="authors"><li><a href="https://sebastianrath.io" target="_blank" rel="noreferrer">Sebastian Rath</a><a class="gh" href="https://github.com/sebastianrath/specofrecord" target="_blank" rel="noreferrer" aria-label="Spec of Record source code" title="Source code"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M5.5 4 1.5 8l4 4M10.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Source</span></a><a class="lic" href="https://creativecommons.org/licenses/by/4.0/deed.en" target="_blank" rel="license noreferrer" data-tip="License for the spec itself" aria-label="CC BY 4.0, the license for the spec itself">CC BY 4.0</a><a class="lic" href="https://opensource.org/license/mit" target="_blank" rel="license noreferrer" data-tip="License for the toolset" aria-label="MIT, the license for the toolset">MIT</a></li></ul>
+<p class="sub">Spec of Record is a development philosophy and toolchain for AI-built software, where one or many agents build from a single spec, aimed at mid-sized to large projects. It turns the spec into a centralized design document that always stays in sync with the code, so team members with different areas of expertise can understand, review and change the software together. You write what your software should do in plain language, an AI agent turns it into code, and each piece of code stays linked to the statements of the spec and to its test results.</p>
+<div class="meta">Version 0.1 · October 2026</div>
+
+<div class="steps" id="steps">
+  <div class="step">
+    <span class="num" aria-hidden="true">1</span>
+    <div class="install">
+      <div class="install-head has-tabs"><span>Install in</span>
+        <div class="agent-tabs" role="tablist" aria-label="Claude app">
+          <button type="button" class="agent-tab" role="tab" id="tab-claude-code" aria-selected="true" aria-controls="panel-claude-code">Claude Code CLI</button>
+          <button type="button" class="agent-tab" role="tab" id="tab-claude-desktop" aria-selected="false" aria-controls="panel-claude-desktop" tabindex="-1">Claude Desktop App</button>
+          <button type="button" class="agent-tab" role="tab" aria-selected="false" aria-disabled="true" aria-label="Codex, contributions welcome" data-tip="contributions welcome">Codex</button>
+        </div>
+      </div>
+      <div role="tabpanel" id="panel-claude-code" aria-labelledby="tab-claude-code">
+        <p class="install-label">Run in a terminal</p>
+        <div class="cmd">
+          <div class="cmd-lines"><code class="sh"><span class="t-f">claude</span> <span class="t-k">plugin marketplace add</span> <span class="t-s">sebastianrath/specofrecord</span> &amp;&amp; <span class="t-f">claude</span> <span class="t-k">plugin install</span> <span class="t-s">specofrecord@specofrecord</span></code></div>
+          <button type="button" class="install-copy" hidden>Copy</button>
+        </div>
+        <details class="install-more">
+          <summary>Other ways</summary>
+          <p class="install-label">Already inside Claude Code? Paste one line at a time</p>
+          <div class="cmd">
+            <div class="cmd-lines"><code><span class="t-f">/plugin</span> <span class="t-k">marketplace add</span> <span class="t-s">sebastianrath/specofrecord</span></code></div>
+            <button type="button" class="install-copy" hidden>Copy</button>
+          </div>
+          <div class="cmd">
+            <div class="cmd-lines"><code><span class="t-f">/plugin</span> <span class="t-k">install</span> <span class="t-s">specofrecord@specofrecord</span></code></div>
+            <button type="button" class="install-copy" hidden>Copy</button>
+          </div>
+          <p class="install-label">No <code>claude</code> command? Install Claude Code first (macOS and Linux, <a href="https://code.claude.com/docs/en/setup" target="_blank" rel="noreferrer">other systems</a>)</p>
+          <div class="cmd">
+            <div class="cmd-lines"><code class="sh"><span class="t-f">curl</span> <span class="t-k">-fsSL</span> <span class="t-s">https://claude.ai/install.sh</span> | <span class="t-f">bash</span></code></div>
+            <button type="button" class="install-copy" hidden>Copy</button>
+          </div>
+        </details>
+      </div>
+      <div role="tabpanel" id="panel-claude-desktop" aria-labelledby="tab-claude-desktop" hidden>
+        <ol class="install-steps">
+          <li>Open <b>Customize</b> &rarr; <b>Plugins</b> &rarr; <b>Add</b> &rarr; <b>Add marketplace</b> &rarr; <b>Add from a repository</b>.</li>
+          <li>Paste this repository and sync it:</li>
+        </ol>
+        <div class="cmd">
+          <div class="cmd-lines"><code><span class="t-s">sebastianrath/specofrecord</span></code></div>
+          <button type="button" class="install-copy" hidden>Copy</button>
+        </div>
+        <ol class="install-steps" start="3">
+          <li>Open <b>Discover</b>, pick <b>Spec of Record</b> and press <b>Add</b>.</li>
+        </ol>
+        <img class="install-shot" src="static/claude-desktop-plugins-discover.jpg" width="2169" height="526" loading="lazy" decoding="async" alt="Claude Desktop, Customize, Plugins, on the Discover tab. A plugin is listed with an Add button, and the Add menu at the top right is where a marketplace is added.">
+      </div>
+    </div>
+  </div>
+  <div class="step">
+    <span class="num" aria-hidden="true">2.1</span>
+    <div class="install">
+      <div class="install-head"><span>New project <span class="opt">Recommended</span></span></div>
+      <p class="install-note">Starting from scratch? In an empty folder, tell Claude Code what you want to build. For example:</p>
+      <div class="cmd prompt-row">
+        <div class="cmd-lines prompt"><code>I want to build a game engine. Write the first specs following Spec of Record for a game engine that...</code></div>
+      </div>
+    </div>
+  </div>
+  <div class="step">
+    <span class="num" aria-hidden="true">2.2</span>
+    <div class="install">
+      <div class="install-head"><span>Existing project</span></div>
+      <p class="install-note">Already have code? Name the one thing you are about to change. Only that part goes under a spec, and the rest stays as it is. For example:</p>
+      <div class="cmd prompt-row">
+        <div class="cmd-lines prompt"><code>I am about to change the checkout. Put just that under Spec of Record first, then make my change.</code></div>
+      </div>
+    </div>
+  </div>
+  <div class="step">
+    <span class="num" aria-hidden="true">3</span>
+    <div class="install">
+      <div class="install-head has-tabs"><span>Editor extension <span class="opt">Optional</span></span>
+        <div class="agent-tabs" role="tablist" aria-label="Editor">
+          <button type="button" class="agent-tab with-logo" role="tab" id="tab-vscode" aria-selected="true" aria-controls="panel-vscode"><svg class="logo" viewBox="0 0 128 128" aria-hidden="true"><path fill-rule="evenodd" d="M90.767 127.126a7.968 7.968 0 0 0 6.35-.244l26.353-12.681a8 8 0 0 0 4.53-7.209V21.009a8 8 0 0 0-4.53-7.21L97.117 1.12a7.97 7.97 0 0 0-9.093 1.548l-50.45 46.026L15.6 32.013a5.328 5.328 0 0 0-6.807.302l-7.048 6.411a5.335 5.335 0 0 0-.006 7.888L20.796 64 1.74 81.387a5.336 5.336 0 0 0 .006 7.887l7.048 6.411a5.327 5.327 0 0 0 6.807.303l21.974-16.68 50.45 46.025a7.96 7.96 0 0 0 2.743 1.793Zm5.252-92.183L57.74 64l38.28 29.058V34.943Z" clip-rule="evenodd"/></svg>VS Code</button>
+          <button type="button" class="agent-tab with-logo" role="tab" aria-selected="false" aria-disabled="true" aria-label="Zed, contributions welcome" data-tip="contributions welcome"><svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.25 1.5a.75.75 0 0 0-.75.75v16.5H0V2.25A2.25 2.25 0 0 1 2.25 0h20.095c1.002 0 1.504 1.212.795 1.92L10.764 14.298h3.486V12.75h1.5v1.922a1.125 1.125 0 0 1-1.125 1.125H9.264l-2.578 2.578h11.689V9h1.5v9.375a1.5 1.5 0 0 1-1.5 1.5H5.185L2.562 22.5H21.75a.75.75 0 0 0 .75-.75V5.25H24v16.5A2.25 2.25 0 0 1 21.75 24H1.655C.653 24 .151 22.788.86 22.08L13.19 9.75H9.75v1.5h-1.5V9.375A1.125 1.125 0 0 1 9.375 8.25h5.314l2.625-2.625H5.625V15h-1.5V5.625a1.5 1.5 0 0 1 1.5-1.5h13.19L21.438 1.5z"/></svg>Zed</button>
+          <button type="button" class="agent-tab with-logo" role="tab" aria-selected="false" aria-disabled="true" aria-label="JetBrains IDEs, contributions welcome" data-tip="contributions welcome"><svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.345 23.997A2.347 2.347 0 0 1 0 21.652V10.988C0 9.665.535 8.37 1.473 7.433l5.965-5.961A5.01 5.01 0 0 1 10.989 0h10.666A2.347 2.347 0 0 1 24 2.345v10.664a5.056 5.056 0 0 1-1.473 3.554l-5.965 5.965A5.017 5.017 0 0 1 13.007 24v-.003H2.345Zm8.969-6.854H5.486v1.371h5.828v-1.371ZM3.963 6.514h13.523v13.519l4.257-4.257a3.936 3.936 0 0 0 1.146-2.767V2.345c0-.678-.552-1.234-1.234-1.234H10.989a3.897 3.897 0 0 0-2.767 1.145L3.963 6.514Zm-.192.192L2.256 8.22a3.944 3.944 0 0 0-1.145 2.768v10.664c0 .678.552 1.234 1.234 1.234h10.666a3.9 3.9 0 0 0 2.767-1.146l1.512-1.511H3.771V6.706Z"/></svg>JetBrains</button>
+          <button type="button" class="agent-tab with-logo" role="tab" aria-selected="false" aria-disabled="true" aria-label="Neovim, contributions welcome" data-tip="contributions welcome"><svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.214 4.954v13.615L7.655 24V10.314L3.312 3.845 2.214 4.954zm4.999 17.98l-4.557-4.548V5.136l.59-.596 3.967 5.908v12.485zm14.573-4.457l-.862.937-4.24-6.376V0l5.068 5.092.034 13.385zM7.431.001l12.998 19.835-3.637 3.637L3.787 3.683 7.43 0z"/></svg>Neovim</button>
+        </div>
+      </div>
+      <div role="tabpanel" id="panel-vscode" aria-labelledby="tab-vscode">
+        <p class="install-note"><a href="https://marketplace.visualstudio.com/items?itemName=sebastianrath.sor-vscode" target="_blank" rel="noreferrer">Install from the Visual Studio Marketplace</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="steps-more" id="steps-more" hidden><button type="button" class="steps-toggle" id="steps-toggle" aria-expanded="false" aria-controls="steps">Expand</button></p>
+
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><a href="#goal">Why use SoR?</a></li>
+    <li><a href="#sdd">Where it fits in spec-driven development</a></li>
+    <li><a href="#problem">Where spec-driven development goes wrong</a></li>
+    <li><a href="#what">How it works</a></li>
+    <li><a href="#editor">In your editor</a></li>
+    <li><a href="#tooling">What you get</a></li>
+    <li><a href="#record">The build record</a></li>
+    <li><a href="#faq">Common questions</a></li>
+    <li><a href="#see-also">Related projects</a></li>
+    <li><a href="#about">About</a></li>
+    <li><a href="#license">License</a></li>
+  </ol>
+</nav>
+
+<h2 id="goal">Why use SoR?</h2>
+<p>The reason a code line exists usually lives in a verbose commit message, a Jira ticket or a Slack message, not in the code itself. AI can write code quickly and loves to rewrite larger parts of the source code because it feels like it. AI agents mostly find context with a keyword search like grep, so when someone makes a change, they either miss things they should address or change too much.</p>
+<p>Over time, the team loses track of how their software actually works. In a review, you face hundreds of new lines that nobody can meaningfully trace, and you send them back to the AI with "fix this" or wave them through with LGTM (sry that's me, I do that). The AI needs help too. Round after round of fixes, it keeps changing code until it has moved so far away from what it is meant to address that no one understands it anymore. It is a quality and liability risk.</p>
+<p>Here is what Spec of Record offers, for people and AI:</p>
+<ul>
+  <li>The <code>sor/</code> folder is your new <code>src/</code> folder, hierarchically structured like source folders used to be, only more compact. It contains up-to-date spec files, each covering one responsibility. There is no stack of old versions, so everyone knows what the software does now and how.</li>
+  <li>Product, engineering, QA and UX each work in their own field of expertise while sharing a common design document. You decide what the software does and stay its author.</li>
+  <li>A change to one clause in a spec file changes only the necessary code and reduces drift. It gives AI tremendous guard rails for attention and context.</li>
+  <li>Several agents can work in parallel, because each claims its spec clauses before touching anything, and a clause someone else holds is refused.</li>
+  <li>Every line of code names its origin in the spec and every finished build keeps its test results. "Why is this here?" and "Was it tested?" become easy lookups.</li>
+</ul>
+
+<h2 id="sdd">Where it fits in spec-driven development</h2>
+<p>Spec-driven development means writing down what the software should do and letting an AI write the code. The term is overloaded, so it helps to be clear about its meaning. The difference is what happens to the spec after the code exists. Birgitta Böckeler of Unblocked describes three levels:<sup><a href="#note-1" aria-label="Note 1">1</a></sup></p>
+<div class="tw">
+<table>
+  <thead><tr><th>Level</th><th>What happens to the spec</th></tr></thead>
+  <tbody>
+    <tr><td>Spec-first</td><td>Written to get one task done, then left behind.</td></tr>
+    <tr><td>Spec-anchored</td><td>Kept after the task and updated as the feature changes.</td></tr>
+    <tr><td>Spec-as-source</td><td>The only thing people edit. Nobody touches the code.</td></tr>
+    <tr class="proposal"><td>Spec-of-record</td><td>This proposal.</td></tr>
+  </tbody>
+</table>
+</div>
+
+
+<h2 id="problem">Where spec-driven development goes wrong</h2>
+<p>A design document is only useful when it's up to date. Spec drift is what happens when the spec says one thing, the code does another, and nobody can tell which is right. It creeps in one small change at a time.</p>
+<p>Most spec-driven development is spec-first, which makes it a good place to look at the potential traps. The spec is written for one task and then put away. The code keeps changing, and the spec stays as it was.</p>
+<p>Take a game. Its spec says the player needs 3 keys to open the exit, and the designer asks for 5. The AI changes the code, and nobody updates the spec, because nobody asked or the AI forgot. Now the spec says 3, the game asks for 5, and no one knows what should be true.</p>
+<p>Spec-first has a second trap, and it catches the teams that avoid the first one. To keep the spec up to date, they write a follow-up spec for every change, so you end up with <code>SPEC.md</code>, then <code>SPEC-2026-01-08.md</code>, then another one. To learn what the software does today, you read them all in the right order. They become incredibly verbose and eventually no one reads them anymore.</p>
+<p>In spec-as-source, people edit only the spec and the code is generated from it. You can't fix the code by hand, so every fix goes through the spec, and because an AI does not generate the same code twice,<sup><a href="#note-1" aria-label="Note 1">1</a></sup> the result can come back different each time.</p>
+<p>Spec of Record extends spec-as-source and allows hand edits on purpose. You can change either side, the spec or the code, and the other one is updated to match. Finished code is kept, so a change to a clause rewrites only that clause's code, and the clause's tests check the result. The bundled tools enforce this: they check that spec and code agree, block AI edits that skip the clause, and flag any mismatch until it is fixed.</p>
+
+<h2 id="what">How it works</h2>
+<p>The spec is split into parts, one Markdown file for each area of the software, such as a game's logic or its multiplayer networking. Each part says why it exists and lists its rules, its approach, what it needs from other parts, what it gives to them, and its tests.</p>
+<p>The unit is a <strong>clause</strong>, which is one rule, one number or one table row. Every clause comes with a marker, a short comment above its code that names the clause. Below is a clause and the code built from it, so you can see each side point at the other.</p>
+<div class="pair">
+  <svg class="pair-arrow" aria-hidden="true" focusable="false"><path class="ring"/><path class="line"/><path class="head"/><path class="line"/><path class="head"/><text class="label">marker</text></svg>
+  <div>
+    <div class="fe-file"><span class="tab"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg><span class="tab-name">sor/run.md</span></span></div>
+<div class="specbox"><p class="dots">...</p><p><strong>turn</strong> &ndash; Each key press moves the player, picks up keys and moves the monsters.</p><p class="dots">...</p></div>
+  </div>
+  <div>
+    <div class="fe-file" role="group" aria-label="Code files of this clause"><button type="button" class="tab" data-mini="a"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg><span class="tab-name">src/run.js</span></button><button type="button" class="tab off" data-mini="b"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg><span class="tab-name">src/monsters/monsters.js</span></button></div>
+<pre data-mini="a"><span class="t-m">// @clause run/turn</span>
+export <span class="t-k">function</span> <span class="t-f">takeTurn</span>(game, dx, dy) {
+  <span class="t-f">move</span>(game.player, dx, dy);
+  <span class="t-f">keepInRoom</span>(game.player);
+  <span class="t-f">pickUpKeys</span>(game.player, game.keys);
+  ...
+}
+<span class="t-m">// @clause end</span></pre>
+<pre data-mini="b" hidden><span class="t-m">// @clause run/turn</span>
+export <span class="t-k">function</span> <span class="t-f">moveMonsters</span>(game) {
+  ...
+}
+<span class="t-m">// @clause end</span></pre>
+  </div>
+</div>
+<!-- full-example-button:start -->
+<p class="more" id="example-more" hidden><button type="button" class="open-example" id="open-example">Expand example</button></p>
+<!-- full-example-button:end -->
+<p>With that association in place, a change stays local. Say you want the player to move only on every second key press. You change that one sentence, and the AI updates just the code blocks marked with that clause.</p>
+<p>If you know how a compiler works, you can apply that concept to Spec of Record, with the AI playing the compiler.</p>
+<div class="tw">
+<table>
+  <thead><tr><th>Legacy development</th><th>Spec of Record</th></tr></thead>
+  <tbody>
+    <tr><td>You write source code</td><td>You write the spec</td></tr>
+    <tr><td>A compiler turns it into a program</td><td>The AI turns it into code</td></tr>
+    <tr><td>Only changed files are rebuilt</td><td>Only the affected code is rebuilt</td></tr>
+    <tr><td>Tests check the program</td><td>Each clause can have its own test</td></tr>
+  </tbody>
+</table>
+</div>
+<p>A real compiler gives the same output every time, so it can throw that output away and start over. An AI cannot, so Spec of Record keeps finished code.</p>
+<p>Several agents can work on one project at once. A sub-agent first claims a spec clause and its code blocks. It changes the clause, then the code, locks the result and releases the claim. A clause that someone else holds is refused.</p>
+<div class="cl" id="claims" role="group" aria-label="Animation of two agents working in parallel: each claims a clause, changes it and its code, locks it and releases it, and a claim on a clause the other holds is refused.">
+    <div class="cl-stage">
+    <div class="cl-box">
+      <div class="cl-head"><div class="fe-file"><span class="tab"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg><span class="tab-name">sor/</span></span></div><div class="fe-file"><span class="tab"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg><span class="tab-name">src/</span></span></div></div>
+      <div class="cl-grid">
+        <div class="cl-spec" data-cl="movement" style="grid-row:1"><div class="cl-id"><svg class="cl-bd" viewBox="0 0 16 16" aria-hidden="true"></svg>player/movement<span class="cl-no">refused</span></div><p>One key press moves the player <span class="val" data-v="step">20 px</span>, and the player cannot leave the <span class="val" data-v="room">500 px</span> room.</p></div>
+        <div class="cl-code" data-cl="movement" data-i="0" style="grid-row:1"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"></svg><pre><span class="t-m">// @clause player/movement</span>
+<span class="t-k">const</span> STEP = <span class="t-n" data-k="step">20</span>;
+export <span class="t-k">function</span> <span class="t-f">move</span>(player, dx, dy) {
+  ...
+}
+<span class="t-m">// @clause end</span></pre></div>
+        <div class="cl-spec" data-cl="lives" style="grid-row:2"><div class="cl-id"><svg class="cl-bd" viewBox="0 0 16 16" aria-hidden="true"></svg>player/lives<span class="cl-no">refused</span></div><p>A new player has <span class="val" data-v="lives">3 lives</span>.</p></div>
+        <div class="cl-code" data-cl="lives" data-i="1" style="grid-row:2"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"></svg><pre><span class="t-m">// @clause player/lives</span>
+<span class="t-k">const</span> START_LIVES = <span class="t-n" data-k="lives">3</span>;
+export <span class="t-k">function</span> <span class="t-f">withLives</span>(player) {
+  ...
+}
+<span class="t-m">// @clause end</span></pre></div>
+        <div class="cl-spec cl-gap" aria-hidden="true" style="grid-row:3"></div>
+        <div class="cl-code" data-cl="movement" data-i="2" style="grid-row:3"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"></svg><pre><span class="t-m">// @clause player/movement</span>
+<span class="t-k">const</span> ROOM = <span class="t-n" data-k="room">500</span>;
+export <span class="t-k">function</span> <span class="t-f">keepInRoom</span>(player) {
+  ...
+}
+<span class="t-m">// @clause end</span></pre></div>
+        <div class="cl-spec" data-cl="chase" style="grid-row:4"><div class="cl-id"><svg class="cl-bd" viewBox="0 0 16 16" aria-hidden="true"></svg>monsters/chase<span class="cl-no">refused</span></div><p>Every turn a monster steps <span class="val">20 px</span> toward the player.</p></div>
+        <div class="cl-code" data-cl="chase movement" data-i="3" style="grid-row:4"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"></svg><pre><span class="t-m">// @clause monsters/chase player/movement</span>
+<span class="t-k">const</span> MONSTER_STEP = <span class="t-n">20</span>;
+export <span class="t-k">function</span> <span class="t-f">chase</span>(monster, player) {
+  ...
+}
+<span class="t-m">// @clause end</span></pre></div>
+      </div>
+    </div>
+    <div class="cl-agents" aria-hidden="true"><div class="clawd a" data-mode="idle"><img class="m-idle" src="static/clawd_idle.png" alt="" width="128" height="128"><img class="m-waiting" src="static/clawd_sleeping.png" alt="" width="128" height="128"><img class="m-typing" src="static/clawd-typing.svg" alt="" width="53" height="38"><img class="m-detective" src="static/clawd_detective.gif" alt="" width="128" height="128"></div><div class="clawd b" data-mode="idle"><img class="m-idle" src="static/clawd_idle.png" alt="" width="128" height="128"><img class="m-waiting" src="static/clawd_sleeping.png" alt="" width="128" height="128"><img class="m-typing" src="static/clawd-typing.svg" alt="" width="53" height="38"><img class="m-detective" src="static/clawd_detective.gif" alt="" width="128" height="128"></div></div>
+  </div>
+  <div class="cl-tl"></div>
+  <p class="cl-cap"><span class="cl-text">An agent claims a clause with <code>sor claim</code> before it touches anything.</span><button type="button" class="cl-pause" hidden>Pause</button></p>
+</div>
+<p>Tools can follow the marker links too. An editor extension jumps from a spec to its code and back, and the <code>sor</code> command line interface (CLI) gives an AI or a script the same answer as text or JSON. A clause can also reach further back, to a source outside the code such as a Figma design.</p>
+
+<h2 id="editor">In your editor</h2>
+<p>The VS Code extension shows these links on a sample project. You do not need it to use Spec of Record, but it is a handy way to see them.</p>
+<img class="shot" src="static/editor.png" width="2032" height="1057" loading="lazy" decoding="async" alt="VS Code with a spec file on the left and the code on the right. The fit clause is selected in the spec and its code region is highlighted in the code.">
+<ul>
+  <li>Open a spec and each clause shows the code regions built from it, with links to them.</li>
+  <li>Open the code and each region shows its clause and whether the two still agree.</li></ul>
+
+<h2 id="tooling">What you get</h2>
+<p>Beyond the editor extension, Spec of Record comes with a CLI, <code>sor</code>, and an edit guard for your AI agent. Here is what they do:</p>
+<ul>
+  <li>The change list shows what changed since the last build and which code needs rebuilding.</li>
+  <li>The edit guard stops the AI from changing code before its clause.</li>
+  <li>The test runner runs each clause's tests and tells you how many clauses pass.</li>
+  <li>The build record remembers, for every clause, whether its tests passed, so you can look up later what was tested.</li>
+  <li>For AI, scripts and CI, the CLI answers directly. For example, <code>sor markers</code> says which clause a line came from, or which code a clause produced. Other commands show a clause with its code and map the spec.</li>
+</ul>
+
+<h2 id="record">The build record</h2>
+<p>If you manage a team or answer to auditors, this is the section for you.</p>
+<p>The build record is a checkpoint. Each time a piece of work is finished and the specs, the code and the tests agree, the tool saves one, together with the test results. Later it compares the project with that checkpoint to see what changed, and you can look up what was tested. It is a plain file in your repository, so version control keeps every earlier checkpoint.</p>
+<div class="tw">
+<table>
+  <thead><tr><th>Question</th><th>Answer</th></tr></thead>
+  <tbody>
+    <tr><td>Why does this line of code exist?</td><td>Its marker names the clause it serves.</td></tr>
+    <tr><td>What code does this clause make?</td><td>The clause points to all of it.</td></tr>
+    <tr><td>What did this change affect?</td><td>The change list shows it.</td></tr>
+    <tr><td>Who changed it, and when?</td><td>Version control shows it. Code changed without its clause is flagged, with author and date if you use git.</td></tr>
+    <tr><td>Was it tested?</td><td>The build record stores the results, and version control keeps the history.</td></tr>
+    <tr><td>Does every result come from an automated test?</td><td>Yes, except for checks a person signed off by hand. An AI cannot sign off.</td></tr>
+  </tbody>
+</table>
+</div>
+<p>That helps with reviews, handovers and compliance checks, anywhere a change has to be explained later.</p>
+
+<h2 id="faq">Common questions</h2>
+<h3>Is this more documentation to maintain?</h3>
+<p>No, it replaces the documents you would otherwise write. The spec is what you edit. A change edits a clause, and a new feature adds clauses, or a new part, to the same set of files. There is no second copy buried in Confluence or Slack.</p>
+<h3>Do I have to convert my existing project?</h3>
+<p>No. Start with the one thing you are about to change, as in the install steps at the top. The rest of the code stays as it is.</p>
+<h3>Where do the specs live?</h3>
+<p>In a <code>sor/</code> folder next to your code, as plain Markdown files you commit with it. There is no service to run and no account to create.</p>
+<h3>Will building my entire project with SoR create a dependency?</h3>
+<p>No, there is zero dependency. The code is plain source with marker comments in it, so you can delete the specs and carry on from the source, or switch to another engineering approach.</p>
+<h3>Which languages and tools work?</h3>
+<p>It is agnostic to language, framework and editor. Today the workflow ships as a Claude Code plugin, and other agents and editors are open for contributions.</p>
+<h3>What if I change the code myself?</h3>
+<p>Go ahead. Your change stays. The tool flags it as code changed without its clause (with author and date if you use git), and the AI rewrites the clause to match what you did.</p>
+<h3>What if the AI builds something wrong?</h3>
+<p>The clause's tests fail, and the code is fixed until they pass. Clauses with no passing test are listed, so a gap is visible instead of hidden.</p>
+<h3>Can several people or agents work at once?</h3>
+<p>Yes. Agents claim clauses, as shown above, and people on different machines coordinate through version control, the way they do now.</p>
+
+<h2 id="see-also">Related projects</h2>
+<p>Spec-driven tooling is a crowded field. The projects below cover different parts of the workflow. Some have gone quiet or are paused, and some are tied to one editor, agent or service. Spec of Record borrows ideas from several of them and adds its own.</p>
+<div class="fold" id="see-also-fold">
+<div class="tw">
+<table>
+  <thead><tr><th>Project</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><a href="https://github.com/github/spec-kit" target="_blank" rel="noreferrer">Spec Kit</a><span class="lvl">Spec-first or anchored</span></td><td>Commands and templates that take a feature from spec to plan, tasks and code. From GitHub.</td></tr>
+    <tr><td><a href="https://github.com/Fission-AI/OpenSpec" target="_blank" rel="noreferrer">OpenSpec</a><span class="lvl">Spec-anchored</span></td><td>A proposal for each change. When the change is done, it is merged into the specs.</td></tr>
+    <tr><td><a href="https://kiro.dev" target="_blank" rel="noreferrer">Kiro</a><span class="lvl">Spec-anchored</span></td><td>An editor with requirements, design and task files for each feature, plus hooks that run on events.</td></tr>
+    <tr><td><a href="https://github.com/bmad-code-org/BMAD-METHOD" target="_blank" rel="noreferrer">BMAD-METHOD</a><span class="lvl">Spec-first or anchored</span></td><td>A method with agent roles for product, architecture, UX, development and testing.</td></tr>
+    <tr><td><a href="https://github.com/rlabarca/purlin" target="_blank" rel="noreferrer">Purlin</a><span class="lvl">Spec-anchored</span></td><td>Rules and proofs in specs. Ties tests to rules and marks results out of date when the spec, code or tests change. A Claude Code plugin.</td></tr>
+    <tr><td><a href="https://codespeak.dev" target="_blank" rel="noreferrer">CodeSpeak</a><span class="lvl">Spec-as-source</span></td><td>Specs that a tool turns into code. In alpha.</td></tr>
+    <tr><td><a href="https://tessl.io" target="_blank" rel="noreferrer">Tessl</a><span class="lvl">Spec-as-source</span></td><td>A registry of skills and context for agents. Its spec-as-source Framework is paused. Its <a href="https://github.com/tesslio/spec-driven-development-tile" target="_blank" rel="noreferrer">spec-driven-development tile</a> is open source.</td></tr>
+    <tr><td><a href="https://getnima.io" target="_blank" rel="noreferrer">nima</a><span class="lvl">Spec-anchored</span></td><td>A hosted service that turns signals from tools like Slack, Linear and Sentry into specs, and checks pull requests against them. In private beta.</td></tr>
+    <tr><td><a href="https://github.com/fiberplane/drift" target="_blank" rel="noreferrer">Drift</a><span class="lvl">Spec-anchored</span></td><td>Binds Markdown docs to code files or symbols. Flags a doc as stale when its code changes.</td></tr>
+    <tr><td><a href="https://github.com/fireharp/coherence" target="_blank" rel="noreferrer">Coherence</a><span class="lvl">Spec-anchored</span></td><td>Checks that code, docs, decision records and tests still point at each other.</td></tr>
+    <tr><td><a href="https://github.com/sgroy10/speclock" target="_blank" rel="noreferrer">SpecLock</a><span class="lvl">Spec-anchored</span></td><td>Stores rules and warns or blocks when an AI action would break one.</td></tr>
+  </tbody>
+</table>
+</div>
+</div>
+<p class="steps-more" id="see-also-more" hidden><button type="button" class="steps-toggle" id="see-also-toggle" aria-expanded="false" aria-controls="see-also-fold">Expand</button></p>
+
+<h2 id="about">About</h2>
+<p>Spec of Record and its tools are written by <a href="https://sebastianrath.io">Sebastian Rath</a>. The source is on <a href="https://github.com/sebastianrath/specofrecord">GitHub</a>, and contributions are welcome.</p>
+
+<h2 id="license">License</h2>
+<p>This document is licensed under <a href="https://creativecommons.org/licenses/by/4.0/deed.en" rel="license">Creative Commons Attribution 4.0</a> (CC BY 4.0). You can share and adapt it, even commercially, as long as you credit the author, link the license and say what you changed.</p>
+<p>The tools are published under the <a href="https://opensource.org/license/mit" rel="license">MIT License</a>.</p>
+
+<footer>
+  <p>Spec of Record · Version 0.1, draft proposal · © Sebastian Rath · <a href="https://creativecommons.org/licenses/by/4.0/deed.en" rel="license">CC BY 4.0</a></p>
+  <p class="note" id="note-1"><sup>1</sup> <a href="https://martinfowler.com/articles/exploring-gen-ai/sdd-3-tools.html">Birgitta Böckeler,
+    Understanding Spec-Driven Development (Kiro, spec-kit and Tessl)</a>, which compares three spec-driven tools.</p>
+</footer>
+</main>
+<!-- full-example:start -->
+<dialog id="full-example" aria-labelledby="fe-title">
+  <div class="fe-head">
+    <span class="fe-title" id="fe-title">Example Game</span>
+    <button type="button" class="fe-close" id="fe-close">Close</button>
+  </div>
+  <div class="fe-body">
+    <div class="fe-pane fe-files"><div class="fe-tree" aria-label="The files in the sor folder"><ul><li class="d"><span class="n"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 3.5h4.2l1.5 1.6h7.3v8.4h-13z"/></svg>sor/</span><ul><li class="f" data-file="SPECOFRECORD.md" data-part="" data-code="src/game.js" tabindex="0" role="button"><span class="n"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg>SPECOFRECORD.md</span></li><li class="f" data-file="run.md" data-part="run" data-code="src/run.js" data-codes="run.md monsters/monsters.md" tabindex="0" role="button"><span class="n"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg>run.md</span></li><li class="d"><span class="n"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 3.5h4.2l1.5 1.6h7.3v8.4h-13z"/></svg>player/</span><ul><li class="f" data-file="player/movement.md" data-part="player/movement" data-code="src/player/movement.js" tabindex="0" role="button"><span class="n"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg>movement.md</span></li><li class="f" data-file="player/lives.md" data-part="player/lives" data-code="src/player/lives.js" tabindex="0" role="button"><span class="n"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg>lives.md</span></li></ul></li><li class="d"><span class="n"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 3.5h4.2l1.5 1.6h7.3v8.4h-13z"/></svg>monsters/</span><ul><li class="f" data-file="monsters/monsters.md" data-part="monsters/monsters" data-code="src/monsters/monsters.js" tabindex="0" role="button"><span class="n"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg>monsters.md</span></li></ul></li><li class="d"><span class="n"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 3.5h4.2l1.5 1.6h7.3v8.4h-13z"/></svg>level/</span><ul><li class="f cur" data-file="level/exit.md" data-part="level/exit" data-code="src/level/exit.js" tabindex="0" role="button" aria-current="true"><span class="n"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg>exit.md</span><span class="here">&larr; this file</span></li></ul></li></ul></li></ul></div></div>
+    <div class="fe-pane fe-spec">
+<div class="fe-file"><span class="tab"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg><span class="tab-name">sor/level/exit.md</span></span></div>
+<div class="fe-doc" data-file="level/exit.md">
+<h3><span class="hash"># </span>Exit</h3>
+<div class="blk nocode"><p><span class="lead">Why</span> The way out: find enough keys and the door opens.</p></div>
+<div class="md-gap" aria-hidden="true"></div>
+<h4><span class="hash">## </span>Rules</h4>
+<div class="blk rule" tabindex="0" data-links="level/exit/layout" data-tip="Clause level/exit/layout"><p><span class="rname">layout</span> <span class="val">4 keys</span> lie around the room, and the exit sits in the top right corner.</p></div>
+<div class="blk rule" tabindex="0" data-links="level/exit/door test:level/exit/door" data-tip="Clause level/exit/door · has a test"><p><span class="rname">door</span> The player must collect at least <span class="val">3 keys</span> to open the exit, and is told how many are still missing.</p></div>
+<div class="blk rule" tabindex="0" data-links="level/exit/pickup test:level/exit/pickup" data-tip="Clause level/exit/pickup · has a test"><p><span class="rname">pickup</span> Touching a key picks it up, and a key can only be picked up <span class="val">once</span>.</p></div>
+<div class="blk rule" tabindex="0" data-links="level/exit/win" data-tip="Clause level/exit/win"><p><span class="rname">win</span> Walking into the open exit wins the run.</p></div>
+<div class="md-gap" aria-hidden="true"></div>
+<h4><span class="hash">## </span>Approach</h4>
+<div class="blk" tabindex="0" data-links="level/exit/look" data-tip="Clause level/exit/look"><p><span class="lead">How it looks.</span> The exit is grey until it opens, then green. The corner shows how many keys are still missing.</p></div>
+<div class="blk nocode"><p><span class="lead">Out of scope.</span> Coloured keys and locked doors elsewhere.</p></div>
+<div class="md-gap" aria-hidden="true"></div>
+<h4><span class="hash">## </span>Contract</h4>
+<div class="blk" tabindex="0" data-links="level/exit/needs" data-tip="Clause level/exit/needs"><p><span class="lead">Needs</span> <code class="ref">player/movement/position</code> where the player is, from the player part.</p></div>
+<div class="md-gap" aria-hidden="true"></div>
+<h4><span class="hash">## </span>Tests</h4>
+<div class="blk test-head" tabindex="0" data-links="test:level/exit/door" data-tip="Test for level/exit/door"><p><span class="rname">door</span> With 2 keys the exit stays shut and 1 key is missing. With 3 it opens.</p></div>
+<div class="blk sub" data-links="test:level/exit/door"><p><span class="kw">do:</span> pick up 2 keys</p></div>
+<div class="blk sub" data-links="test:level/exit/door"><p><span class="kw">expect:</span> the exit is shut, 1 key is missing</p></div>
+<div class="blk sub" data-links="test:level/exit/door"><p><span class="kw">do:</span> pick up a 3rd key</p></div>
+<div class="blk sub last" data-links="test:level/exit/door"><p><span class="kw">expect:</span> the exit is open</p></div>
+<div class="blk test-head" tabindex="0" data-links="test:level/exit/pickup" data-tip="Test for level/exit/pickup"><p><span class="rname">pickup</span> Touching the same key twice counts once.</p></div>
+<div class="blk sub" data-links="test:level/exit/pickup"><p><span class="kw">do:</span> touch the same key twice</p></div>
+<div class="blk sub last" data-links="test:level/exit/pickup"><p><span class="kw">expect:</span> the player holds 1 key</p></div>
+</div>
+
+<div class="fe-doc" data-file="SPECOFRECORD.md" hidden>
+<h3><span class="hash"># </span>Maze game</h3>
+<div class="blk nocode"><p><span class="lead">Why</span> A small maze game: collect keys, keep away from the monsters, reach the exit.</p></div>
+<div class="md-gap" aria-hidden="true"></div>
+<h4><span class="hash">## </span>Rules</h4>
+<div class="blk rule" tabindex="0" data-links="goal test:goal" data-tip="Clause goal · has a test"><p><span class="rname">goal</span> A run is won by reaching the open exit.</p></div>
+<div class="blk rule" tabindex="0" data-links="loss" data-tip="Clause loss"><p><span class="rname">loss</span> A run is lost when the player has no lives left.</p></div>
+<div class="md-gap" aria-hidden="true"></div>
+<h4><span class="hash">## </span>Approach</h4>
+<div class="blk" tabindex="0" data-links="parts" data-tip="Clause parts"><p><span class="lead">Parts.</span> The player walks and has lives, the monsters chase, the level has the exit, and the run ties them together turn by turn. Each is its own file.</p></div>
+<div class="blk nocode"><p><span class="lead">Out of scope.</span> More than one level, saving a run.</p></div>
+<div class="md-gap" aria-hidden="true"></div>
+<h4><span class="hash">## </span>Tests</h4>
+<div class="blk test-head" tabindex="0" data-links="test:goal" data-tip="Test for goal"><p><span class="rname">goal</span> Reaching the open exit with 3 keys wins the run.</p></div>
+<div class="blk sub" data-links="test:goal"><p><span class="kw">do:</span> walk into the open exit with 3 keys</p></div>
+<div class="blk sub last" data-links="test:goal"><p><span class="kw">expect:</span> the run is won</p></div>
+</div>
+<div class="fe-doc" data-file="player/movement.md" hidden>
+<h3><span class="hash"># </span>Movement</h3>
+<div class="blk nocode"><p><span class="lead">Why</span> The player walks around the room one step at a time.</p></div>
+<div class="md-gap" aria-hidden="true"></div>
+<h4><span class="hash">## </span>Rules</h4>
+<div class="blk rule" tabindex="0" data-links="player/movement/step test:player/movement/step" data-tip="Clause player/movement/step · has a test"><p><span class="rname">step</span> One key press moves the player <span class="val">20 px</span>.</p></div>
+<div class="blk rule" tabindex="0" data-links="player/movement/walls test:player/movement/walls" data-tip="Clause player/movement/walls · has a test"><p><span class="rname">walls</span> The player cannot leave the room, which is <span class="val">500 px</span> wide and tall.</p></div>
+<div class="md-gap" aria-hidden="true"></div>
+<h4><span class="hash">## </span>Contract</h4>
+<div class="blk" tabindex="0" data-links="player/movement/position" data-tip="Clause player/movement/position"><p><span class="lead">Gives</span> <code class="ref">position</code> where the player is, and <code class="ref">near</code>: two things are near when they are closer than <span class="val">24 px</span>.</p></div>
+<div class="md-gap" aria-hidden="true"></div>
+<h4><span class="hash">## </span>Tests</h4>
+<div class="blk test-head" tabindex="0" data-links="test:player/movement/step" data-tip="Test for player/movement/step"><p><span class="rname">step</span> One key press to the right moves the player 20 px.</p></div>
+<div class="blk sub" data-links="test:player/movement/step"><p><span class="kw">do:</span> press right once</p></div>
+<div class="blk sub last" data-links="test:player/movement/step"><p><span class="kw">expect:</span> the player is 20 px further right</p></div>
+<div class="blk test-head" tabindex="0" data-links="test:player/movement/walls" data-tip="Test for player/movement/walls"><p><span class="rname">walls</span> Walking left at the wall does not move the player.</p></div>
+<div class="blk sub" data-links="test:player/movement/walls"><p><span class="kw">do:</span> press left at the wall</p></div>
+<div class="blk sub last" data-links="test:player/movement/walls"><p><span class="kw">expect:</span> the player has not moved</p></div>
+</div>
+<div class="fe-doc" data-file="player/lives.md" hidden>
+<h3><span class="hash"># </span>Lives</h3>
+<div class="blk nocode"><p><span class="lead">Why</span> The player can survive a few monster touches.</p></div>
+<div class="md-gap" aria-hidden="true"></div>
+<h4><span class="hash">## </span>Rules</h4>
+<div class="blk rule" tabindex="0" data-links="player/lives/start test:player/lives/start" data-tip="Clause player/lives/start · has a test"><p><span class="rname">start</span> A new player has <span class="val">3 lives</span>.</p></div>
+<div class="blk rule" tabindex="0" data-links="player/lives/lose test:player/lives/lose" data-tip="Clause player/lives/lose · has a test"><p><span class="rname">lose</span> A monster that touches the player costs <span class="val">1 life</span>.</p></div>
+<div class="blk rule" tabindex="0" data-links="player/lives/out test:player/lives/out" data-tip="Clause player/lives/out · has a test"><p><span class="rname">out</span> At 0 lives the run is lost.</p></div>
+<div class="md-gap" aria-hidden="true"></div>
+<h4><span class="hash">## </span>Contract</h4>
+<div class="blk" tabindex="0" data-links="player/lives/alive" data-tip="Clause player/lives/alive"><p><span class="lead">Gives</span> <code class="ref">hasLives</code> true while the player has a life left.</p></div>
+<div class="md-gap" aria-hidden="true"></div>
+<h4><span class="hash">## </span>Tests</h4>
+<div class="blk test-head" tabindex="0" data-links="test:player/lives/start" data-tip="Test for player/lives/start"><p><span class="rname">start</span> A new player has 3 lives.</p></div>
+<div class="blk sub" data-links="test:player/lives/start"><p><span class="kw">do:</span> start a new run</p></div>
+<div class="blk sub last" data-links="test:player/lives/start"><p><span class="kw">expect:</span> the player has 3 lives</p></div>
+<div class="blk test-head" tabindex="0" data-links="test:player/lives/lose" data-tip="Test for player/lives/lose"><p><span class="rname">lose</span> One touch leaves 2 lives.</p></div>
+<div class="blk sub" data-links="test:player/lives/lose"><p><span class="kw">do:</span> let a monster touch the player</p></div>
+<div class="blk sub last" data-links="test:player/lives/lose"><p><span class="kw">expect:</span> the player has 2 lives</p></div>
+<div class="blk test-head" tabindex="0" data-links="test:player/lives/out" data-tip="Test for player/lives/out"><p><span class="rname">out</span> With 0 lives the player is out.</p></div>
+<div class="blk sub" data-links="test:player/lives/out"><p><span class="kw">do:</span> set the lives to 0</p></div>
+<div class="blk sub last" data-links="test:player/lives/out"><p><span class="kw">expect:</span> the player is out</p></div>
+</div>
+<div class="fe-doc" data-file="monsters/monsters.md" hidden>
+<h3><span class="hash"># </span>Monsters</h3>
+<div class="blk nocode"><p><span class="lead">Why</span> Monsters make the room dangerous.</p></div>
+<div class="md-gap" aria-hidden="true"></div>
+<h4><span class="hash">## </span>Rules</h4>
+<div class="blk rule" tabindex="0" data-links="monsters/monsters/chase test:monsters/monsters/chase" data-tip="Clause monsters/monsters/chase · has a test"><p><span class="rname">chase</span> Every turn a monster steps <span class="val">20 px</span> toward the player.</p></div>
+<div class="blk rule" tabindex="0" data-links="monsters/monsters/touch test:monsters/monsters/touch" data-tip="Clause monsters/monsters/touch · has a test"><p><span class="rname">touch</span> A monster that touches the player takes a life from the player.</p></div>
+<div class="md-gap" aria-hidden="true"></div>
+<h4><span class="hash">## </span>Contract</h4>
+<div class="blk" tabindex="0" data-links="monsters/monsters/needs" data-tip="Clause monsters/monsters/needs"><p><span class="lead">Needs</span> <code class="ref">player/movement/position</code> where the player is, and <code class="ref">player/lives/lose</code> to take a life.</p></div>
+<div class="md-gap" aria-hidden="true"></div>
+<h4><span class="hash">## </span>Tests</h4>
+<div class="blk test-head" tabindex="0" data-links="test:monsters/monsters/chase" data-tip="Test for monsters/monsters/chase"><p><span class="rname">chase</span> A monster 40 px left of the player ends 20 px closer.</p></div>
+<div class="blk sub" data-links="test:monsters/monsters/chase"><p><span class="kw">do:</span> take one turn with a monster 40 px left of the player</p></div>
+<div class="blk sub last" data-links="test:monsters/monsters/chase"><p><span class="kw">expect:</span> the monster is 20 px closer</p></div>
+<div class="blk test-head" tabindex="0" data-links="test:monsters/monsters/touch" data-tip="Test for monsters/monsters/touch"><p><span class="rname">touch</span> A monster on the player takes one life.</p></div>
+<div class="blk sub" data-links="test:monsters/monsters/touch"><p><span class="kw">do:</span> take one turn with a monster on the player</p></div>
+<div class="blk sub last" data-links="test:monsters/monsters/touch"><p><span class="kw">expect:</span> the player has 1 life less</p></div>
+</div>
+<div class="fe-doc" data-file="run.md" hidden>
+<h3><span class="hash"># </span>Run</h3>
+<div class="blk nocode"><p><span class="lead">Why</span> One turn of the game, from key press to win or loss.</p></div>
+<div class="md-gap" aria-hidden="true"></div>
+<h4><span class="hash">## </span>Rules</h4>
+<div class="blk rule" tabindex="0" data-links="run/turn test:run/turn" data-tip="Clause run/turn · has a test"><p><span class="rname">turn</span> Each key press moves the player, picks up keys and moves the monsters.</p></div>
+<div class="blk rule" tabindex="0" data-links="run/end test:run/end" data-tip="Clause run/end · has a test"><p><span class="rname">end</span> The run ends as soon as it is won or lost, and later key presses do nothing.</p></div>
+<div class="md-gap" aria-hidden="true"></div>
+<h4><span class="hash">## </span>Contract</h4>
+<div class="blk" tabindex="0" data-links="run/needs" data-tip="Clause run/needs"><p><span class="lead">Needs</span> <code class="ref">player/movement/step</code> to walk, <code class="ref">level/exit/pickup</code> to take keys, <code class="ref">monsters/monsters/chase</code> and <code class="ref">touch</code> to move the monsters, and <code class="ref">goal</code> and <code class="ref">loss</code> to check the run.</p></div>
+<div class="md-gap" aria-hidden="true"></div>
+<h4><span class="hash">## </span>Tests</h4>
+<div class="blk test-head" tabindex="0" data-links="test:run/turn" data-tip="Test for run/turn"><p><span class="rname">turn</span> A key press moves everything once, and a monster that arrives takes a life.</p></div>
+<div class="blk sub" data-links="test:run/turn"><p><span class="kw">do:</span> press right with a monster 40 px to the right</p></div>
+<div class="blk sub" data-links="test:run/turn"><p><span class="kw">expect:</span> the player is 20 px further right</p></div>
+<div class="blk sub" data-links="test:run/turn"><p><span class="kw">expect:</span> the monster has reached the player</p></div>
+<div class="blk sub last" data-links="test:run/turn"><p><span class="kw">expect:</span> the player has 2 lives</p></div>
+<div class="blk test-head" tabindex="0" data-links="test:run/end" data-tip="Test for run/end"><p><span class="rname">end</span> A run that is over ignores key presses.</p></div>
+<div class="blk sub" data-links="test:run/end"><p><span class="kw">do:</span> press right after the run is lost</p></div>
+<div class="blk sub last" data-links="test:run/end"><p><span class="kw">expect:</span> the player has not moved</p></div>
+</div>
+    </div>
+    <div class="fe-pane fe-code">
+      <div class="fe-file"><span class="tab"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg><span class="tab-name">src/level/exit.js</span></span></div>
+      <pre data-file="level/exit.md"><span class="rg" data-id="level/exit/needs player/movement/position" tabindex="0"><span class="ln"><span class="t-m">// @clause level/exit/needs player/movement/position</span></span><span class="ln">import { near } from <span class="t-s">"../player/movement.js"</span>;</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span><span class="rg" data-id="level/exit/layout" tabindex="0"><span class="ln"><span class="t-m">// @clause level/exit/layout</span></span><span class="ln">export <span class="t-k">const</span> keys = [</span><span class="ln">  { x: <span class="t-n">100</span>, y: <span class="t-n">100</span> },</span><span class="ln">  { x: <span class="t-n">380</span>, y: <span class="t-n">200</span> },</span><span class="ln">  { x: <span class="t-n">200</span>, y: <span class="t-n">400</span> },</span><span class="ln">  { x: <span class="t-n">440</span>, y: <span class="t-n">300</span> },</span><span class="ln">];</span><span class="ln"></span><span class="ln">export <span class="t-k">const</span> exit = {</span><span class="ln">  x: <span class="t-n">440</span>,</span><span class="ln">  y: <span class="t-n">20</span>,</span><span class="ln">};</span><span class="ln"></span><span class="ln">export <span class="t-k">function</span> <span class="t-f">placeKeys</span>(room) {</span><span class="ln">  <span class="t-k">for</span> (<span class="t-k">const</span> key <span class="t-k">of</span> keys) {</span><span class="ln">    room.<span class="t-f">add</span>(key);</span><span class="ln">  }</span><span class="ln">  room.<span class="t-f">add</span>(exit);</span><span class="ln">}</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span><span class="rg" data-id="level/exit/pickup" tabindex="0"><span class="ln"><span class="t-m">// @clause level/exit/pickup</span></span><span class="ln">export <span class="t-k">function</span> <span class="t-f">pickUpKeys</span>(player, keys) {</span><span class="ln">  <span class="t-k">for</span> (<span class="t-k">const</span> key <span class="t-k">of</span> keys) {</span><span class="ln">    <span class="t-k">if</span> (!key.taken &amp;&amp; <span class="t-f">near</span>(player, key)) {</span><span class="ln">      key.taken = <span class="t-k">true</span>;</span><span class="ln">      player.keys += <span class="t-n">1</span>;</span><span class="ln">    }</span><span class="ln">  }</span><span class="ln">}</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span><span class="rg" data-id="level/exit/door" tabindex="0"><span class="ln"><span class="t-m">// @clause level/exit/door</span></span><span class="ln"><span class="t-k">const</span> KEYS_NEEDED = <span class="t-n">3</span>;</span><span class="ln"></span><span class="ln">export <span class="t-k">function</span> <span class="t-f">canOpenExit</span>(player) {</span><span class="ln">  <span class="t-k">return</span> player.keys &gt;= KEYS_NEEDED;</span><span class="ln">}</span><span class="ln"></span><span class="ln">export <span class="t-k">function</span> <span class="t-f">keysMissing</span>(player) {</span><span class="ln">  <span class="t-k">return</span> <span class="t-b">Math</span>.<span class="t-f">max</span>(<span class="t-n">0</span>, KEYS_NEEDED - player.keys);</span><span class="ln">}</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span><span class="rg" data-id="level/exit/win" tabindex="0"><span class="ln"><span class="t-m">// @clause level/exit/win</span></span><span class="ln">export <span class="t-k">function</span> <span class="t-f">reachedExit</span>(player, exit) {</span><span class="ln">  <span class="t-k">return</span> <span class="t-f">canOpenExit</span>(player) &amp;&amp; <span class="t-f">near</span>(player, exit);</span><span class="ln">}</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span><span class="rg" data-id="level/exit/look" tabindex="0"><span class="ln"><span class="t-m">// @clause level/exit/look</span></span><span class="ln">export <span class="t-k">function</span> <span class="t-f">exitColor</span>(player) {</span><span class="ln">  <span class="t-k">return</span> <span class="t-f">canOpenExit</span>(player) ? <span class="t-s">"limegreen"</span> : <span class="t-s">"gray"</span>;</span><span class="ln">}</span><span class="ln"></span><span class="ln">export <span class="t-k">function</span> <span class="t-f">keysLabel</span>(player) {</span><span class="ln">  <span class="t-k">return</span> <span class="t-s">`Keys missing: ${</span><span class="t-f">keysMissing</span>(player)<span class="t-s">}`</span>;</span><span class="ln">}</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span><span class="rg test" data-id="test:level/exit/door" tabindex="0"><span class="ln"><span class="t-m">// @clause test level/exit/door</span></span><span class="ln"><span class="t-b">console</span>.<span class="t-f">assert</span>(!<span class="t-f">canOpenExit</span>({ keys: <span class="t-n">2</span> }), <span class="t-s">"2 keys: the exit stays shut"</span>);</span><span class="ln"><span class="t-b">console</span>.<span class="t-f">assert</span>(<span class="t-f">keysMissing</span>({ keys: <span class="t-n">2</span> }) === <span class="t-n">1</span>, <span class="t-s">"2 keys: one is missing"</span>);</span><span class="ln"><span class="t-b">console</span>.<span class="t-f">assert</span>(<span class="t-f">canOpenExit</span>({ keys: <span class="t-n">3</span> }), <span class="t-s">"3 keys: the exit opens"</span>);</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span><span class="rg test" data-id="test:level/exit/pickup" tabindex="0"><span class="ln"><span class="t-m">// @clause test level/exit/pickup</span></span><span class="ln"><span class="t-k">const</span> p = { x: <span class="t-n">0</span>, y: <span class="t-n">0</span>, keys: <span class="t-n">0</span> };</span><span class="ln"><span class="t-k">const</span> one = [{ x: <span class="t-n">0</span>, y: <span class="t-n">0</span> }];</span><span class="ln"><span class="t-f">pickUpKeys</span>(p, one);</span><span class="ln"><span class="t-f">pickUpKeys</span>(p, one);</span><span class="ln"><span class="t-b">console</span>.<span class="t-f">assert</span>(p.keys === <span class="t-n">1</span>, <span class="t-s">"touching the same key twice counts once"</span>);</span><span class="ln"><span class="t-m">// @clause end</span></span></span></pre>
+<pre data-file="SPECOFRECORD.md" hidden>
+<span class="rg" data-id="parts level/exit/win player/lives/out" tabindex="0"><span class="ln"><span class="t-m">// @clause parts level/exit/win player/lives/out</span></span><span class="ln">import { reachedExit, exit } from <span class="t-s">"./level/exit.js"</span>;</span><span class="ln">import { hasLives } from <span class="t-s">"./player/lives.js"</span>;</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span>
+<span class="rg" data-id="goal level/exit/win" tabindex="0"><span class="ln"><span class="t-m">// @clause goal level/exit/win</span></span><span class="ln">export <span class="t-k">function</span> <span class="t-f">runWon</span>(player) {</span><span class="ln">  <span class="t-k">return</span> <span class="t-f">reachedExit</span>(player, exit);</span><span class="ln">}</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span>
+<span class="rg" data-id="loss player/lives/out" tabindex="0"><span class="ln"><span class="t-m">// @clause loss player/lives/out</span></span><span class="ln">export <span class="t-k">function</span> <span class="t-f">runLost</span>(player) {</span><span class="ln">  <span class="t-k">return</span> !<span class="t-f">hasLives</span>(player);</span><span class="ln">}</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span>
+<span class="rg test" data-id="test:goal" tabindex="0"><span class="ln"><span class="t-m">// @clause test goal</span></span><span class="ln"><span class="t-b">console</span>.<span class="t-f">assert</span>(<span class="t-f">runWon</span>({ x: <span class="t-n">440</span>, y: <span class="t-n">20</span>, keys: <span class="t-n">3</span> }), <span class="t-s">"3 keys at the exit: the run is won"</span>);</span><span class="ln"><span class="t-m">// @clause end</span></span></span>
+</pre>
+<pre data-file="player/movement.md" hidden>
+<span class="rg" data-id="player/movement/step" tabindex="0"><span class="ln"><span class="t-m">// @clause player/movement/step</span></span><span class="ln"><span class="t-k">const</span> STEP = <span class="t-n">20</span>;</span><span class="ln">export <span class="t-k">function</span> <span class="t-f">move</span>(player, dx, dy) {</span><span class="ln">  player.x += dx * STEP;</span><span class="ln">  player.y += dy * STEP;</span><span class="ln">}</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span>
+<span class="rg" data-id="player/movement/walls" tabindex="0"><span class="ln"><span class="t-m">// @clause player/movement/walls</span></span><span class="ln"><span class="t-k">const</span> ROOM = <span class="t-n">500</span>;</span><span class="ln">export <span class="t-k">function</span> <span class="t-f">keepInRoom</span>(player) {</span><span class="ln">  player.x = <span class="t-b">Math</span>.<span class="t-f">min</span>(<span class="t-b">Math</span>.<span class="t-f">max</span>(player.x, <span class="t-n">0</span>), ROOM);</span><span class="ln">  player.y = <span class="t-b">Math</span>.<span class="t-f">min</span>(<span class="t-b">Math</span>.<span class="t-f">max</span>(player.y, <span class="t-n">0</span>), ROOM);</span><span class="ln">}</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span>
+<span class="rg" data-id="player/movement/position" tabindex="0"><span class="ln"><span class="t-m">// @clause player/movement/position</span></span><span class="ln"><span class="t-k">const</span> REACH = <span class="t-n">24</span>;</span><span class="ln">export <span class="t-k">function</span> <span class="t-f">near</span>(a, b) {</span><span class="ln">  <span class="t-k">return</span> <span class="t-b">Math</span>.<span class="t-f">hypot</span>(a.x - b.x, a.y - b.y) &lt; REACH;</span><span class="ln">}</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span>
+<span class="rg test" data-id="test:player/movement/step" tabindex="0"><span class="ln"><span class="t-m">// @clause test player/movement/step</span></span><span class="ln"><span class="t-k">const</span> p = { x: <span class="t-n">0</span>, y: <span class="t-n">0</span> };</span><span class="ln"><span class="t-f">move</span>(p, <span class="t-n">1</span>, <span class="t-n">0</span>);</span><span class="ln"><span class="t-b">console</span>.<span class="t-f">assert</span>(p.x === <span class="t-n">20</span>, <span class="t-s">"one key press moves 20 px"</span>);</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span>
+<span class="rg test" data-id="test:player/movement/walls" tabindex="0"><span class="ln"><span class="t-m">// @clause test player/movement/walls</span></span><span class="ln"><span class="t-k">const</span> q = { x: <span class="t-n">0</span>, y: <span class="t-n">0</span> };</span><span class="ln"><span class="t-f">move</span>(q, -<span class="t-n">1</span>, <span class="t-n">0</span>);</span><span class="ln"><span class="t-f">keepInRoom</span>(q);</span><span class="ln"><span class="t-b">console</span>.<span class="t-f">assert</span>(q.x === <span class="t-n">0</span>, <span class="t-s">"the wall stops the player"</span>);</span><span class="ln"><span class="t-m">// @clause end</span></span></span>
+</pre>
+<pre data-file="player/lives.md" hidden>
+<span class="rg" data-id="player/lives/start" tabindex="0"><span class="ln"><span class="t-m">// @clause player/lives/start</span></span><span class="ln"><span class="t-k">const</span> START_LIVES = <span class="t-n">3</span>;</span><span class="ln">export <span class="t-k">function</span> <span class="t-f">withLives</span>(player) {</span><span class="ln">  player.lives = START_LIVES;</span><span class="ln">  <span class="t-k">return</span> player;</span><span class="ln">}</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span>
+<span class="rg" data-id="player/lives/lose" tabindex="0"><span class="ln"><span class="t-m">// @clause player/lives/lose</span></span><span class="ln">export <span class="t-k">function</span> <span class="t-f">loseLife</span>(player) {</span><span class="ln">  player.lives -= <span class="t-n">1</span>;</span><span class="ln">}</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span>
+<span class="rg" data-id="player/lives/out player/lives/alive" tabindex="0"><span class="ln"><span class="t-m">// @clause player/lives/out player/lives/alive</span></span><span class="ln">export <span class="t-k">function</span> <span class="t-f">hasLives</span>(player) {</span><span class="ln">  <span class="t-k">return</span> player.lives &gt; <span class="t-n">0</span>;</span><span class="ln">}</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span>
+<span class="rg test" data-id="test:player/lives/start" tabindex="0"><span class="ln"><span class="t-m">// @clause test player/lives/start</span></span><span class="ln"><span class="t-b">console</span>.<span class="t-f">assert</span>(<span class="t-f">withLives</span>({}).lives === <span class="t-n">3</span>, <span class="t-s">"3 lives at the start"</span>);</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span>
+<span class="rg test" data-id="test:player/lives/lose" tabindex="0"><span class="ln"><span class="t-m">// @clause test player/lives/lose</span></span><span class="ln"><span class="t-k">const</span> a = <span class="t-f">withLives</span>({});</span><span class="ln"><span class="t-f">loseLife</span>(a);</span><span class="ln"><span class="t-b">console</span>.<span class="t-f">assert</span>(a.lives === <span class="t-n">2</span>, <span class="t-s">"one touch leaves 2 lives"</span>);</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span>
+<span class="rg test" data-id="test:player/lives/out" tabindex="0"><span class="ln"><span class="t-m">// @clause test player/lives/out</span></span><span class="ln"><span class="t-b">console</span>.<span class="t-f">assert</span>(!<span class="t-f">hasLives</span>({ lives: <span class="t-n">0</span> }), <span class="t-s">"0 lives: the player is out"</span>);</span><span class="ln"><span class="t-m">// @clause end</span></span></span>
+</pre>
+<pre data-file="monsters/monsters.md" hidden>
+<span class="rg" data-id="monsters/monsters/needs player/movement/position player/lives/lose" tabindex="0"><span class="ln"><span class="t-m">// @clause monsters/monsters/needs player/movement/position player/lives/lose</span></span><span class="ln">import { near } from <span class="t-s">"../player/movement.js"</span>;</span><span class="ln">import { loseLife } from <span class="t-s">"../player/lives.js"</span>;</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span>
+<span class="rg" data-id="monsters/monsters/chase" tabindex="0"><span class="ln"><span class="t-m">// @clause monsters/monsters/chase</span></span><span class="ln"><span class="t-k">const</span> MONSTER_STEP = <span class="t-n">20</span>;</span><span class="ln">export <span class="t-k">function</span> <span class="t-f">chase</span>(monster, player) {</span><span class="ln">  monster.x += <span class="t-b">Math</span>.<span class="t-f">sign</span>(player.x - monster.x) * MONSTER_STEP;</span><span class="ln">  monster.y += <span class="t-b">Math</span>.<span class="t-f">sign</span>(player.y - monster.y) * MONSTER_STEP;</span><span class="ln">}</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span>
+<span class="rg" data-id="monsters/monsters/touch player/lives/lose" tabindex="0"><span class="ln"><span class="t-m">// @clause monsters/monsters/touch player/lives/lose</span></span><span class="ln">export <span class="t-k">function</span> <span class="t-f">touchPlayer</span>(monster, player) {</span><span class="ln">  <span class="t-k">if</span> (<span class="t-f">near</span>(monster, player)) <span class="t-f">loseLife</span>(player);</span><span class="ln">}</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span>
+<span class="rg" data-id="run/turn" tabindex="0"><span class="ln"><span class="t-m">// @clause run/turn</span></span><span class="ln">export <span class="t-k">function</span> <span class="t-f">moveMonsters</span>(game) {</span><span class="ln">  <span class="t-k">for</span> (<span class="t-k">const</span> monster <span class="t-k">of</span> game.monsters) {</span><span class="ln">    <span class="t-f">chase</span>(monster, game.player);</span><span class="ln">    <span class="t-f">touchPlayer</span>(monster, game.player);</span><span class="ln">  }</span><span class="ln">}</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span>
+<span class="rg test" data-id="test:monsters/monsters/chase" tabindex="0"><span class="ln"><span class="t-m">// @clause test monsters/monsters/chase</span></span><span class="ln"><span class="t-k">const</span> g = { x: <span class="t-n">0</span>, y: <span class="t-n">0</span> };</span><span class="ln"><span class="t-f">chase</span>(g, { x: <span class="t-n">40</span>, y: <span class="t-n">0</span> });</span><span class="ln"><span class="t-b">console</span>.<span class="t-f">assert</span>(g.x === <span class="t-n">20</span>, <span class="t-s">"the monster steps 20 px closer"</span>);</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span>
+<span class="rg test" data-id="test:monsters/monsters/touch" tabindex="0"><span class="ln"><span class="t-m">// @clause test monsters/monsters/touch</span></span><span class="ln"><span class="t-k">const</span> victim = { x: <span class="t-n">0</span>, y: <span class="t-n">0</span>, lives: <span class="t-n">3</span> };</span><span class="ln"><span class="t-f">touchPlayer</span>({ x: <span class="t-n">0</span>, y: <span class="t-n">0</span> }, victim);</span><span class="ln"><span class="t-b">console</span>.<span class="t-f">assert</span>(victim.lives === <span class="t-n">2</span>, <span class="t-s">"a touch takes one life"</span>);</span><span class="ln"><span class="t-m">// @clause end</span></span></span>
+</pre>
+<pre data-file="run.md" hidden>
+<span class="rg" data-id="run/needs player/movement/step player/movement/walls level/exit/pickup monsters/monsters/chase monsters/monsters/touch goal loss" tabindex="0"><span class="ln"><span class="t-m">// @clause run/needs player/movement/step player/movement/walls level/exit/pickup monsters/monsters/chase monsters/monsters/touch goal loss</span></span><span class="ln">import { move, keepInRoom } from <span class="t-s">"./player/movement.js"</span>;</span><span class="ln">import { pickUpKeys } from <span class="t-s">"./level/exit.js"</span>;</span><span class="ln">import { moveMonsters } from <span class="t-s">"./monsters/monsters.js"</span>;</span><span class="ln">import { runWon, runLost } from <span class="t-s">"./game.js"</span>;</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span>
+<span class="rg" data-id="run/turn" tabindex="0"><span class="ln"><span class="t-m">// @clause run/turn</span></span><span class="ln">export <span class="t-k">function</span> <span class="t-f">takeTurn</span>(game, dx, dy) {</span><span class="ln">  <span class="t-f">move</span>(game.player, dx, dy);</span><span class="ln">  <span class="t-f">keepInRoom</span>(game.player);</span><span class="ln">  <span class="t-f">pickUpKeys</span>(game.player, game.keys);</span><span class="ln">  <span class="t-f">moveMonsters</span>(game);</span><span class="ln">}</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span>
+<span class="rg" data-id="run/end" tabindex="0"><span class="ln"><span class="t-m">// @clause run/end</span></span><span class="ln">export <span class="t-k">function</span> <span class="t-f">checkRun</span>(game) {</span><span class="ln">  <span class="t-k">if</span> (<span class="t-f">runWon</span>(game.player)) <span class="t-k">return</span> <span class="t-s">"won"</span>;</span><span class="ln">  <span class="t-k">if</span> (<span class="t-f">runLost</span>(game.player)) <span class="t-k">return</span> <span class="t-s">"lost"</span>;</span><span class="ln">  <span class="t-k">return</span> <span class="t-s">"playing"</span>;</span><span class="ln">}</span><span class="ln"></span><span class="ln">export <span class="t-k">function</span> <span class="t-f">play</span>(game, dx, dy) {</span><span class="ln">  <span class="t-k">if</span> (game.state !== <span class="t-s">"playing"</span>) <span class="t-k">return</span> game.state;</span><span class="ln">  <span class="t-f">takeTurn</span>(game, dx, dy);</span><span class="ln">  game.state = <span class="t-f">checkRun</span>(game);</span><span class="ln">  <span class="t-k">return</span> game.state;</span><span class="ln">}</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span>
+<span class="rg test" data-id="test:run/turn" tabindex="0"><span class="ln"><span class="t-m">// @clause test run/turn</span></span><span class="ln"><span class="t-k">const</span> game = { player: { x: <span class="t-n">0</span>, y: <span class="t-n">0</span>, keys: <span class="t-n">0</span>, lives: <span class="t-n">3</span> }, keys: [], monsters: [{ x: <span class="t-n">40</span>, y: <span class="t-n">0</span> }], state: <span class="t-s">"playing"</span> };</span><span class="ln"><span class="t-f">takeTurn</span>(game, <span class="t-n">1</span>, <span class="t-n">0</span>);</span><span class="ln"><span class="t-b">console</span>.<span class="t-f">assert</span>(game.player.x === <span class="t-n">20</span>, <span class="t-s">"the player moved 20 px"</span>);</span><span class="ln"><span class="t-b">console</span>.<span class="t-f">assert</span>(game.player.lives === <span class="t-n">2</span>, <span class="t-s">"the monster arrived and took a life"</span>);</span><span class="ln"><span class="t-m">// @clause end</span></span></span><span class="ln gap"></span>
+<span class="rg test" data-id="test:run/end" tabindex="0"><span class="ln"><span class="t-m">// @clause test run/end</span></span><span class="ln"><span class="t-k">const</span> over = { player: { x: <span class="t-n">0</span>, y: <span class="t-n">0</span>, keys: <span class="t-n">0</span>, lives: <span class="t-n">0</span> }, keys: [], monsters: [], state: <span class="t-s">"lost"</span> };</span><span class="ln"><span class="t-f">play</span>(over, <span class="t-n">1</span>, <span class="t-n">0</span>);</span><span class="ln"><span class="t-b">console</span>.<span class="t-f">assert</span>(over.player.x === <span class="t-n">0</span>, <span class="t-s">"a lost run ignores key presses"</span>);</span><span class="ln"><span class="t-m">// @clause end</span></span></span>
+</pre>
+    </div>
+  </div>
+</dialog>
+<script id="full-example-js">
+(function () {
+  var dlg = document.getElementById('full-example');
+  var btn = document.getElementById('open-example');
+  var more = document.getElementById('example-more');
+  if (!dlg || !btn || !more || typeof dlg.showModal !== 'function') return;
+  more.hidden = false;
+
+  var SEL = '.blk[data-links], .rg[data-id]';
+  var DEFAULT = 'run.md', cur = DEFAULT;
+  function curDoc() { return dlg.querySelector('.fe-doc[data-file="' + cur + '"]'); }
+  /* the code of a spec file: its own code file, and for some files more (the explorer entry lists them in data-codes) */
+  function codeKeys(file) {
+    var e = entries.filter(function (x) { return x.file === file; })[0];
+    var list = e && e.li.getAttribute('data-codes');
+    return list ? words(list) : [file];
+  }
+  function codePre(key) { return dlg.querySelector('.fe-code pre[data-file="' + key + '"]'); }
+  function codePres() { return codeKeys(cur).map(codePre); }
+  function codeName(key) { return entries.filter(function (x) { return x.file === key; })[0].li.getAttribute('data-code'); }
+  var codeShown = DEFAULT;
+  /* the files in the explorer: every clause id belongs to the file of the part whose id is its longest prefix; ids
+     without a part prefix are the root's (SPECOFRECORD.md) */
+  var entries = Array.prototype.map.call(dlg.querySelectorAll('.fe-files li[data-file]'), function (li) {
+    return { li: li, file: li.getAttribute('data-file'), part: li.getAttribute('data-part') };
+  });
+  function entryOf(id) {
+    id = id.replace(/^test:/, '');
+    var best = null;
+    entries.forEach(function (e) { if (e.part && id.indexOf(e.part + '/') === 0 && (!best || e.part.length > best.part.length)) best = e; });
+    return best || entries.filter(function (e) { return !e.part; })[0];
+  }
+  var wide = window.matchMedia('(min-width: 900px)');
+
+  function words(v) { return (v || '').split(' ').filter(Boolean); }
+  function overlap(a, b) { return a.some(function (x) { return b.indexOf(x) > -1; }); }
+  function isSpec(el) { return el.classList.contains('blk'); }
+  function counterparts(from) {
+    var ids = words(isSpec(from) ? from.getAttribute('data-links') : from.getAttribute('data-id'));
+    var pool = [];
+    (isSpec(from) ? codePres() : [curDoc()]).forEach(function (root) {
+      Array.prototype.forEach.call(root.querySelectorAll(isSpec(from) ? '.rg[data-id]' : '.blk[data-links]'), function (el) { pool.push(el); });
+    });
+    return pool.filter(function (el) {
+      return overlap(ids, words(el.getAttribute(isSpec(from) ? 'data-id' : 'data-links')));
+    });
+  }
+  function clear(cls) {
+    Array.prototype.forEach.call(dlg.querySelectorAll('.' + cls), function (e) { e.classList.remove(cls); });
+  }
+
+  /* Narrow screens have no side-by-side panes: one column, a row of file tabs on top, and each spec item of the open
+     file followed by the code it is about. The column is rebuilt from the two panes whenever the file changes, as copies
+     without their links, so hovering and pinning stay a wide-screen feature. Each snippet keeps its real line numbers. */
+  var stack = null;
+  function fillStack() {
+    var specPane = dlg.querySelector('.fe-spec'), codePane = dlg.querySelector('.fe-code');
+    var sources = codeKeys(cur).map(function (key) {
+      var pre = codePre(key);
+      return { name: codeName(key), lines: Array.prototype.slice.call(pre.querySelectorAll('.ln')), regions: Array.prototype.slice.call(pre.querySelectorAll('.rg[data-id]')) };
+    });
+    stack.innerHTML = '';
+    var pick = document.createElement('div');
+    pick.className = 'fe-pick';
+    pick.setAttribute('role', 'group');
+    pick.setAttribute('aria-label', 'Files of the spec');
+    entries.forEach(function (e) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('data-pick', e.file);
+      b.textContent = e.file.split('/').pop();
+      b.title = 'sor/' + e.file;
+      if (e.file === cur) { b.className = 'cur'; b.setAttribute('aria-current', 'true'); }
+      pick.appendChild(b);
+    });
+    stack.appendChild(pick);
+    var here = pick.querySelector('.cur');   /* keep the open file's tab in view */
+    if (here) pick.scrollLeft = Math.max(0, here.offsetLeft - (pick.clientWidth - here.offsetWidth) / 2);
+    stack.appendChild(specPane.querySelector('.fe-file').cloneNode(true));
+    var docClone = specPane.querySelector('.fe-doc[data-file="' + cur + '"]').cloneNode(true);
+    docClone.removeAttribute('data-file');
+    docClone.removeAttribute('hidden');
+    stack.appendChild(docClone);
+    Array.prototype.forEach.call(stack.querySelectorAll('.blk[data-links]'), function (blk) {
+      var ids = words(blk.getAttribute('data-links'));
+      blk.removeAttribute('data-links');
+      blk.removeAttribute('tabindex');
+      if (blk.classList.contains('sub')) return;   /* the do / expect lines: the code goes under the test's head line */
+      var after = blk;
+      sources.forEach(function (src) {
+        var mine = src.regions.filter(function (r) { return overlap(ids, words(r.getAttribute('data-id'))); });
+        if (!mine.length) return;
+        var box = document.createElement('div');
+        box.className = 'fe-inline-code';
+        box.setAttribute('data-file', src.name);
+        mine.forEach(function (r) {
+          var copy = r.cloneNode(true), snippet = document.createElement('pre');
+          copy.removeAttribute('data-id');
+          copy.removeAttribute('tabindex');
+          snippet.style.counterReset = 'ln ' + src.lines.indexOf(r.querySelector('.ln'));
+          snippet.appendChild(copy);
+          box.appendChild(snippet);
+        });
+        after.parentNode.insertBefore(box, after.nextSibling);
+        after = box;
+      });
+    });
+    stack.scrollTop = 0;
+  }
+  stack = document.createElement('div');
+  stack.className = 'fe-stack';
+  dlg.querySelector('.fe-body').appendChild(stack);
+  fillStack();
+
+  /* Bring the counterpart fully into view: nothing moves when all of it is already visible; otherwise it is centred
+     in its own pane (or its top is shown, when it is taller than the pane). Only that pane scrolls, never the page. */
+  function reveal(targets) {
+    if (!targets.length) return;
+    var inPre = targets[0].closest('pre[data-file]');
+    if (inPre && inPre.getAttribute('data-file') !== codeShown) showCode(inPre.getAttribute('data-file'));
+    var pane = targets[0].closest('.fe-pane');
+    if (!pane) return;
+    var head = pane.querySelector('.fe-file'), pr = pane.getBoundingClientRect();
+    var margin = 16, topEdge = pr.top + (head ? head.offsetHeight : 0) + margin, bottomEdge = pr.bottom - margin;
+    var first = targets[0].getBoundingClientRect(), last = targets[targets.length - 1].getBoundingClientRect();
+    var top = Math.min(first.top, last.top), bottom = Math.max(first.bottom, last.bottom);
+    if (bottom - top > bottomEdge - topEdge) bottom = first.bottom, top = first.top;   // all of them do not fit: show the first
+    if (top >= topEdge && bottom <= bottomEdge) return;
+    var visible = bottomEdge - topEdge, size = bottom - top;
+    var want = size >= visible ? top - topEdge : top - topEdge - (visible - size) / 2;
+    pane.scrollTo({ top: Math.max(0, pane.scrollTop + want), behavior: 'smooth' });
+  }
+
+  /* The blocks that belong with spec block `from`: a rule and its test (head and lines) share the test id. */
+  function partners(from) {
+    if (!isSpec(from)) return [];
+    var mine = words(from.getAttribute('data-links')).filter(function (l) { return l.indexOf('test:') === 0; });
+    if (!mine.length) return [];
+    return Array.prototype.filter.call(curDoc().querySelectorAll('.blk[data-links]'), function (b) {
+      return b !== from && overlap(mine, words(b.getAttribute('data-links')).filter(function (l) { return l.indexOf('test:') === 0; }));
+    });
+  }
+
+  /* The files that code region `from` comes from, other than the one on screen: their entries in the explorer. */
+  function otherFiles(from) {
+    if (isSpec(from)) return [];
+    var out = [];
+    words(from.getAttribute('data-id')).forEach(function (id) {
+      var e = entryOf(id);
+      if (e && e.file !== cur && out.indexOf(e.li) < 0) out.push(e.li);
+    });
+    return out;
+  }
+
+  /* The tabs of the code pane: one per code file of the open spec file. */
+  var ICON = '<svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg>';
+  function renderCodeTabs() {
+    var bar = dlg.querySelector('.fe-code .fe-file'), keys = codeKeys(cur);
+    bar.innerHTML = '';
+    keys.forEach(function (key) {
+      var tab = document.createElement(keys.length > 1 ? 'button' : 'span');
+      tab.className = 'tab' + (key === codeShown ? '' : ' off');
+      if (keys.length > 1) { tab.type = 'button'; tab.setAttribute('data-codetab', key); }
+      tab.innerHTML = ICON + '<span class="tab-name"></span>';
+      tab.querySelector('.tab-name').textContent = codeName(key);
+      bar.appendChild(tab);
+    });
+  }
+  function showCode(key) {
+    codeShown = key;
+    Array.prototype.forEach.call(dlg.querySelectorAll('.fe-code pre[data-file]'), function (el) { el.hidden = el.getAttribute('data-file') !== key; });
+    renderCodeTabs();
+  }
+
+  /* Show another file of the spec: its clauses on the left, its code on the right. */
+  function switchFile(file) {
+    var entry = entries.filter(function (e) { return e.file === file; })[0];
+    if (!entry) return;
+    cur = file;
+    clear('hl'); clear('on');
+    current = null;
+    Array.prototype.forEach.call(dlg.querySelectorAll('.fe-spec .fe-doc[data-file]'), function (el) {
+      el.hidden = el.getAttribute('data-file') !== file;
+    });
+    showCode(codeKeys(file)[0]);
+    entries.forEach(function (e) {
+      e.li.classList.toggle('cur', e === entry);
+      if (e === entry) e.li.setAttribute('aria-current', 'true'); else e.li.removeAttribute('aria-current');
+      var here = e.li.querySelector('.here');
+      if (here) here.parentNode.removeChild(here);
+    });
+    var here = document.createElement('span');
+    here.className = 'here';
+    here.innerHTML = '&larr; this file';
+    entry.li.appendChild(here);
+    dlg.querySelector('.fe-spec .tab-name').textContent = 'sor/' + file;
+    dlg.querySelector('.fe-spec').scrollTop = 0;
+    dlg.querySelector('.fe-code').scrollTop = 0;
+    if (stack) fillStack();
+  }
+
+  /* Hover (or keyboard focus): preview the counterpart. Wide layout only. */
+  var timer = null, current = null;
+  function preview(from) {
+    if (!wide.matches) return;
+    clear('hl');
+    var targets = counterparts(from);
+    targets.forEach(function (el) { el.classList.add('hl'); });
+    partners(from).forEach(function (el) { el.classList.add('hl'); });
+    otherFiles(from).forEach(function (li) { li.classList.add('hl'); });
+    reveal(targets);
+  }
+  function leave() { clearTimeout(timer); current = null; clear('hl'); }
+  dlg.addEventListener('mouseover', function (e) {
+    var el = e.target.closest(SEL);
+    if (!el || el === current) return;
+    current = el;
+    clearTimeout(timer);
+    timer = setTimeout(function () { preview(el); }, 80);
+  });
+  dlg.addEventListener('mouseout', function (e) {
+    var el = e.target.closest(SEL);
+    if (el && !(e.relatedTarget && el.contains(e.relatedTarget))) leave();
+  });
+  dlg.addEventListener('focusin', function (e) { var el = e.target.closest(SEL); if (el) preview(el); });
+  dlg.addEventListener('focusout', leave);
+
+  /* Click (or Enter/Space): pin the pair. Wide layout only: on narrow screens each item already has its code below it. */
+  function pin(from) {
+    var wasOn = from.classList.contains('on');
+    clear('on');
+    if (wasOn) return;
+    var targets = counterparts(from);
+    from.classList.add('on');
+    targets.forEach(function (el) { el.classList.add('on'); });
+    partners(from).forEach(function (el) { el.classList.add('on'); });
+    otherFiles(from).forEach(function (li) { li.classList.add('on'); });
+    if (!targets.length) return;
+    window.requestAnimationFrame(function () { reveal(targets); });
+  }
+  dlg.addEventListener('click', function (e) {
+    if (e.target === dlg) { dlg.close(); return; }
+    var codeTab = e.target.closest('.fe-code .fe-file [data-codetab]');
+    if (codeTab) { showCode(codeTab.getAttribute('data-codetab')); dlg.querySelector('.fe-code').scrollTop = 0; return; }
+    var picked = e.target.closest('.fe-pick button[data-pick]');
+    if (picked) { switchFile(picked.getAttribute('data-pick')); return; }
+    var entry = e.target.closest('.fe-files li[data-file]');
+    if (entry) { if (wide.matches) switchFile(entry.getAttribute('data-file')); return; }
+    var el = e.target.closest(SEL);
+    if (el) pin(el);
+  });
+  dlg.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var entry = e.target.closest ? e.target.closest('.fe-files li[data-file]') : null;
+    if (entry && e.target === entry) { e.preventDefault(); if (wide.matches) switchFile(entry.getAttribute('data-file')); return; }
+    var el = e.target.closest ? e.target.closest(SEL) : null;
+    if (el && e.target === el) { e.preventDefault(); pin(el); }
+  });
+
+  switchFile(DEFAULT);   /* the dialog opens with the file the example on the page shows */
+  document.getElementById('fe-close').addEventListener('click', function () { dlg.close(); });
+  dlg.addEventListener('close', function () { document.body.style.overflow = ''; leave(); });
+  btn.addEventListener('click', function () {
+    clear('on'); leave();
+    switchFile(DEFAULT);
+    var first = curDoc().querySelector('.blk[data-links]');   /* start with the first spec item and its code lit like a hover, so the link is visible at once; the next hover replaces it */
+    if (first) preview(first);
+    document.body.style.overflow = 'hidden';
+    dlg.showModal();
+  });
+})();
+
+</script>
+<!-- full-example:end -->
+<script>
+  // A "#" link next to every heading, shown on hover. Questions (h3) get an id from their text.
+  document.querySelectorAll('main h2, main h3').forEach(function (h) {
+    if (!h.id) {
+      h.id = h.textContent.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    }
+    var a = document.createElement('a');
+    a.className = 'anchor';
+    a.href = '#' + h.id;
+    a.textContent = '#';
+    a.setAttribute('aria-label', 'Link to this section');
+    h.appendChild(a);
+  });
+
+  // Hyphenated words never break across lines: each one is wrapped so the line stays whole.
+  (function () {
+    var word = /[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+/g;
+    var walker = document.createTreeWalker(document.querySelector("main"), NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        if (n.parentNode.closest("pre, script, style, .nb")) return NodeFilter.FILTER_REJECT;
+        word.lastIndex = 0;
+        return word.test(n.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      }
+    });
+    var nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(function (n) {
+      var frag = document.createDocumentFragment(), text = n.nodeValue, last = 0, m;
+      word.lastIndex = 0;
+      while ((m = word.exec(text))) {
+        frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+        var s = document.createElement("span");
+        s.className = "nb";
+        s.textContent = m[0];
+        frag.appendChild(s);
+        last = m.index + m[0].length;
+      }
+      frag.appendChild(document.createTextNode(text.slice(last)));
+      n.parentNode.replaceChild(frag, n);
+    });
+  })();
+</script>
+<script id="steps-fold-js">
+  (function () {
+    var steps = document.getElementById('steps'), more = document.getElementById('steps-more'), btn = document.getElementById('steps-toggle');
+    if (!steps || !more || !btn) return;
+    var first = steps.querySelector('.step');
+    var open = false;
+    function peek() { return first.offsetHeight + 12 + 56; }   /* the whole first box and the top of the next */
+    function apply() {
+      steps.classList.toggle('is-collapsed', !open);
+      steps.style.maxHeight = open ? steps.scrollHeight + 'px' : peek() + 'px';
+      btn.textContent = open ? 'Collapse' : 'Expand';
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    steps.classList.add('collapsible');
+    more.hidden = false;
+    apply();
+    btn.addEventListener('click', function () {
+      open = !open;
+      apply();
+    });
+    window.addEventListener('resize', function () { if (!open) apply(); else steps.style.maxHeight = 'none'; });
+  })();
+</script>
+<script id="see-also-fold-js">
+  (function () {
+    var box = document.getElementById('see-also-fold'), more = document.getElementById('see-also-more'), btn = document.getElementById('see-also-toggle');
+    if (!box || !more || !btn) return;
+    var table = box.querySelector('table');
+    var SHOWN = 2;                                  /* whole rows shown above the fade */
+    var open = false;
+    function peek() {                               /* two rows, and the top of the third */
+      if (table.rows.length < SHOWN + 3) return null;
+      return table.rows[SHOWN + 1].getBoundingClientRect().top - box.getBoundingClientRect().top + 24;
+    }
+    function apply() {
+      var p = peek();
+      if (p === null || p >= box.scrollHeight - 8) {
+        box.classList.remove('collapsible', 'is-collapsed'); box.style.maxHeight = ''; more.hidden = true; return;
+      }
+      box.classList.add('collapsible'); more.hidden = false;
+      box.classList.toggle('is-collapsed', !open);
+      box.style.maxHeight = open ? box.scrollHeight + 'px' : p + 'px';
+      btn.textContent = open ? 'Collapse' : 'Expand';
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    apply();
+    btn.addEventListener('click', function () {
+      open = !open;
+      apply();
+    });
+    window.addEventListener('load', function () { if (!open) apply(); });
+    window.addEventListener('resize', function () { if (!open) apply(); else box.style.maxHeight = 'none'; });
+  })();
+</script>
+<script id="agent-tabs-js">
+  (function () {
+    /* A greyed-out tab shows its tip on hover and keyboard focus (CSS); a tap shows it for a moment, since touch has no hover. */
+    Array.prototype.forEach.call(document.querySelectorAll('.agent-tab[data-tip]'), function (b) {
+      var timer;
+      b.addEventListener('click', function () {
+        b.classList.add('tip');
+        clearTimeout(timer);
+        timer = setTimeout(function () { b.classList.remove('tip'); }, 1800);
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.install-more'), function (d) {
+      d.addEventListener('toggle', function () { window.dispatchEvent(new Event('resize')); });
+    });
+    /* Tabs that control a panel switch it; arrow keys move between them. The steps fold measures its height, so it is told afterwards. */
+    Array.prototype.forEach.call(document.querySelectorAll('.agent-tabs'), function (list) {
+      var tabs = Array.prototype.slice.call(list.querySelectorAll('.agent-tab[aria-controls]'));
+      if (tabs.length < 2) return;
+      function select(tab, focus) {
+        tabs.forEach(function (t) {
+          var on = t === tab;
+          t.setAttribute('aria-selected', on ? 'true' : 'false');
+          t.tabIndex = on ? 0 : -1;
+          document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+        });
+        if (focus) tab.focus();
+        window.dispatchEvent(new Event('resize'));
+      }
+      tabs.forEach(function (t, i) {
+        t.addEventListener('click', function () { select(t, false); });
+        t.addEventListener('keydown', function (e) {
+          var j = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : -1;
+          if (j < 0) return;
+          e.preventDefault();
+          select(tabs[(j + tabs.length) % tabs.length], true);
+        });
+      });
+    });
+  })();
+</script>
+<script id="share-selection-js">
+  (function () {
+    /* Selecting text writes it into the address as #sel=..., so the link can be shared. Opening such a link finds the text,
+       selects it and scrolls to it. Matching ignores case and line breaks. "&n=2" says which match, when the text occurs twice.
+       Two parts after "~" mean a long or multi-paragraph selection: it starts with the first part and ends with the second. */
+    var main = document.querySelector('main');
+    if (!main || !window.getSelection || !history.replaceState) return;
+    var KEY = '#sel=';
+    var BLOCK = 'p,li,h1,h2,h3,h4,h5,h6,td,th,tr,pre,blockquote,div,section,nav,ul,ol,dt,dd,summary';
+    var base = location.hash.indexOf(KEY) === 0 ? '' : location.hash;   /* the section link to return to when nothing is selected */
+    var timer = null, due = 0, scrolled = false;
+
+    function visible(node) {                       /* text a reader can select: not in buttons, scripts or the "#" heading links */
+      for (var e = node.parentElement; e && e !== main; e = e.parentElement) {
+        if (e.hidden || e.tagName === 'BUTTON' || e.tagName === 'SCRIPT' || e.tagName === 'STYLE' || e.classList.contains('anchor') || (e.classList.contains('cl-no') && e.offsetParent === null)) return false;
+      }
+      return true;
+    }
+    function build() {                             /* the page text as one string, with a map back to the text nodes */
+      var entries = [], norm = '', low = '', walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT), last = null, n;
+      while ((n = walker.nextNode())) {
+        if (!visible(n)) continue;
+        var block = n.parentElement.closest(BLOCK), offs = new Int32Array(n.data.length + 1), start;
+        if (norm && block !== last && norm.charAt(norm.length - 1) !== '\n') { norm += '\n'; low += '\n'; }
+        last = block;
+        start = norm.length;
+        for (var i = 0; i < n.data.length; i++) {
+          var c = n.data.charAt(i), prev = norm.charAt(norm.length - 1);
+          offs[i] = norm.length - start;
+          if (/\s/.test(c)) {
+            if (norm && prev !== ' ' && prev !== '\n') { norm += ' '; low += ' '; }
+          } else {
+            var l = c.toLowerCase();
+            norm += c; low += l.length === 1 ? l : c;
+          }
+        }
+        offs[n.data.length] = norm.length - start;
+        entries.push({ node: n, start: start, end: norm.length, offs: offs });
+      }
+      return { norm: norm, low: low, entries: entries };
+    }
+    function bounds(range, ix) {                   /* where a selection starts and ends in that string */
+      var s = -1, e = -1;
+      ix.entries.forEach(function (en) {
+        if (!range.intersectsNode(en.node)) return;
+        var so = en.node === range.startContainer ? range.startOffset : 0;
+        var eo = en.node === range.endContainer ? range.endOffset : en.node.data.length;
+        if (so >= eo) return;
+        if (s < 0) s = en.start + en.offs[so];
+        e = en.start + en.offs[eo];
+      });
+      return s < 0 ? null : { s: s, e: e };
+    }
+    function point(ix, pos, end) {                 /* a place in that string back to a text node and offset */
+      var en = ix.entries, lo = 0, hi = en.length - 1, p = end ? pos - 1 : pos, found = null, m;
+      while (lo <= hi) {
+        m = (lo + hi) >> 1;
+        if (en[m].end <= p) lo = m + 1; else if (en[m].start > p) hi = m - 1; else { found = en[m]; break; }
+      }
+      if (!found) return null;
+      var rel = p - found.start, i = 0;
+      while (i < found.offs.length - 1 && found.offs[i + 1] <= rel) i++;
+      return [found.node, end ? i + 1 : i];
+    }
+    function head(t) {
+      var i = t.indexOf('\n');
+      if (i >= 0) t = t.slice(0, i);
+      if (t.length > 60) { t = t.slice(0, 60); var sp = t.lastIndexOf(' '); if (sp > 20) t = t.slice(0, sp); }
+      return t.trim();
+    }
+    function tail(t) {
+      var i = t.lastIndexOf('\n');
+      if (i >= 0) t = t.slice(i + 1);
+      if (t.length > 60) { t = t.slice(-60); var sp = t.indexOf(' '); if (sp >= 0 && sp < 40) t = t.slice(sp + 1); }
+      return t.trim();
+    }
+    function enc(s) { return encodeURIComponent(s).replace(/~/g, '%7E'); }
+    function make(range) {                         /* the link for a selection, or null */
+      var ix = build(), b = bounds(range, ix);
+      if (!b) return null;
+      var s = b.s, e = b.e;
+      while (s < e && ' \n'.indexOf(ix.norm.charAt(s)) >= 0) s++;
+      while (e > s && ' \n'.indexOf(ix.norm.charAt(e - 1)) >= 0) e--;
+      if (e - s < 2) return null;
+      var text = ix.norm.slice(s, e), multi = text.indexOf('\n') >= 0 || text.length > 200;
+      var a = multi ? head(text) : text, z = multi ? tail(text) : '';
+      if (!a) return null;
+      var needle = a.toLowerCase(), from = -1, nth = 0, k = 0;
+      while ((from = ix.low.indexOf(needle, from + 1)) >= 0) { nth++; if (from === s) { k = nth; break; } }
+      if (!k) return null;
+      return KEY + enc(a) + (z ? '~' + enc(z) : '') + (k > 1 ? '&n=' + k : '');
+    }
+    function locate(hash) {                        /* the range a link points at, or null */
+      var parts = hash.slice(KEY.length).split('&n='), n = parseInt(parts[1], 10) || 1, texts = parts[0].split('~');
+      var a = decodeURIComponent(texts[0]).toLowerCase().replace(/\s+/g, ' ').trim();
+      var z = texts[1] ? decodeURIComponent(texts[1]).toLowerCase().replace(/\s+/g, ' ').trim() : '';
+      if (!a) return null;
+      var ix = build(), i = -1, k;
+      for (k = 0; k < n; k++) { i = ix.low.indexOf(a, i + 1); if (i < 0) return null; }
+      var end = i + a.length;
+      if (z) {                                     /* the end part may overlap the start part, so look for it from the start on */
+        var j = i;
+        while ((j = ix.low.indexOf(z, j)) >= 0 && j + z.length < end) j++;
+        if (j < 0) return null;
+        end = j + z.length;
+      }
+      var from = point(ix, i, false), to = point(ix, end, true);
+      if (!from || !to) return null;
+      var r = document.createRange();
+      r.setStart(from[0], from[1]); r.setEnd(to[0], to[1]);
+      return r;
+    }
+    function show(range) {                         /* open a folded box if the text is in one, then scroll to it and select it */
+      var el = range.startContainer.parentElement, fold = el && el.closest('#steps.is-collapsed, #see-also-fold.is-collapsed');
+      var toggle = fold && document.getElementById(fold.id === 'steps' ? 'steps-toggle' : 'see-also-toggle');
+      if (toggle) toggle.click();
+      setTimeout(function () {
+        var rect = range.getBoundingClientRect(), sel = window.getSelection();
+        window.scrollTo(0, Math.max(0, rect.top + window.pageYOffset - window.innerHeight * 0.3));
+        sel.removeAllRanges(); sel.addRange(range);
+      }, toggle ? 320 : 0);
+    }
+    function open() {
+      if (location.hash.indexOf(KEY) !== 0) return;
+      var range;
+      try { range = locate(location.hash); } catch (err) { return; }
+      if (range) show(range);
+    }
+    function update() {                            /* selection -> address */
+      var sel = window.getSelection(), want = base;
+      if (sel && sel.rangeCount && !sel.isCollapsed) {
+        var r = sel.getRangeAt(0);
+        if (main.contains(r.startContainer) && main.contains(r.endContainer)) want = make(r) || base;
+      }
+      if (location.hash !== want && (want || location.hash)) {
+        try { history.replaceState(null, '', location.pathname + location.search + want); } catch (err) { /* some previews block it */ }
+      }
+    }
+
+    function soon(ms) {                            /* run update() in ms, unless it is already due sooner */
+      var at = Date.now() + ms;
+      if (timer && due <= at) return;
+      clearTimeout(timer);
+      due = at;
+      timer = setTimeout(function () { timer = null; update(); }, ms);
+    }
+    document.addEventListener('selectionchange', function () { soon(250); });   /* while the selection is still being dragged or extended */
+    ['mouseup', 'touchend', 'keyup'].forEach(function (t) { document.addEventListener(t, function () { soon(0); }); });   /* a finished selection updates at once */
+    window.addEventListener('hashchange', function () {
+      if (location.hash.indexOf(KEY) === 0) open(); else base = location.hash;
+    });
+    ['wheel', 'touchmove', 'keydown'].forEach(function (t) { window.addEventListener(t, function () { scrolled = true; }, { passive: true }); });
+    window.addEventListener('load', function () {
+      open();
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (!scrolled) open(); });  /* fonts can move the text */
+    });
+  })();
+</script>
+<script id="mini-tabs-js">
+  (function () {
+    var tabs = document.querySelectorAll('.pair [data-mini]');
+    Array.prototype.forEach.call(tabs, function (t) {
+      if (t.tagName !== 'BUTTON') return;
+      t.addEventListener('click', function () {
+        var which = t.getAttribute('data-mini');
+        Array.prototype.forEach.call(document.querySelectorAll('.pair [data-mini]'), function (el) {
+          var on = el.getAttribute('data-mini') === which;
+          if (el.tagName === 'PRE') el.hidden = !on; else el.classList.toggle('off', !on);
+        });
+      });
+    });
+  })();
+</script>
+<script id="pair-arrow-js">
+  /* A curvy arrow from the clause name in the spec to its marker in the code. It is measured, so it follows the layout. */
+  (function () {
+    var pair = document.querySelector('.pair');
+    var svg = pair && pair.querySelector('.pair-arrow');
+    if (!svg) return;
+    var ring = svg.querySelector('.ring'), lines = svg.querySelectorAll('.line'), heads = svg.querySelectorAll('.head'), label = svg.querySelector('.label');
+    function rel(r, box) { return { l: r.left - box.left, r: r.right - box.left, t: r.top - box.top, b: r.bottom - box.top }; }
+    function f(v) { return v.toFixed(1); }
+    function pt(p) { return f(p[0]) + ' ' + f(p[1]); }
+    /* segs are cubic pieces [c1, c2, end]. The head's tip is the end of the last one; the line stops at the head's base,
+       along the curve's last direction. Returns the base so a caller can find points on the curve. */
+    function arrow(i, start, segs) {
+      var last = segs[segs.length - 1], tip = last[2], c2 = last[1];
+      var dx = tip[0] - c2[0], dy = tip[1] - c2[1], len = Math.sqrt(dx * dx + dy * dy);
+      dx /= len; dy /= len;
+      var L = 11, W = 6, base = [tip[0] - dx * L, tip[1] - dy * L];
+      var d = 'M' + pt(start);
+      segs.forEach(function (g, k) { d += ' C' + pt(g[0]) + ' ' + pt(g[1]) + ' ' + pt(k === segs.length - 1 ? base : g[2]); });
+      lines[i].setAttribute('d', d);
+      heads[i].setAttribute('d', 'M' + pt(tip) + ' L' + pt([base[0] - dy * W, base[1] + dx * W]) + ' L' + pt([base[0] + dy * W, base[1] - dx * W]) + ' Z');
+      return base;
+    }
+    function draw() {
+      var name = pair.querySelector('.specbox strong');
+      var pre = pair.querySelector('pre:not([hidden])');
+      var mark = pre && pre.querySelector('.t-m');
+      var other = pair.querySelector('button.tab.off');   /* the code file that is not showing: it holds a marker too */
+      if (!name || !mark || !pair.offsetWidth) return;
+      var box = pair.getBoundingClientRect();
+      var n = rel(name.getBoundingClientRect(), box), m = rel(mark.getBoundingClientRect(), box);
+      var specBox = pair.querySelector('.specbox').parentNode.getBoundingClientRect(), codeBox = pre.parentNode.getBoundingClientRect();
+      var side = specBox.right < codeBox.left;
+      var sbBottom = specBox.bottom - box.top;
+      /* a rough ring round the name, drawn as a slightly widening spiral so it looks hand-made */
+      var cx = (n.l + n.r) / 2, cy = (n.t + n.b) / 2, rx = (n.r - n.l) / 2 + 7, ry = (n.b - n.t) / 2 + 4;
+      var ringD = '';
+      for (var k = 0; k <= 52; k++) {
+        var a = (200 + 395 * k / 52) * Math.PI / 180, w = .93 + .12 * k / 52;
+        ringD += (k ? ' L' : 'M') + f(cx + rx * w * Math.cos(a)) + ' ' + f(cy + ry * w * Math.sin(a));
+      }
+      ring.setAttribute('d', ringD);
+      function onRing(deg) { var a = deg * Math.PI / 180; return [cx + rx * Math.cos(a), cy + ry * Math.sin(a)]; }
+      var x1, y1, c1, c2, s1, s2;
+      if (side) {   /* spec on the left, code on the right: up from the ring, over the gap, into the marker */
+        s1 = onRing(-35);
+        x1 = m.l - 6; y1 = (m.t + m.b) / 2;
+        c1 = [s1[0] + 30, s1[1] - 8]; c2 = [x1 - 70, y1 - 8];
+      } else {      /* stacked: out to the left margin, down, and into the marker */
+        s1 = onRing(180);
+        x1 = m.l - 6; y1 = (m.t + m.b) / 2;
+        c1 = [s1[0] - 18, s1[1] + 30]; c2 = [x1 - 18, y1 - 30];
+      }
+      var base = arrow(0, s1, [[c1, c2, [x1, y1]]]);
+      /* the word "marker", on the curve at t: above it between the boxes, beside it in the margin when stacked */
+      var t = .5, u = 1 - t, gx = (specBox.right + codeBox.left) / 2 - box.left;
+      var px = u * u * u * s1[0] + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * base[0];
+      var py = u * u * u * s1[1] + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * base[1];
+      var tabR = rel(pair.querySelector('.fe-file .tab').getBoundingClientRect(), box).r;
+      var barB = rel(pair.querySelector('.fe-file').getBoundingClientRect(), box).b;
+      label.classList.toggle('halo', !side);
+      label.setAttribute('text-anchor', side ? 'middle' : 'start');
+      label.setAttribute('x', f(side ? (tabR + gx) / 2 - 8 : px + 10));
+      label.setAttribute('y', f(side ? barB - 9 : sbBottom + 24));
+      label.setAttribute('transform', side ? 'rotate(-4 ' + f((tabR + gx) / 2 - 8) + ' ' + f(barB - 16) + ')' : '');
+      /* the second arrow: from the same ring to the top of the other code tab */
+      lines[1].style.display = heads[1].style.display = other ? '' : 'none';
+      if (!other) return;
+      var o = rel(other.getBoundingClientRect(), box), sb = rel(specBox, box), cb = rel(codeBox, box);
+      var xe = Math.max(o.l + 12, Math.min((o.l + o.r) / 2, cb.r - 30)), ye = o.t - 5;
+      if (side) {   /* right above the first arrow, up through the gap between the boxes, over the code box, down into the tab */
+        s2 = onRing(-80);
+        arrow(1, s2, [
+          [[s2[0] + 45, s2[1] - 14], [gx, 52], [gx, 8]],
+          [[gx, -22], [xe, -22], [xe, ye]]
+        ]);
+      } else {    /* along the gap between the boxes, then down into the tab */
+        s2 = onRing(172);
+        var yg = cb.t - 8, xj = 3;
+        arrow(1, s2, [
+          [[s2[0] - 20, s2[1] + 28], [xj - 18, yg - 5], [xj, yg]],
+          [[xj + 40, yg + 10], [xe, ye - 24], [xe, ye]]
+        ]);
+      }
+    }
+    draw();
+    window.addEventListener('resize', draw);
+    window.addEventListener('load', draw);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+    Array.prototype.forEach.call(pair.querySelectorAll('button[data-mini]'), function (t) { t.addEventListener('click', draw); });
+  })();
+</script>
+<script id="install-copy-js">
+  (function () {
+    function legacy(s) {
+      var ta = document.createElement('textarea');
+      ta.value = s; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+      return ok;
+    }
+    function copy(s) {
+      if (navigator.clipboard && window.isSecureContext) {
+        return navigator.clipboard.writeText(s).catch(function () { return legacy(s) ? undefined : Promise.reject(); });
+      }
+      return legacy(s) ? Promise.resolve() : Promise.reject();
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('.install .cmd'), function (row) {
+      var b = row.querySelector('.install-copy'), box = row.querySelector('.cmd-lines');
+      if (!b || !box) return;
+      function text() { return Array.prototype.map.call(box.querySelectorAll('code'), function (c) { return c.textContent; }).join('\n'); }
+      b.hidden = false;
+      b.addEventListener('click', function () {
+        copy(text()).then(function () {
+          b.textContent = 'Copied';
+        }, function () {
+          b.textContent = 'Press Ctrl+C';
+          var r = document.createRange(); r.selectNodeContents(box);
+          var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+        }).then(function () { setTimeout(function () { b.textContent = 'Copy'; }, 1500); });
+      });
+    });
+  })();
+
+  (function () {
+    /* The claims demo. Each step is the whole picture: where each Clawd stands, who holds which clause, how each looks.
+       A position is 's:<clause>' (that clause's spec), 'c:<n>' (the n-th code block) or 'p' (parked in the tab bar). */
+    var root = document.getElementById('claims');
+    if (!root) return;
+    var stage = root.querySelector('.cl-stage'), heads = stage.querySelectorAll('.cl-head .fe-file');
+    var text = root.querySelector('.cl-text'), pause = root.querySelector('.cl-pause');
+    var cells = Array.prototype.slice.call(stage.querySelectorAll('.cl-spec[data-cl], .cl-code[data-cl]'));
+    var who = { a: stage.querySelector('.clawd.a'), b: stage.querySelector('.clawd.b') };
+    var LOCK = '<path class="sh-o" d="M5 7V5a3 3 0 0 1 5.8-1" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><path class="sh-c" d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><rect x="3" y="7" width="10" height="7" rx="1.5" fill="#fff"/>';   /* the padlock in every badge: open shackle while claimed, closed once locked */
+    Array.prototype.forEach.call(stage.querySelectorAll('.cl-bd'), function (b) { b.innerHTML = LOCK; });
+    var W = 36, H = 24, GAP = 22, EVERY = 3120, DWELL = 1500, HOP = 780;   /* HOP: how long a Clawd takes to jump to another cell */   /* GAP: room left of the cell edge for the Clawd's hat, magnifier and Z */
+    var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var P = 'p';
+    /* ed: edits that happen in a step, [v: a value in the spec | k: a constant in the code, which one, the new text] */
+    var steps = [
+      { a: 's:movement', b: P,          cl: { movement: 'a.claimed' },                      m: { a: 'working', b: 'idle' },    ed: [['v', 'step', '40 px'], ['v', 'room', '600 px']], cap: 'An agent claims a clause with <code>sor claim</code> and changes the clause first.' },
+      { a: 'c:0',        b: P,          cl: { movement: 'a.claimed' },                      m: { a: 'working', b: 'idle' },    ed: [['k', 'step', '40']],                              cap: 'Then it changes the code blocks that carry its marker.' },
+      { a: 'c:2',        b: P,          cl: { movement: 'a.claimed' },                      m: { a: 'working', b: 'idle' },    ed: [['k', 'room', '600']],                             cap: 'The last block names two clauses, so the claim holds it as well.' },
+      { a: 'c:2',        b: 's:movement', cl: { movement: 'a.claimed' },                    m: { a: 'working', b: 'waiting' }, ed: [],                                                  cap: 'A second agent that claims the same clause is refused, and waits.' },
+      { a: 'c:2',        b: 's:movement', cl: { movement: 'a.locked' },                     m: { a: 'idle', b: 'waiting' },    ed: [],                                                  cap: '<code>sor lock</code> saves the clause with its code blocks and test results. All of them are now locked.' },
+      { a: 's:lives',    b: 's:movement', cl: { movement: 'b.claimed', lives: 'a.claimed' }, m: { a: 'working', b: 'working' }, ed: [['v', 'lives', '5 lives'], ['v', 'room', '400 px']], cap: 'The claim is released. The waiting agent takes the clause, and the first one another.' },
+      { a: 'c:1',        b: 'c:2',       cl: { movement: 'b.claimed', lives: 'a.claimed' }, m: { a: 'working', b: 'working' }, ed: [['k', 'lives', '5'], ['k', 'room', '400']],     cap: 'Each changes the code of its own clause.' },
+      { a: 'c:1',        b: 'c:2',       cl: { movement: 'b.locked', lives: 'a.locked' },   m: { a: 'idle', b: 'idle' },       ed: [],                                                  cap: 'Each locks what it claimed. <code>monsters/chase</code> stays unclaimed, but nobody can claim it while its code block is held.' },
+      { a: P,            b: P,           cl: {},                                           m: { a: 'idle', b: 'idle' },       ed: [],                                                  cap: 'Released. Nothing is held any more.' }
+    ];
+    var rest = { a: P, b: P, cl: {}, m: { a: 'idle', b: 'idle' }, ed: [], cap: 'Two agents work on one spec. Nothing is claimed yet.' };   /* before the first step: both Clawds sit in the tab bar, nothing is claimed */
+    var origin = [];   /* the spec values and code constants as they start, to go back to when the loop starts again */
+    Array.prototype.forEach.call(stage.querySelectorAll('[data-v], [data-k]'), function (e) { origin.push([e, e.textContent]); });
+    function setValues(i, flash) {
+      origin.forEach(function (o) { o[0].textContent = o[1]; o[0].classList.remove('chg'); });
+      for (var j = 0; j <= i; j++) steps[j].ed.forEach(function (d) {
+        var e = stage.querySelector('[data-' + d[0] + '="' + d[1] + '"]');
+        e.textContent = d[2];
+        if (flash && j === i) { void e.offsetWidth; e.classList.add('chg'); }
+      });
+    }
+    var tl = root.querySelector('.cl-tl'), segs = [], again, thumb, geo = [], N = steps.length;   /* the timeline: one bar for each step, a thumb, and the loop arrow */
+    steps.forEach(function () { var b = document.createElement('b'); b.appendChild(document.createElement('i')); b.setAttribute('aria-hidden', 'true'); tl.appendChild(b); segs.push(b); });
+    again = document.createElement('u'); again.textContent = '\u21BB'; again.setAttribute('aria-hidden', 'true'); tl.appendChild(again);
+    thumb = document.createElement('div'); thumb.tabIndex = 0; thumb.className = 'cl-thumb'; thumb.setAttribute('role', 'slider');
+    thumb.setAttribute('aria-label', 'Step of the demonstration'); thumb.setAttribute('aria-valuemin', 1); thumb.setAttribute('aria-valuemax', N);
+    tl.appendChild(thumb);
+    var landing = { a: null, b: null }, refusing = null, snapAnim = null, dragging = false, stepAnim = null, fillAnim = null, remaining = EVERY, stepDur = EVERY, thumbX = 0, at = { a: null, b: null }, now = 0, timer = null, paused = false, seen = false;
+
+    function cellOf(p) {
+      var k = p.split(':');
+      return k[0] === 's' ? stage.querySelector('.cl-spec[data-cl="' + k[1] + '"]') : stage.querySelector('.cl-code[data-i="' + k[1] + '"]');
+    }
+    function spot(p, name) {                         /* where a Clawd stands: the right end of a cell, or of its tab bar */
+      var cell = p === P ? heads[name === 'a' ? 0 : 1] : cellOf(p);
+      var c = cell.getBoundingClientRect(), s = stage.getBoundingClientRect();
+      return { x: Math.round(c.right - s.left - W - (p === P ? 10 : GAP)), y: Math.round(c.top - s.top + (c.height - H) / 2) };
+    }
+    function put(name, p, hop) {
+      var el = who[name], to = spot(p, name), from = at[name] && at[name].xy, moved = false;
+      at[name] = { p: p, xy: to };
+      var end = 'translate(' + to.x + 'px,' + to.y + 'px)';
+      if (hop && from && el.animate && !reduce && (from.x !== to.x || from.y !== to.y)) {
+        var up = Math.min(from.y, to.y) - 26;
+        moved = true;
+        el.animate([{ transform: 'translate(' + from.x + 'px,' + from.y + 'px)' },
+                    { transform: 'translate(' + Math.round((from.x + to.x) / 2) + 'px,' + up + 'px)', offset: 0.5 },
+                    { transform: end }], { duration: HOP, easing: 'ease-in-out' });
+      }
+      el.style.transform = end;
+      return moved;
+    }
+    /* The typing drawing animates by itself from the moment it is loaded, so it is loaded again (from a copy of its text, not the network)
+       whenever a Clawd starts typing: it always begins with its first frame instead of with a laptop half out or half away. */
+    var TYPING = 'static/clawd-typing.svg', typingText = null, typingUrl = { a: null, b: null }, modeSeq = { a: 0, b: 0 };
+    if (window.fetch && window.URL && URL.createObjectURL) fetch(TYPING).then(function (r) { return r.ok ? r.text() : null; }).then(function (s) { typingText = s; }).catch(function () {});
+    function setMode(n, mode) {
+      var seq = ++modeSeq[n], img = who[n].querySelector('.m-typing');
+      if (mode !== 'typing' || who[n].getAttribute('data-mode') === 'typing') { who[n].setAttribute('data-mode', mode); return; }
+      var go = function () { clearTimeout(guard); img.onload = img.onerror = null; if (seq === modeSeq[n]) who[n].setAttribute('data-mode', 'typing'); };
+      var guard = setTimeout(go, 250);               /* show it even if the load is slow */
+      img.onload = img.onerror = go;
+      if (typingUrl[n]) URL.revokeObjectURL(typingUrl[n]);
+      typingUrl[n] = typingText ? URL.createObjectURL(new Blob([typingText], { type: 'image/svg+xml' })) : null;
+      img.src = typingUrl[n] || TYPING + '?' + Date.now();
+    }
+    function show(i, hop) {
+      var s = i < 0 ? rest : steps[i];
+      now = i;
+      setValues(i, hop);
+      var jumped = { a: put('a', s.a, hop), b: put('b', s.b, hop) };
+      cells.forEach(function (c) {
+        ['by', 'st', 'edit'].forEach(function (k) { c.removeAttribute('data-' + k); });
+        var held = c.getAttribute('data-cl').split(' ').filter(function (k) { return s.cl[k]; })[0];
+        var v = (held ? s.cl[held] : '').split('.');
+        if (v[0]) { c.setAttribute('data-by', v[0]); c.setAttribute('data-st', v[1]); }
+      });
+      ['a', 'b'].forEach(function (n) {              /* an agent at work on its own clause: that cell is being edited */
+        var c = s[n] === P ? null : cellOf(s[n]);
+        if (c && s.m[n] === 'working' && c.getAttribute('data-by') === n && c.getAttribute('data-st') === 'claimed') c.setAttribute('data-edit', '');
+      });
+      /* "refused" shows while a Clawd waits on the spec of a clause, from the moment it has landed there */
+      clearTimeout(refusing);
+      var waitCell = null;
+      ['a', 'b'].forEach(function (n) { if (s.m[n] === 'waiting' && s[n].charAt(0) === 's') waitCell = cellOf(s[n]); });
+      cells.forEach(function (c) {
+        if (c !== waitCell) c.removeAttribute('data-refused');
+        else if (!c.hasAttribute('data-refused')) {
+          if (hop) refusing = setTimeout(function () { c.setAttribute('data-refused', ''); }, HOP);
+          else c.setAttribute('data-refused', '');
+        }
+      });
+      ['a', 'b'].forEach(function (n) {
+        var mode = s.m[n];
+        if (mode === 'working') mode = reduce ? 'idle' : (s[n].charAt(0) === 's' ? 'detective' : 'typing');   /* on a spec the detective reads, in code the Clawd types; both move, so with reduced motion the still body stands in */
+        clearTimeout(landing[n]);
+        if (jumped[n]) {                             /* in the air it is the plain Clawd; the look for the work starts once it has landed */
+          setMode(n, 'idle');
+          landing[n] = setTimeout(function () { setMode(n, mode); }, HOP);
+        } else setMode(n, mode);
+      });
+      text.innerHTML = s.cap;
+      thumb.setAttribute('aria-valuenow', Math.max(i, 0) + 1);
+      thumb.setAttribute('aria-valuetext', 'Step ' + (Math.max(i, 0) + 1) + ' of ' + N + ': ' + s.cap.replace(/<[^>]+>/g, ''));
+      again.classList.remove('again');
+      if (hop && i === 0) { void again.offsetWidth; again.classList.add('again'); }
+    }
+    /* the thumb and the fill follow one clock. t counts steps: 2.5 is half way through the third bar. */
+    function measure() {
+      var base = tl.getBoundingClientRect();
+      geo = segs.map(function (b) { var r = b.getBoundingClientRect(); return { l: r.left - base.left, w: r.width }; });
+    }
+    function pos(t) { var k = Math.max(0, Math.min(N - 1, Math.floor(t))); return geo[k].l + Math.max(0, Math.min(1, t - k)) * geo[k].w; }
+    function place(t) { thumbX = pos(t); thumb.style.transform = 'translateX(' + thumbX + 'px)'; }
+    function fill(t) {                              /* bars before the thumb are full, the one it is on is full as far as the thumb */
+      segs.forEach(function (b, k) { b.firstChild.style.width = (k < Math.floor(t) ? 100 : (k === Math.floor(t) ? (t - k) * 100 : 0)) + '%'; });
+    }
+    function cancelAnims() { [stepAnim, fillAnim].forEach(function (a) { if (a) a.cancel(); }); stepAnim = fillAnim = null; }
+    function launch(i) {                            /* step i begins: the thumb glides to the start of the next one */
+      cancelAnims(); place(i); fill(i);
+      var from = pos(i), to = pos(i + 1), opts = { duration: EVERY, easing: 'linear', fill: 'forwards' };
+      thumb.style.transform = 'translateX(' + to + 'px)'; thumbX = to;
+      if (thumb.animate) {
+        stepAnim = thumb.animate([{ transform: 'translateX(' + from + 'px)' }, { transform: 'translateX(' + to + 'px)' }], opts);
+        fillAnim = segs[i].firstChild.animate([{ width: '0%' }, { width: '100%' }], opts);
+      }
+      stepDur = EVERY; remaining = EVERY;
+      clearTimeout(timer); timer = setTimeout(tick, EVERY);
+    }
+    function tick() {
+      timer = null;
+      if (paused || !seen || document.hidden || dragging) return;
+      var n = (now + 1) % N;
+      show(n, true);
+      launch(n);
+    }
+    function start() {                              /* the first step comes 1.5 s after the demo is in view; after a pause, the rest of the step */
+      if (timer || paused || !seen || document.hidden || dragging) return;
+      if (stepAnim && stepAnim.playState === 'paused') { stepAnim.play(); fillAnim.play(); timer = setTimeout(tick, remaining); }
+      else timer = setTimeout(tick, DWELL);
+    }
+    function stop() {
+      clearTimeout(timer); timer = null;
+      if (stepAnim && stepAnim.playState === 'running') { remaining = Math.max(0, stepDur - stepAnim.currentTime); stepAnim.pause(); fillAnim.pause(); }
+    }
+    function playing() { return !reduce && !paused && seen && !document.hidden; }
+    function jump(s) {                              /* straight to step s, as from the keyboard */
+      stop(); cancelAnims(); show(s, false); place(s); fill(s);
+      if (playing()) launch(s);
+    }
+
+    root.classList.add('on');
+    show(reduce ? 4 : -1, false);                    /* at first both Clawds rest in the tab bar; with reduced motion: one still picture, a locked clause and an agent waiting */
+    measure(); place(Math.max(now, 0)); fill(Math.max(now, 0));
+    function relayout() {                           /* the timeline changed size: measure again and carry on from where the thumb is, without restarting the step */
+      measure();
+      ['a', 'b'].forEach(function (n) { put(n, (now < 0 ? rest : steps[now])[n], false); });
+      if (dragging) return;
+      var i = Math.max(now, 0), live = stepAnim && stepAnim.playState !== 'finished' && stepAnim.playState !== 'idle';
+      if (!live) { place(i); fill(i); return; }
+      var left = Math.max(1, stepDur - stepAnim.currentTime), p = 1 - left / EVERY, was = stepAnim.playState, to = pos(i + 1);
+      cancelAnims(); place(i + p); fill(i + p);
+      var opts = { duration: left, easing: 'linear', fill: 'forwards' };
+      thumb.style.transform = 'translateX(' + to + 'px)'; thumbX = to; stepDur = left;
+      if (thumb.animate) {
+        stepAnim = thumb.animate([{ transform: 'translateX(' + pos(i + p) + 'px)' }, { transform: 'translateX(' + to + 'px)' }], opts);
+        fillAnim = segs[i].firstChild.animate([{ width: (p * 100) + '%' }, { width: '100%' }], opts);
+        if (was === 'paused') { stepAnim.pause(); fillAnim.pause(); }
+      }
+    }
+    if (window.ResizeObserver) new ResizeObserver(relayout).observe(tl); else window.addEventListener('resize', relayout);
+
+    /* dragging: the thumb follows the pointer smoothly; the step shown is the bar it is over; letting go slides it back to the start of that bar */
+    function over(e) {
+      var r = tl.getBoundingClientRect(), x = Math.max(geo[0].l, Math.min(geo[N - 1].l + geo[N - 1].w, e.clientX - r.left));
+      var k = 0; for (var j = 0; j < N; j++) if (x >= geo[j].l) k = j;
+      var t = k + Math.max(0, Math.min(1, (x - geo[k].l) / geo[k].w));
+      thumbX = x; thumb.style.transform = 'translateX(' + x + 'px)';
+      fill(t);
+      if (k !== now) show(k, false);
+    }
+    tl.addEventListener('pointerdown', function (e) {
+      if (e.button) return;
+      if (snapAnim) { snapAnim.onfinish = snapAnim.oncancel = null; snapAnim.cancel(); snapAnim = null; }
+      dragging = true; stop(); cancelAnims(); tl.classList.add('drag');
+      try { tl.setPointerCapture(e.pointerId); } catch (err) { /* some previews block it */ }
+      over(e); e.preventDefault();
+    });
+    tl.addEventListener('pointermove', function (e) { if (dragging) over(e); });
+    function release() {
+      if (!dragging) return;
+      dragging = false; tl.classList.remove('drag');
+      var s = Math.max(now, 0), to = pos(s), from = thumbX;
+      fill(s); thumb.style.transform = 'translateX(' + to + 'px)'; thumbX = to;
+      var done = function () { snapAnim = null; if (dragging) return; place(s); if (playing()) launch(s); };
+      if (thumb.animate && !reduce && from !== to) {
+        var a = thumb.animate([{ transform: 'translateX(' + from + 'px)' }, { transform: 'translateX(' + to + 'px)' }], { duration: 360, easing: 'ease-out' });
+        snapAnim = a; a.onfinish = done; a.oncancel = done;
+      } else done();
+    }
+    tl.addEventListener('pointerup', release);
+    tl.addEventListener('pointercancel', release);
+    thumb.addEventListener('keydown', function (e) {
+      var k = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 }[e.key], s = Math.max(now, 0);
+      if (k) s = Math.max(0, Math.min(N - 1, s + k)); else if (e.key === 'Home') s = 0; else if (e.key === 'End') s = N - 1; else return;
+      e.preventDefault(); jump(s);
+    });
+    if (reduce) return;
+    pause.hidden = false;
+    pause.addEventListener('click', function () {
+      paused = !paused;
+      pause.textContent = paused ? 'Play' : 'Pause';
+      if (paused) stop(); else start();
+    });
+    document.addEventListener('visibilitychange', function () { if (document.hidden) stop(); else start(); });
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) { seen = es[0].isIntersecting; if (seen) start(); else stop(); }, { threshold: 0.3 }).observe(stage);
+    } else { seen = true; start(); }
+  })();
+</script>
+</body>
+</html>

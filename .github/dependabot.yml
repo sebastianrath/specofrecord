@@ -1,0 +1,11 @@
+# Keeps the pinned commits of the actions in .github/workflows current. Each update is a pull request, and the builds run on it.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /editors/vscode
+    schedule:
+      interval: monthly

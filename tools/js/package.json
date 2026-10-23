@@ -1,0 +1,12 @@
+{
+  "name": "sor-js",
+  "version": "0.1.14",
+  "private": true,
+  "description": "The reading half of the sor tool in JavaScript (markers, status and parts as JSON), tested against the Python tool and the shared vectors in ../../vectors.",
+  "license": "MIT",
+  "main": "sorlib/index.js",
+  "engines": { "node": ">=16" },
+  "scripts": {
+    "test": "node test/vectors.js"
+  }
+}

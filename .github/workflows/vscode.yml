@@ -1,0 +1,121 @@
+# Builds the VS Code extension (editors/vscode) as a .vsix.
+#
+# Pushes and pull requests that touch editors/vscode or tools/: install the dependencies from the lock file, check that
+# the copy of the sor tool inside the extension (editors/vscode/tools) is current, run the grammar test and the
+# bundled-tool test, package, and check what went into the package. The integration test (`node test/run.js`) is not
+# run here: it drives a real VS Code window that has to take focus, which a CI runner cannot promise. Run it on your
+# own machine.
+#
+# Releases are made by release.yml, which runs this workflow on a tag `v<version>`, attaches the .vsix and its attestation to
+# one GitHub release together with the plugin zip, and then publishes the .vsix to the Visual Studio Marketplace. This
+# workflow only builds and tests.
+name: VS Code extension
+
+on:
+  push:
+    branches: [main]
+    paths: ['editors/vscode/**', 'tools/**', 'vectors/**', 'plugins/sync-tools.sh', '.github/workflows/vscode.yml']
+  pull_request:
+    paths: ['editors/vscode/**', 'tools/**', 'vectors/**', 'plugins/sync-tools.sh', '.github/workflows/vscode.yml']
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      artifact:
+        description: Name of the artifact that holds the .vsix
+        value: ${{ jobs.vsix.outputs.artifact }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vscode-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  vsix:
+    name: Build the .vsix
+    runs-on: ubuntu-latest
+    outputs:
+      artifact: ${{ steps.artifact.outputs.name }}
+    defaults:
+      run:
+        working-directory: editors/vscode
+    steps:
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: editors/vscode/package-lock.json
+      # The version of a release is the tag's, and the whole repository has one version: a release fails when package.json says another.
+      - name: Tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "$version" != "${GITHUB_REF_NAME#v}" ]; then
+            echo "package.json says version $version but the tag is $GITHUB_REF_NAME: set the version in the repository to the tag's before tagging" >&2
+            exit 1
+          fi
+      # The artifact is named after the version, like the .vsix inside it and the release tag: sor-vscode-v0.1.14.
+      - name: Name the artifact
+        id: artifact
+        run: echo "name=sor-vscode-v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      # Packaging needs none of the install scripts (keytar and vsce-sign are for publishing and signing), and they
+      # would need a native build when a prebuilt download fails.
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Bundled sor tool is current
+        working-directory: ${{ github.workspace }}
+        run: sh plugins/sync-tools.sh --check
+      - name: Grammar test
+        run: node test/grammar.js
+      # The extension ships the JavaScript sor tool (tools/, from tools/js) and always runs it, on the editor's own Node. This
+      # runs that copy away from the repository.
+      - name: Bundled tool test
+        run: node test/bundle.js
+      # The extension has no runtime dependencies (it needs only `vscode` and Node's own modules), so vsce skips the
+      # dependency scan: it is the step that breaks across npm versions. The file is named after the version, with the same
+      # `v` as the release tag: sor-vscode-v0.1.14.vsix.
+      - name: Package
+        run: |
+          mkdir -p dist
+          version=$(node -p "require('./package.json').version")
+          npm run package -- --no-dependencies --out "dist/sor-vscode-v$version.vsix"
+      - name: Check what is in the package
+        run: |
+          set -e
+          vsix=$(ls dist/*.vsix)
+          echo "$vsix"
+          unzip -Z1 "$vsix" | sort > contents.txt
+          cat contents.txt
+          for wanted in extension/package.json extension/src/extension.js extension/syntaxes/sor.tmLanguage.json \
+                        extension/tools/sor.js extension/tools/sorlib/status.js extension/tools/sorlib/views.js; do
+            grep -qx "$wanted" contents.txt || { echo "missing from the package: $wanted" >&2; exit 1; }
+          done
+          if grep -E '^extension/(test|sor|node_modules)/|\.py$|__pycache__|\.pyc$' contents.txt; then
+            echo "files that must not ship are in the package" >&2
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: editors/vscode/dist/*.vsix
+          if-no-files-found: error
+
+  # The JavaScript tool in the extension runs on the Node of VS Code, and VS Code 1.80 (the oldest the extension supports) has Node 16. The build above
+  # uses Node 22, so this job runs the tool and its tests on Node 16 and keeps the claim "Node 16 or later" (tools/js/package.json) honest.
+  oldest-node:
+    name: The JavaScript tool on Node 16
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: 16
+      - name: Vectors
+        run: node tools/js/test/vectors.js
+      - name: Bundled tool test
+        run: node editors/vscode/test/bundle.js
+      # compares the tool with the Python tool, which the runner has, on a project in many states and on anchors in every language
+      - name: The tool against the Python tool
+        run: python3 -m unittest discover -s tools/py -p 'test_sor_js*.py'
