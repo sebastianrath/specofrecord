@@ -566,7 +566,7 @@ function activate(context) {
       return hit ? { item: hit[2] } : null;
     }
     // in code, every region around the cursor counts: a function's anchor and the block marking it
-    const regions = regionsOfFile(project, doc.uri.fsPath).filter((r) => r.ids.length && line >= r.start && line <= r.end);
+    const regions = regionsOfFile(project, doc.uri.fsPath).filter((r) => (r.ids.length || r.kind === 'glue') && line >= r.start && line <= r.end);
     return regions.length ? { regions } : null;
   }
   const lensBlockOf = new Map();   // file key -> the block whose lenses are shown
@@ -605,11 +605,15 @@ function activate(context) {
       }
       const plan = await getPlan(doc);
       for (const r of regionsOfFile(project, doc.uri.fsPath)) {
-        if (!r.ids.length || !block.regions || !block.regions.includes(r)) continue;
+        if (!(r.ids.length || r.kind === 'glue') || !block.regions || !block.regions.includes(r)) continue;
         let line = r.start - 1;
         if (r.kind !== 'line' && plan) {
           const f = plan.fold.find((x) => line > x.start && line <= x.end);
           if (f) line = Math.min(f.end + 1, doc.lineCount - 1);
+        }
+        if (r.kind === 'glue') {   // serves no clause: a plain label, no click action
+          lenses.push(new vscode.CodeLens(at(line), { title: 'glue', command: '' }));
+          continue;
         }
         for (const id of r.ids) {
           lenses.push(new vscode.CodeLens(at(line), {

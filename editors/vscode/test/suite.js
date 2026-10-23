@@ -52,6 +52,9 @@ exports.run = async function run() {
   const sunLens = at(sunFolded ? sunMarker + 1 : sunMarker);
   assert(sunLens.some((t) => t.includes('bodies/sun · ')), JSON.stringify(sunLens));
   assert(!at(lineOf(/@clause end/)).length, '@clause end has no lens');
+  const glueLenses = await lensesAt(code, lineOf(/@clause glue/) + 1);
+  const glueLens = glueLenses.filter((l) => l.command && l.command.title === 'glue');
+  assert(glueLens.length === 1 && !glueLens[0].command.command, 'a glue region has one plain "glue" lens: ' + JSON.stringify(glueLenses.map((l) => l.command)));
   const marsMarker = lineOf(/bodies\/planets\/Mars/);
   const marsLens = (await lensesAt(code, marsMarker)).filter((l) => l.range.start.line === marsMarker).map((l) => l.command.title);
   assert(marsLens.some((t) => t.includes('bodies/planets/Mars')), 'line marker lens: ' + marsLens);

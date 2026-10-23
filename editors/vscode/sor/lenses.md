@@ -9,7 +9,9 @@ Why: clickable lines above clauses and above their code, to jump from one to the
 - **jump** — clicking a clause lens jumps to its code; with several regions it asks which first,
   naming the target of each when they are in more than one.
 - **marker-lens** — every `@clause <id>` line gets one lens per id, `<id> · <state>`; clicking it
-  jumps to that clause. `@clause end` and `@clause glue` lines get none.
+  jumps to that clause. `@clause end` lines get none.
+- **glue-lens** — a `@clause glue` line gets one lens, `glue`, while the cursor is in its region.
+  It jumps nowhere, because glue serves no clause.
 - **show-all** — a line with several ids also gets a "Show all code" lens.
 - **line-marker** — a marker at the end of a code line puts its lens on that same line.
 - **folded** — when a marker line is folded away, its lens sits on the first line below it.
@@ -30,6 +32,8 @@ Why: clickable lines above clauses and above their code, to jump from one to the
   row's lens names a single line (test/suite.js).
 - **marker-lens** — the `@clause bodies/sun` line has one lens, `bodies/sun · …`, that opens the
   sun item; `@clause end` has none (test/suite.js).
+- **glue-lens** — with the cursor in a `@clause glue` region, its marker line has a `glue` lens and
+  the lens has no click action (test/suite.js).
 - **line-marker** — the line marker for `bodies/planets/Mars` has a lens with that id
   (test/suite.js).
 - **show-all** — a region with several ids has a "Show all code" lens (test/suite.js).
