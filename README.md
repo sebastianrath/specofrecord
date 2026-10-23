@@ -1,6 +1,6 @@
-![Spec of Record banner showing one spec clause linked to the two pieces of code built from it](social/banner.png)
-
 # Spec of Record (SoR)
+
+<img src="social/banner.png" alt="Spec of Record banner showing one spec clause linked to the two pieces of code built from it" width="50%">
 
 Spec of Record is a development philosophy and toolchain for AI-built software, aimed at mid-sized to large projects. It turns the spec into a centralized design document that always stays in sync with the code, so a team of different specialties can understand, review and change the software together. You write what your software should do in plain language, an AI agent turns it into code, and each piece of code stays linked to the statements in the spec and to its test results.
 
