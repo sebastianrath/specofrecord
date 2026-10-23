@@ -313,23 +313,23 @@
 /* full-example css end */
 
   /* Two agents claiming, changing, locking and releasing clauses. The spec is on the left, its code blocks on the right: one clause can own blocks that are not next to each other. */
-  .cl { margin: 0 0 1em; --ca: #da7758; --cb: #3f7fdc; --t-k: #cf222e; --t-s: #0a3069; --t-f: #8250df; --t-m: #0047b3; --cl-no: #b3261e; --t-n: #0550ae; --chip: #e6eefb; }
-  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .cl { --cb: #6ea4ff; --t-k: #ff7b72; --t-s: #a5d6ff; --t-f: #d2a8ff; --t-m: #8cb4ff; --cl-no: #ff8a80; --t-n: #79c0ff; --chip: #26324a; } }
-  :root[data-theme="dark"] .cl { --t-n: #79c0ff; --chip: #26324a; --cb: #6ea4ff; --t-k: #ff7b72; --t-s: #a5d6ff; --t-f: #d2a8ff; --t-m: #8cb4ff; --cl-no: #ff8a80; }
+  .cl { margin: 0 0 1em; --ca: #da7758; --cb: #3f7fdc; --t-k: #cf222e; --t-s: #0a3069; --t-f: #8250df; --t-m: #0047b3; --cl-no: #b3261e; --t-n: #0550ae; --chip: #e6eefb; --cl-spec-bg: color-mix(in srgb, var(--soft) 85%, var(--muted)); }   /* the spec side is 15% of the way from the code's grey toward the muted grey (toward black in the dark theme) */
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .cl { --cl-spec-bg: color-mix(in srgb, var(--soft) 85%, #000); --cb: #6ea4ff; --t-k: #ff7b72; --t-s: #a5d6ff; --t-f: #d2a8ff; --t-m: #8cb4ff; --cl-no: #ff8a80; --t-n: #79c0ff; --chip: #26324a; } }
+  :root[data-theme="dark"] .cl { --cl-spec-bg: color-mix(in srgb, var(--soft) 85%, #000); --t-n: #79c0ff; --chip: #26324a; --cb: #6ea4ff; --t-k: #ff7b72; --t-s: #a5d6ff; --t-f: #d2a8ff; --t-m: #8cb4ff; --cl-no: #ff8a80; }
   .cl-stage { position: relative; }
   .cl-box { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--soft); }
   .cl-head, .cl-grid { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); }
   .cl-head .fe-file { position: static; z-index: auto; height: 36px; }
   .cl-spec, .cl-code { position: relative; min-width: 0; border-top: 1px solid var(--line); --c: var(--muted); transition: background-color .42s, box-shadow .42s; }
-  .cl-spec { grid-column: 1; padding: 10px 76px 10px 16px; border-right: 1px solid var(--line); font-size: .92rem; line-height: 1.5; }
-  .cl-code { grid-column: 2; }
+  .cl-spec { --base: var(--cl-spec-bg); background-color: var(--base); grid-column: 1; padding: 10px 76px 10px 16px; border-right: 1px solid var(--line); font-size: .92rem; line-height: 1.5; }
+  .cl-code { --base: var(--soft); background-color: var(--base); grid-column: 2; }
   .cl-spec p { margin: 0; }
   .cl-id { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; font-family: var(--mono); font-size: .76rem; line-height: 1.4; font-weight: 600; color: var(--muted); }
   .cl-code pre { margin: 0; border: 0; background: none; padding: 10px 76px 10px 14px; font-size: 12px; line-height: 1.55; overflow: hidden; }
   /* whoever holds a clause shuts all its cells: tinted, hatched and framed. The encircled padlock shows once the clause is locked, as its agent moves on to the code. */
   .cl [data-by="a"] { --c: var(--ca); }
   .cl [data-by="b"] { --c: var(--cb); }
-  .cl-spec[data-st], .cl-code[data-st] { background-color: color-mix(in srgb, var(--c) 14%, var(--soft)); background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 24%, transparent) 0 1.5px, transparent 1.5px 8px); box-shadow: inset 0 0 0 2px var(--c); }
+  .cl-spec[data-st], .cl-code[data-st] { background-color: color-mix(in srgb, var(--c) 14%, var(--base)); background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 24%, transparent) 0 1.5px, transparent 1.5px 8px); box-shadow: inset 0 0 0 2px var(--c); }
   .cl-bd { display: none; flex: none; width: 20px; height: 20px; padding: 4px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px var(--soft); }
   .cl-bd-code { position: absolute; right: 10px; top: 8px; width: 28px; height: 28px; padding: 6px; }
   .cl [data-st="locked"] > .cl-bd, .cl [data-st="locked"] > .cl-id > .cl-bd { display: block; animation: cl-pop .42s ease-out; }
@@ -590,7 +590,7 @@ export <span class="t-k">function</span> <span class="t-f">moveMonsters</span>(g
 </div>
 <p>A real compiler gives the same output every time, so it can throw that output away and start over. An AI cannot, so Spec of Record keeps finished code.</p>
 <p>Several agents can work on one project at once. A sub-agent first claims a spec clause and its code blocks. It changes the clause and locks it, then changes the code and releases the claim. A clause that someone else holds is refused, so the agent waits or takes another one.</p>
-<div class="cl" id="claims" role="group" aria-label="Animation of two agents working in parallel: each claims a clause, changes it, locks it once it moves on to the code, changes the code and releases it, and an agent refused a clause the other holds takes a free one first and comes back for it later.">
+<div class="cl" id="claims" role="group" aria-label="Animation of two agents working in parallel: each claims a clause, changes it, locks it once it moves on to the code, changes the code and releases it, and an agent refused a clause the other holds, directly or through a shared code block, waits and comes back for it later.">
     <div class="cl-stage">
     <div class="cl-box">
       <div class="cl-head"><div class="fe-file"><span class="tab"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg><span class="tab-name">sor/</span></span></div><div class="fe-file"><span class="tab"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg><span class="tab-name">src/</span></span></div></div>
@@ -610,16 +610,9 @@ export <span class="t-k">function</span> <span class="t-f">withLives</span>(play
 }
 <span class="t-m">// @clause end</span></pre></div>
         <div class="cl-spec cl-gap" aria-hidden="true" style="grid-row:3"></div>
-        <div class="cl-code" data-cl="movement" data-i="2" style="grid-row:3"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"></svg><pre><span class="t-m">// @clause player/movement</span>
+        <div class="cl-code" data-cl="movement lives" data-i="2" style="grid-row:3"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"></svg><pre><span class="t-m">// @clause player/movement player/lives</span>
 <span class="t-k">const</span> ROOM = <span class="t-n" data-k="room">500</span>;
 export <span class="t-k">function</span> <span class="t-f">keepInRoom</span>(player) {
-  ...
-}
-<span class="t-m">// @clause end</span></pre></div>
-        <div class="cl-spec" data-cl="chase" style="grid-row:4"><div class="cl-id"><svg class="cl-bd" viewBox="0 0 16 16" aria-hidden="true"></svg>monsters/chase<span class="cl-no">blocked</span></div><p>Every turn a monster steps <span class="val">20 px</span> toward the player.</p></div>
-        <div class="cl-code" data-cl="chase movement" data-i="3" style="grid-row:4"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"></svg><pre><span class="t-m">// @clause monsters/chase player/movement</span>
-<span class="t-k">const</span> MONSTER_STEP = <span class="t-n">20</span>;
-export <span class="t-k">function</span> <span class="t-f">chase</span>(monster, player) {
   ...
 }
 <span class="t-m">// @clause end</span></pre></div>
@@ -1622,31 +1615,34 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
     var who = { a: stage.querySelector('.clawd.a'), b: stage.querySelector('.clawd.b') };
     var LOCK = '<path d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><rect x="3" y="7" width="10" height="7" rx="1.5" fill="#fff"/>';   /* the padlock in every badge, shown once the clause is locked */
     Array.prototype.forEach.call(stage.querySelectorAll('.cl-bd'), function (b) { b.innerHTML = LOCK; });
-    var W = 36, H = 24, GAP = 22, EVERY = 3120, DWELL = 1500, HOP = 780, LOCKS = 250;   /* HOP: how long a Clawd takes to jump to another cell; LOCKS: how long after landing on code its clause locks */   /* GAP: room left of the cell edge for the Clawd's hat, magnifier and Z */
+    var W = 36, H = 24, GAP = 22, EVERY = 3120, DWELL = 1500, HOP = 780, LOCKS = 250, TYPES = 300, EDITS = 300;   /* HOP: how long a Clawd takes to jump to another cell; LOCKS: how long after landing on code its clause locks; TYPES: how long after that it starts typing; EDITS: how long after that the value changes */   /* GAP: room left of the cell edge for the Clawd's hat, magnifier and Z */
     var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     var P = 'p';
     /* ed: edits that happen in a step, [v: a value in the spec | k: a constant in the code, which one, the new text] */
     var steps = [
-      { a: 's:movement', b: P,          cl: { movement: 'a.claimed' },                      m: { a: 'working', b: 'idle' },    ed: [['v', 'step', '40 px'], ['v', 'room', '600 px']], cap: 'An agent claims a clause and changes the clause first.' },
+      { a: 's:movement', b: P,          cl: { movement: 'a.claimed' },                      m: { a: 'working', b: 'idle' },    ed: [['v', 'step', '40 px']],                            cap: 'An agent claims a clause and changes the clause first: a longer step.' },
       { a: 'c:0',        b: P,          cl: { movement: 'a.locked' },                       m: { a: 'working', b: 'idle' },    ed: [['k', 'step', '40']],                              cap: 'As it moves on to the code, the clause and all its code blocks are locked, the last one too, which names two clauses.' },
-      { a: 'c:2',        b: 's:movement', cl: { movement: 'a.locked' },                     m: { a: 'working', b: 'refused' }, ed: [['k', 'room', '600']],                             cap: 'While it works, a second agent tries to claim the same clause and finds it blocked.' },
-      { a: 'c:2',        b: 's:lives',   cl: { movement: 'a.locked', lives: 'b.claimed' },  m: { a: 'working', b: 'working' }, ed: [['v', 'lives', '5 lives']],                         cap: 'It could wait. Instead it claims the free clause below and changes it.' },
-      { a: 'c:2',        b: 'c:1',       cl: { movement: 'a.locked', lives: 'b.locked' },   m: { a: 'idle', b: 'working' },    ed: [['k', 'lives', '5']],                               cap: 'The first agent is done. The second locks its clause as it moves on to the code, and changes it.' },
-      { a: P,            b: 's:movement', cl: { movement: 'b.claimed' },                     m: { a: 'idle', b: 'working' },    ed: [['v', 'step', '30 px']],                            cap: 'Both release their clauses. The second goes back to the first clause, claims it and changes it.' },
-      { a: P,            b: 'c:0',       cl: { movement: 'b.locked' },                      m: { a: 'idle', b: 'working' },    ed: [['k', 'step', '30']],                               cap: 'It locks the clause, with all three of its code blocks, and changes the one that needs it.' },
-      { a: P,            b: 'c:0',       cl: { movement: 'b.locked' },                      m: { a: 'idle', b: 'idle' },       ed: [],                                                  cap: 'Done. <code>monsters/chase</code> stays unclaimed, but nobody can claim it while its code block is held.' },
+      { a: 'c:0',        b: 's:movement', cl: { movement: 'a.locked' },                     m: { a: 'working', b: 'refused' }, ed: [],                                                 cap: 'While it works, a second agent wants a bigger room in the same clause, and finds it blocked.' },
+      { a: 'c:0',        b: 's:lives',   cl: { movement: 'a.locked' },                       m: { a: 'working', b: 'refused' }, ed: [],                                                 cap: 'It tries the clause below instead and is blocked there too: the last code block belongs to both clauses, and the first agent holds it.' },
+      { a: P,            b: 's:lives',   cl: {},                                           m: { a: 'idle', b: 'idle' },       ed: [],                                                  cap: 'The first agent is done and releases its clause. The second one is no longer blocked.' },
+      { a: P,            b: 's:movement', cl: { movement: 'b.claimed' },                     m: { a: 'idle', b: 'working' },    ed: [['v', 'room', '600 px']],                           cap: 'The second agent goes back to the first clause, claims it and makes the room bigger, next to the first agent’s change.' },
+      { a: P,            b: 'c:2',       cl: { movement: 'b.locked' },                      m: { a: 'idle', b: 'working' },    ed: [['k', 'room', '600']],                              cap: 'It locks the clause, with both of its code blocks, and changes the one that needs it.' },
+      { a: P,            b: 's:lives',   cl: { lives: 'b.claimed' },                         m: { a: 'idle', b: 'working' },    ed: [['v', 'lives', '5 lives']],                         cap: 'It releases that clause, then claims the one that was blocked before and changes it.' },
+      { a: P,            b: 'c:1',       cl: { lives: 'b.locked' },                          m: { a: 'idle', b: 'working' },    ed: [['k', 'lives', '5']],                               cap: 'It locks the clause with its two code blocks, the shared one included, and changes the code.' },
       { a: P,            b: P,           cl: {},                                           m: { a: 'idle', b: 'idle' },       ed: [],                                                  cap: 'Released. Nothing is held any more.' }
     ];
     var rest = { a: P, b: P, cl: {}, m: { a: 'idle', b: 'idle' }, ed: [], cap: 'Two agents work on one spec. Nothing is claimed yet.' };   /* before the first step: both Clawds sit in the tab bar, nothing is claimed */
     var origin = [];   /* the spec values and code constants as they start, to go back to when the loop starts again */
     Array.prototype.forEach.call(stage.querySelectorAll('[data-v], [data-k]'), function (e) { origin.push([e, e.textContent]); });
-    function setValues(i, flash) {
+    function edited(d) { return stage.querySelector('[data-' + d[0] + '="' + d[1] + '"]'); }
+    function edit(d, flash, ms) {                   /* flash: yellow for the ms left of the step, so it fades out as the next one begins */
+      var e = edited(d);
+      e.textContent = d[2];
+      if (flash) { e.style.animationDuration = ms + 'ms'; void e.offsetWidth; e.classList.add('chg'); }
+    }
+    function setValues(i) {                         /* the values as they stand before the edits of step i */
       origin.forEach(function (o) { o[0].textContent = o[1]; o[0].classList.remove('chg'); });
-      for (var j = 0; j <= i; j++) steps[j].ed.forEach(function (d) {
-        var e = stage.querySelector('[data-' + d[0] + '="' + d[1] + '"]');
-        e.textContent = d[2];
-        if (flash && j === i) { void e.offsetWidth; e.classList.add('chg'); }
-      });
+      for (var j = 0; j < i; j++) steps[j].ed.forEach(function (d) { edit(d, false); });
     }
     var tl = root.querySelector('.cl-tl'), segs = [], again, thumb, geo = [], N = steps.length;   /* the timeline: one bar for each step, a thumb, and the loop arrow */
     steps.forEach(function () { var b = document.createElement('b'); b.appendChild(document.createElement('i')); b.setAttribute('aria-hidden', 'true'); tl.appendChild(b); segs.push(b); });
@@ -1654,7 +1650,7 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
     thumb = document.createElement('div'); thumb.tabIndex = 0; thumb.className = 'cl-thumb'; thumb.setAttribute('role', 'slider');
     thumb.setAttribute('aria-label', 'Step of the demonstration'); thumb.setAttribute('aria-valuemin', 1); thumb.setAttribute('aria-valuemax', N);
     tl.appendChild(thumb);
-    var landing = { a: null, b: null }, refusing = null, snapAnim = null, dragging = false, stepAnim = null, fillAnim = null, remaining = EVERY, stepDur = EVERY, thumbX = 0, at = { a: null, b: null }, now = 0, timer = null, paused = false, seen = false;
+    var landing = { a: [], b: [] }, refusing = null, snapAnim = null, dragging = false, stepAnim = null, fillAnim = null, remaining = EVERY, stepDur = EVERY, thumbX = 0, at = { a: null, b: null }, now = 0, timer = null, paused = false, seen = false;
 
     function cellOf(p) {
       var k = p.split(':');
@@ -1693,6 +1689,16 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
       typingUrl[n] = typingText ? URL.createObjectURL(new Blob([typingText], { type: 'image/svg+xml' })) : null;
       img.src = typingUrl[n] || TYPING + '?' + Date.now();
     }
+    var reads = [];
+    function readValues(n, cell) {                   /* a read: the values in the cell get an outline in the agent's colour, which fades; a write is the yellow one */
+      if (!cell.animate || reduce) return;
+      var c = getComputedStyle(root).getPropertyValue(n === 'a' ? '--ca' : '--cb').trim() || '#888';
+      Array.prototype.forEach.call(cell.querySelectorAll('[data-v], [data-k]'), function (e) {
+        reads.push(e.animate([{ outline: '2px solid ' + c, outlineOffset: '2px', borderRadius: '3px' },
+                              { outline: '2px solid ' + c, outlineOffset: '2px', borderRadius: '3px', offset: 0.6 },
+                              { outline: '2px solid transparent', outlineOffset: '2px', borderRadius: '3px' }], { duration: 1500, easing: 'ease-out' }));
+      });
+    }
     function paint(s, held, busy) {                  /* held: who holds each clause and how; busy: the agents whose cell is being edited */
       cells.forEach(function (c) {
         ['by', 'st', 'edit'].forEach(function (k) { c.removeAttribute('data-' + k); });
@@ -1708,16 +1714,22 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
     function show(i, hop) {
       var s = i < 0 ? rest : steps[i], before = now < 0 ? rest : steps[now];
       now = i;
-      setValues(i, hop);
+      setValues(i);
+      reads.forEach(function (r) { r.cancel(); }); reads = [];
       var jumped = { a: put('a', s.a, hop), b: put('b', s.b, hop) };
-      /* a clause its agent leaves for the code locks LOCKS ms after the Clawd has landed there; only then does it start typing */
+      /* a clause its agent leaves for the code locks LOCKS ms after the Clawd has landed there; TYPES ms later it starts typing */
       var late = { a: [], b: [] }, held = {};
       Object.keys(s.cl).forEach(function (k) {
         var n = s.cl[k].split('.')[0];
         if (jumped[n] && s.cl[k] === n + '.locked' && before.cl[k] === n + '.claimed' && s[n].charAt(0) === 'c') { late[n].push(k); held[k] = before.cl[k]; }
         else held[k] = s.cl[k];
       });
-      var busy = { a: !late.a.length, b: !late.b.length };
+      /* a Clawd that jumps edits its cell only once it starts work there; one that stays edits from the start of the step */
+      var busy = { a: !jumped.a, b: !jumped.b }, waits = { a: [], b: [] };
+      s.ed.forEach(function (d) {
+        var e = edited(d), n = ['a', 'b'].filter(function (n) { return jumped[n] && s[n] !== P && cellOf(s[n]).contains(e); })[0];
+        if (n) waits[n].push(d); else edit(d, hop, EVERY);
+      });
       paint(s, held, busy);
       /* "blocked" shows while a refused Clawd stands on the spec of a clause, from the moment it has landed there */
       clearTimeout(refusing);
@@ -1734,13 +1746,19 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
         var mode = s.m[n];
         if (mode === 'refused') mode = 'idle';      /* refused, it stands there in its plain look */
         else if (mode === 'working') mode = reduce ? 'idle' : (s[n].charAt(0) === 's' ? 'detective' : 'typing');   /* on a spec the detective reads, in code the Clawd types; both move, so with reduced motion the still body stands in */
-        clearTimeout(landing[n]);
-        if (jumped[n]) {                             /* in the air it is the plain Clawd; the look for the work starts once it has landed, and its clause has locked */
+        landing[n].forEach(clearTimeout); landing[n] = [];
+        var later = function (ms, f) { landing[n].push(setTimeout(f, ms)); };
+        if (jumped[n]) {                             /* in the air it is the plain Clawd; once it has landed: its clause locks, it starts work, then the value changes */
           setMode(n, 'idle');
-          landing[n] = setTimeout(function () {
-            if (late[n].length) { late[n].forEach(function (k) { held[k] = s.cl[k]; }); busy[n] = true; paint(s, held, busy); }
-            setMode(n, mode);
-          }, HOP + (late[n].length ? LOCKS : 0));
+          if (hop && s[n] !== P) later(HOP, function () { readValues(n, cellOf(s[n])); });   /* it reads the values of the cell it lands on, whether it may change them or not */
+          var t = HOP;
+          if (late[n].length) {
+            later(t += LOCKS, function () { late[n].forEach(function (k) { held[k] = s.cl[k]; }); paint(s, held, busy); });
+            t += TYPES;
+          }
+          later(t, function () { busy[n] = true; paint(s, held, busy); setMode(n, mode); });
+          var left = EVERY - (t += EDITS);
+          later(t, function () { waits[n].forEach(function (d) { edit(d, true, left); }); });
         } else setMode(n, mode);
       });
       text.innerHTML = s.cap;
