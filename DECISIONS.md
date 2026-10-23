@@ -1315,14 +1315,13 @@ what it knows, and ask before the flags that weaken a lock.
   was not honored by `-p` in an untrusted scratch folder and so was not tested that way; that the hooks were project hooks and not the plugin's `hooks.json`; and that
   Claude Code can change this, so a new major version is worth repeating the seven calls (three plain arms, two of them again with the rule on the command line, and two skill arms).
 - **The lock records `via` on a pass or a fail, with three values.** `run` is a web run that sor evaluated itself. `command` is a `--targets` run, where sor ran a
-  command that the spec declares and read the results file it wrote, whatever the command exited with (a first version called this `run`, and a review found a
-  command that crashed after writing `pass` locked as run). `file` is `--results F`, also for the tests marked EXTERNAL that take their result from a file next to
+  command that the spec declares and read the results file it wrote, whatever the command exited with, so a command that crashed after writing `pass` is a
+  `command`. `file` is `--results F`, also for the tests marked EXTERNAL that take their result from a file next to
   `--run-tests`. It is set and cleared together with `result`, on the language line for a test with test code in several languages. The label means "this lock
   command got it this way" and not "sor ran it at some time". The documented way for the project's own framework is `sor test --out F` followed by
   `sor lock --results F`, and the lock sees only a file.
 - **The caller says where a result came from, and nobody else gets credit.** `accept` and `accept_language` take the source of each result, and a result with no
-  source gets no label. A first version took the keys that were read from a file and called everything else run, so a caller that forgot to say, or a test that fed
-  results by hand, got the most trusted label.
+  source gets no label, so a caller that forgets to say, or a test that feeds results by hand, never gets credit for having run them.
 - **The lock now depends on how it was made.** SPEC section 11 says identical input gives identical bytes, and where a result came from is part of the input. The same
   state locked once with `--run-tests` and once with `--results F` gives different bytes on the test lines, so a lock made on one machine with a file and relocked in CI
   by a run rewrites every test line, and a merge of the two touches those lines. This was accepted: a label that kept the old value when the way of locking changed
