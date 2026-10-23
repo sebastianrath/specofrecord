@@ -261,19 +261,24 @@ def pre_edit(payload):
 
 
 SHELL_OPERATOR = re.compile(r'^[();&|<>]+$')   # what shlex makes of `&&`, `||`, `;`, `|`, parentheses and redirections
-LOCK_FLAGS_WITH_A_VALUE = ('--as', '--results', '--confirm')
+VALUE_FLAGS = {'lock': ('--as',), 'test': ('--out', '--provides')}   # options that take a value and are not guarded: the value is not an id
+
+# The options that need the user's yes. name, option, shortest prefix argparse takes for it, how many values follow it ('none', 'one', 'many'),
+# and the commands that have it. The `--results` of `sor evidence` is a CI job's own file, so it is not here.
+GUARDED = (('allow-behind', '--allow-behind', len('--allow-b'), 'one', ('lock',)),
+           ('already-fits', '--already-fits', len('--alr'), 'one', ('lock',)),
+           ('allow-incomplete', '--allow-incomplete', len('--allow-i'), 'none', ('lock',)),
+           ('confirm', '--confirm', len('--c'), 'many', ('lock',)),
+           ('results', '--results', len('--res'), 'one', ('lock',)),
+           ('targets', '--targets', len('--t'), 'one', ('lock', 'test')))
 
 
-GUARDED = (('allow-behind', '--allow-behind', len('--allow-b')), ('already-fits', '--already-fits', len('--alr')))   # name, option, shortest prefix
-IN_TEXT = {'allow-behind': '--allow-b', 'already-fits': '--already-f'}   # what to look for in a line that cannot be read
-
-
-def guarded_option(word):
-    """'allow-behind' or 'already-fits' when a word is one of the options a lock needs the user's yes for, also as `--allow-behind=ts` and as
-    the shortest prefix argparse takes for it; else None."""
+def guarded_option(word, command):
+    """The name of the option a word is, when it is one that `sor <command>` needs the user's yes for (see GUARDED), also as `--allow-behind=ts` and
+    as the shortest prefix argparse takes for it; else None."""
     name = word.split('=', 1)[0]
-    for short, option, least in GUARDED:
-        if len(name) >= least and option.startswith(name):
+    for short, option, least, _, commands in GUARDED:
+        if command in commands and len(name) >= least and option.startswith(name):
             return short
     return None
 
@@ -301,34 +306,46 @@ def program_index(words):
     return i
 
 
-def lock_allowance(words):
-    """(ids, languages, options) when these words are a `sor ... lock` that carries --allow-behind or --already-fits, else None. `options` is the
-    set of those that it carries."""
+def guarded_call(words):
+    """(command, ids, found) when these words are a `sor lock` or `sor test` that carries an option the user has to say yes to (see GUARDED), else
+    None. `ids` are the clauses it names; `found` has each of those options with the values after it."""
     i = program_index(words)
-    if i >= len(words) or os.path.basename(words[i]) not in ('sor', 'sor.py') or 'lock' not in words[i + 1:]:
+    if i >= len(words) or os.path.basename(words[i]) not in ('sor', 'sor.py'):
         return None
-    args = words[words.index('lock', i + 1) + 1:]
-    ids, languages, options, k = [], [], set(), 0
-    while k < len(args):
-        a = args[k]
-        if guarded_option(a):
-            options.add(guarded_option(a))
-            value = a.split('=', 1)[1] if '=' in a else (args[k + 1] if k + 1 < len(args) else '')
-            languages += [t for t in value.split(',') if t]
-            k += 1 if '=' in a else 2
-        elif a in LOCK_FLAGS_WITH_A_VALUE:
-            k += 2
+    k = i + 1
+    while k < len(words) and words[k].startswith('-'):   # the options before the command: `-C folder`
+        k += 2 if words[k] == '-C' else 1
+    if k >= len(words) or words[k] not in ('lock', 'test'):
+        return None
+    command, args = words[k], words[k + 1:]
+    kinds = {short: kind for short, _, _, kind, _ in GUARDED}
+    ids, found, n = [], {}, 0
+    while n < len(args):
+        a = args[n]
+        short = guarded_option(a, command)
+        if short:
+            values, n = [], n + 1
+            if '=' in a:
+                values = [v for v in a.split('=', 1)[1].split(',') if v]
+            elif kinds[short] == 'one' and n < len(args) and not args[n].startswith('-'):
+                values, n = [v for v in args[n].split(',') if v], n + 1
+            elif kinds[short] == 'many':
+                while n < len(args) and not args[n].startswith('-'):
+                    values, n = values + [args[n]], n + 1
+            found.setdefault(short, []).extend(values)
+        elif a in VALUE_FLAGS[command]:
+            n += 2
         else:
             if not a.startswith('-') and not a.isdigit():   # a number is what is left of `2>&1`
                 ids.append(a)
-            k += 1
-    return (ids, languages, options) if options else None
+            n += 1
+    return (command, ids, found) if found else None
 
 
-def lock_allowances(command, depth=0):
-    """[(ids, languages, options)] of every `sor lock --allow-behind` or `--already-fits` in a shell command line: the commands joined by `&&`, `||`, `;`, `|` or a new
-    line, and what a quoted argument holds (`bash -c "..."`). A word `lock` and the option in a command that cannot be read (an open quote) count,
-    for a guard that errs the other way would not guard."""
+def guarded_calls(command, depth=0):
+    """[(command, ids, found)] of every `sor lock` or `sor test` with a guarded option in a shell command line: the commands joined by `&&`, `||`, `;`,
+    `|` or a new line, and what a quoted argument holds (`bash -c "..."`). The word `lock` or `test` and the option in a command that cannot be read
+    (an open quote) count, for a guard that errs the other way would not guard."""
     found, body_ends = [], None   # body_ends: the word that ends a here-document whose lines are data, not commands
     for line in command.split('\n'):
         if body_ends is not None:
@@ -340,10 +357,10 @@ def lock_allowances(command, depth=0):
             lexer.whitespace_split = True
             words = list(lexer)
         except ValueError:
-            if re.search(r'\block\b', line):
-                options = {short for short, text in IN_TEXT.items() if text in line}
-                if options:
-                    found.append(([], [], options))
+            named = {c for c in ('lock', 'test') if re.search(rf'\b{c}\b', line)}
+            options = {guarded_option(word, c) for word in re.findall(r'--[A-Za-z][A-Za-z-]*', line) for c in named} - {None}   # `--cached` is not `--confirm`
+            if options:
+                found.append(('lock' if 'lock' in named else 'test', [], {short: [] for short in options}))
             continue
         segments, current = [], []
         for n, w in enumerate(words):
@@ -356,7 +373,7 @@ def lock_allowances(command, depth=0):
             else:
                 current.append(w)
         for segment in segments + ([current] if current else []):
-            call = lock_allowance(segment)
+            call = guarded_call(segment)
             if call:
                 found.append(call)
             elif depth < 3:
@@ -364,7 +381,7 @@ def lock_allowances(command, depth=0):
                 if i < len(segment) and os.path.basename(segment[i]) in SHELLS:   # `bash -c "sor lock ..."`: its argument is a command line
                     for w in segment[i + 1:]:
                         if ' ' in w:
-                            found += lock_allowances(w, depth + 1)
+                            found += guarded_calls(w, depth + 1)
     return found
 
 
@@ -379,9 +396,11 @@ def session_end(payload):
 
 
 def pre_bash(payload):
-    """Asks the user before a `sor lock --allow-behind` or `--already-fits` runs: the first lets a language stay behind a clause, or lack code for
-    it, the second clears a language with no code change, and both are the user's call. A command that merely mentions the flag (a grep, a
-    document) passes. This guards Claude Code only; a person's terminal is not touched."""
+    """Asks the user before a `sor lock` or `sor test` runs with an option that is theirs to decide (GUARDED): `--allow-behind` lets a language stay
+    behind a clause, or lack code for it, `--already-fits` clears a language with no code change, `--allow-incomplete` locks tests that did not
+    pass, `--confirm` says a person checked a manual test, `--results` takes the pass or fail of tests from a file, and `--targets` runs the commands
+    a spec declares. A command that merely mentions an option (a grep, a document) passes. This guards Claude Code only; a person's terminal is not
+    touched."""
     if payload.get('tool_name') not in (None, 'Bash'):
         return None
     try:
@@ -389,18 +408,35 @@ def pre_bash(payload):
         shellguard.before(payload)
     except (Exception, SystemExit):
         pass   # a note about the command that follows is not worth stopping it
-    calls = lock_allowances((payload.get('tool_input') or {}).get('command') or '')
+    calls = guarded_calls((payload.get('tool_input') or {}).get('command') or '')
     if not calls:
         return None
-    parts = []
-    for ids, languages, options in calls:
+    parts, advice = [], []
+    for command, ids, found in calls:
         what = ', '.join(ids) if ids else 'what it claimed'
-        who = ', '.join(languages) if languages else 'a language'
-        if 'allow-behind' in options:
-            parts.append(f'`{CMD} lock` of {what} with --allow-behind: {who} would stay behind the clause or have no code for it')
-        if 'already-fits' in options:
-            parts.append(f'`{CMD} lock` of {what} with --already-fits: {who} would be cleared as fitting the changed clause, with no code change')
-    reason = '; '.join(parts) + '. Allow it only if you have said that this language comes later, or have checked that its code fits.'
+        run = f'`{CMD} {command}`' + (f' of {what}' if command == 'lock' else '')
+
+        def said(option, fallback):
+            return ', '.join(found[option]) if found.get(option) else fallback
+        if 'allow-behind' in found:
+            parts.append(f'{run} with --allow-behind: {said("allow-behind", "a language")} would stay behind the clause or have no code for it')
+            advice.append('Allow --allow-behind only if you have said that this language comes later.')
+        if 'already-fits' in found:
+            parts.append(f'{run} with --already-fits: {said("already-fits", "a language")} would be cleared as fitting the changed clause, with no code change')
+            advice.append('Allow --already-fits only if you have checked that its code fits the changed clause.')
+        if 'allow-incomplete' in found:
+            parts.append(f'{run} with --allow-incomplete: tests that did not pass would be locked as they are')
+            advice.append('Allow --allow-incomplete only if those tests were already failing before this change.')
+        if 'confirm' in found:
+            parts.append(f'{run} with --confirm {said("confirm", "a test")}: a manual test would be recorded as checked by a person')
+            advice.append('Allow --confirm only if you checked that behaviour yourself.')
+        if 'results' in found:
+            parts.append(f'{run} with --results {said("results", "a file")}: the pass or fail of the tests would come from that file, which `{CMD}` does not check')
+            advice.append('Allow --results only if the file comes from your own test run.')
+        if 'targets' in found:
+            parts.append(f'{run} with --targets {said("targets", "a target")}: it would run the commands that the spec of that target declares, with your rights')
+            advice.append('Allow --targets only if you trust those commands (`{run:}` in the spec).')
+    reason = '; '.join(parts) + '. ' + ' '.join(dict.fromkeys(advice))
     return {'hookSpecificOutput': {'hookEventName': 'PreToolUse', 'permissionDecision': 'ask', 'permissionDecisionReason': reason}}
 
 

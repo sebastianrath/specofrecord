@@ -192,6 +192,8 @@ def cmd_status(args):
             print(f'{len(findings)} new entries (--all lists them)')
         if not_passed:
             print(f'{len(not_passed)} test(s) had not passed at the last lock')
+        for line in lockfile.tally_lines(old):
+            print(line)
         if not findings and not found:
             print('clauses, code and lock agree' + (' (but not every test passed)' if not_passed else ''))
         if len(project.target_names()) >= 2:
@@ -463,7 +465,7 @@ def cmd_lock(args):
               'lock the whole clauses and the languages with two commands')
         return 2
     confirm = [c if '/test:' in c or c.startswith('test:') else lockfile.own_test(c) for c in args.confirm]
-    results, external = {}, set()
+    results, external, sources = {}, set(), {}   # sources: where each result came from (lock.VIA), which the lock keeps as `via`
     targets, err = targetrun.names_of(project, args.targets or '')
     if err or (targets and not args.run_tests):
         print(f'lock refused:\n  {err or "--targets runs the tests of a target: add --run-tests"}')
@@ -480,21 +482,25 @@ def cmd_lock(args):
         print_coverage(summary, False)
         print_target_coverage(by_target, False)
         results = {k: r['status'] for k, r in ran.items() if r['status'] in ('pass', 'fail')}
+        sources = {k: 'command' if r.get('target') else 'run' for k, r in ran.items() if r['status'] in ('pass', 'fail')}   # a row of a target has its name
         external = {k for k, r in ran.items() if r['status'] == 'external'}
         if args.results:   # the project's own results, for the tests `sor test` shows as EXTERNAL and for those only
             with open(args.results, encoding='utf8') as fh:
                 given = json.load(fh)
-            results.update({k: v for k, v in given.items() if k.partition('@')[0] in external and v in ('pass', 'fail')})
+            taken = {k: v for k, v in given.items() if k.partition('@')[0] in external and v in ('pass', 'fail')}
+            results.update(taken)
+            sources.update({k: 'file' for k in taken})
             ignored = sorted(k for k in given if k.partition('@')[0] not in external)
             if ignored:
                 print(f'--results: ignored {", ".join(ignored)} (only tests shown as EXTERNAL take a result from the file)')
     elif args.results:
         with open(args.results, encoding='utf8') as fh:
             results = json.load(fh)
-    entries, more = lockfile.accept(project, scan, results, args.allow_incomplete, findings, old, confirm, scope, allow_behind, () if wanted and not ids else already_fits)
+        sources = {k: 'file' for k in results}
+    entries, more = lockfile.accept(project, scan, results, args.allow_incomplete, findings, old, confirm, scope, allow_behind, () if wanted and not ids else already_fits, sources)
     lines, glue = {}, {}
     if wanted:
-        lines, glue, more_lines = lockfile.accept_language(project, scan, results, args.allow_incomplete, every, old, wanted, set(already_fits))
+        lines, glue, more_lines = lockfile.accept_language(project, scan, results, args.allow_incomplete, every, old, wanted, set(already_fits), sources)
         more += more_lines
     gave = sorted(k for k, v in results.items() if entries.get(k.partition('@')[0], {}).get('result') == 'deferred' and (scope is None or k.partition('@')[0] in scope))
     if gave:
@@ -581,7 +587,7 @@ def cmd_lock(args):
     n = {r: sum(e['result'] == r for e in tests) for r in ('pass', 'checked', 'manual', 'deferred')}
     what = f'{len(scope)} of {len(entries)} entries' if scope is not None else f'{len(entries)} entries'
     print(f'locked {what} in {os.path.relpath(project.lock_path, project.root)}; '
-          f'tests: {n["pass"]} passed, {n["checked"]} manual checks confirmed, {n["manual"]} manual '
+          f'tests: {lockfile.passed_text(lockfile.passed_by(entries))}, {n["checked"]} manual checks confirmed, {n["manual"]} manual '
           f'unconfirmed, ' + (f'{n["deferred"]} deferred to CI, ' if n['deferred'] else '')
           + f'{len(tests) - sum(n.values())} not passed')
     if scope is not None:

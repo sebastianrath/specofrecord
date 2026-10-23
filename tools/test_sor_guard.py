@@ -38,7 +38,7 @@ def bash(command, **more):
     return dict({'session_id': 's', 'tool_name': 'Bash', 'tool_input': {'command': command}}, **more)
 
 
-class TestWhichCommandsAreALockWithAllowBehind(unittest.TestCase):
+class TestWhichCommandsAreAskedAbout(unittest.TestCase):
     ASKED = [
         ('the plain form', 'sor lock greet/bye --allow-behind ts', (['greet/bye'], ['ts'])),
         ('the option with an equals sign and two languages', 'sor lock --all --allow-behind=ts,py', ([], ['ts', 'py'])),
@@ -71,7 +71,8 @@ class TestWhichCommandsAreALockWithAllowBehind(unittest.TestCase):
         ('an echo', 'echo sor lock --allow-behind ts'),
         ('a quoted string that is not run', 'echo "sor lock a --allow-behind ts"'),
         ('a lock without the flag', 'sor lock greet/bye'),
-        ('another option that starts alike', 'sor lock a --allow-incomplete'),
+        ('an option that starts alike', 'sor lock a --all'),
+        ('the short form that argparse refuses as ambiguous', 'sor lock a --allow ts'),
         ('another command with the flag', 'sor status --allow-behind ts'),
         ('nothing', ''),
         ('a here-document that writes a file', "cat > x.sh <<'EOF'\nsor lock a --allow-behind ts\nEOF"),
@@ -80,10 +81,15 @@ class TestWhichCommandsAreALockWithAllowBehind(unittest.TestCase):
         ('an unreadable line that has the word but not the flag', "sor lock a 'unbalanced"),
     ]
 
+    @staticmethod
+    def ids_and_languages(command, **more):
+        """(ids, languages after --allow-behind or --already-fits) of each call found in a command line."""
+        return [(ids, found.get('allow-behind', []) + found.get('already-fits', [])) for _, ids, found in hook.guarded_calls(command, **more)]
+
     def test_a_lock_that_carries_the_flag_is_found_with_its_ids_and_languages(self):
         for name, command, expected in self.ASKED:
             with self.subTest(name):
-                self.assertEqual([(i, l) for i, l, _ in hook.lock_allowances(command)], [expected])
+                self.assertEqual(self.ids_and_languages(command), [expected])
 
     def test_each_option_is_named_as_it_was_written(self):
         for command, options in (('sor lock a --allow-behind ts', {'allow-behind'}), ('sor lock a --already-fits ts', {'already-fits'}),
@@ -91,23 +97,89 @@ class TestWhichCommandsAreALockWithAllowBehind(unittest.TestCase):
                                  ('sor lock a --allow-behind ts --already-fits py', {'allow-behind', 'already-fits'}),
                                  ("sor lock a --already-fits ts 'unbalanced", {'already-fits'})):
             with self.subTest(command):
-                (call,) = hook.lock_allowances(command)
-                self.assertEqual(call[2], options)
+                (call,) = hook.guarded_calls(command)
+                self.assertEqual(set(call[2]), options)
 
     def test_a_command_that_only_mentions_it_is_not(self):
         for name, command in self.NOT_ASKED:
             with self.subTest(name):
-                self.assertEqual(hook.lock_allowances(command), [])
-                self.assertEqual(hook.lock_allowances(command.replace('allow-behind', 'already-fits')), [])
+                self.assertEqual(hook.guarded_calls(command), [])
+                self.assertEqual(hook.guarded_calls(command.replace('allow-behind', 'already-fits')), [])
 
     def test_a_quoted_command_is_read_three_levels_deep_and_no_further(self):
         nested = 'bash -c "sor lock a --allow-behind ts"'
-        self.assertEqual([(i, l) for i, l, _ in hook.lock_allowances(nested, depth=2)], [(['a'], ['ts'])])
-        self.assertEqual(hook.lock_allowances(nested, depth=3), [])
+        self.assertEqual(self.ids_and_languages(nested, depth=2), [(['a'], ['ts'])])
+        self.assertEqual(hook.guarded_calls(nested, depth=3), [])
 
     def test_two_locks_in_one_line_are_two_answers(self):
-        found = hook.lock_allowances('sor lock a --allow-behind ts && sor lock b --allow-behind=py')
-        self.assertEqual([(i, l) for i, l, _ in found], [(['a'], ['ts']), (['b'], ['py'])])
+        found = self.ids_and_languages('sor lock a --allow-behind ts && sor lock b --allow-behind=py')
+        self.assertEqual(found, [(['a'], ['ts']), (['b'], ['py'])])
+
+
+class TestTheOtherOptionsTheUserDecides(unittest.TestCase):
+    """--allow-incomplete, --confirm, --results and --targets: what a lock or a test run does with them is the user's call too."""
+    ASKED = [
+        ('the plain form of each', 'sor lock a --allow-incomplete', 'lock', ['a'], {'allow-incomplete': []}),
+        ('its shortest prefix', 'sor lock a --allow-i', 'lock', ['a'], {'allow-incomplete': []}),
+        ('a list of tests after --confirm, none of them an id', 'sor lock a --confirm t1 t2', 'lock', ['a'], {'confirm': ['t1', 't2']}),
+        ('--confirm with an equals sign', 'sor lock --confirm=t1', 'lock', [], {'confirm': ['t1']}),
+        ('the shortest prefix of --confirm', 'sor lock --c t1', 'lock', [], {'confirm': ['t1']}),
+        ('a results file', 'sor lock a --results r.json', 'lock', ['a'], {'results': ['r.json']}),
+        ('a results file with an equals sign', 'sor lock a --results=r.json', 'lock', ['a'], {'results': ['r.json']}),
+        ('the shortest prefix of --results', 'sor lock a --res r.json', 'lock', ['a'], {'results': ['r.json']}),
+        ('a lock that runs a target', 'sor lock a --run-tests --targets py', 'lock', ['a'], {'targets': ['py']}),
+        ('a test run that runs a target', 'sor test --targets py', 'test', [], {'targets': ['py']}),
+        ('a test run with two targets and a test', 'sor test greet --targets=py,ts', 'test', ['greet'], {'targets': ['py', 'ts']}),
+        ('the shortest prefix of --targets', 'sor test --t py', 'test', [], {'targets': ['py']}),
+        ('the script, with a project in front of the command', 'python3 tools/sor.py -C proj test --targets py', 'test', [], {'targets': ['py']}),
+        ('a project folder that is named like a command', 'sor -C test lock a --results r.json', 'lock', ['a'], {'results': ['r.json']}),
+        ('inside bash -c', 'bash -c "sor test --targets py"', 'test', [], {'targets': ['py']}),
+        ('several at once', 'sor lock a --results r.json --allow-incomplete', 'lock', ['a'], {'results': ['r.json'], 'allow-incomplete': []}),
+        ('a command that cannot be read', "sor test --targets py 'unbalanced", 'test', [], {'targets': []}),
+        ('an unreadable lock with the shortest prefix of --confirm', "sor lock --c t1 'unbalanced", 'lock', [], {'confirm': []}),
+    ]
+    NOT_ASKED = [
+        ('a plain test run', 'sor test'),
+        ('a test run with the options that are not guarded', 'sor test greet --coverage --out r.json --provides linux'),
+        ('a lock that runs the web tests', 'sor lock a --run-tests'),
+        ('a lock with the options that are not guarded', 'sor lock --all --as bob --rehash'),
+        ('the results of a CI job, which are not a lock', 'sor evidence --job linux --provides linux --results r.json'),
+        ('another command with the option', 'sor status --targets py'),
+        ('a project folder that is named like a command', 'sor -C lock status'),
+        ('a search for the options', 'grep -rn -e "--targets" -e "--results" docs/'),
+        ('an echo', 'echo sor test --targets py'),
+        ('a commit message', 'git commit -m "sor lock --allow-incomplete"'),
+        ('a here-document that writes a file', "cat > x.sh <<'EOF'\nsor test --targets py\nEOF"),
+        ('an unreadable line that has lock and an option that only starts alike', "git diff --cached lock 'unbalanced"),
+        ('an unreadable line that has test and an option that only starts alike', "pytest 'a test --tb=short"),
+        ('an unreadable line that has test and --coverage', "sor test --coverage 'unbalanced"),
+    ]
+
+    def test_each_is_found_with_its_command_ids_and_values(self):
+        for name, command, which, ids, found in self.ASKED:
+            with self.subTest(name):
+                self.assertEqual(hook.guarded_calls(command), [(which, ids, found)])
+
+    def test_a_command_that_only_mentions_them_is_not_asked_about(self):
+        for name, command in self.NOT_ASKED:
+            with self.subTest(name):
+                self.assertEqual(hook.guarded_calls(command), [])
+
+    def test_the_user_is_told_what_each_one_does(self):
+        for command, said in (
+                ('sor lock a --allow-incomplete', 'tests that did not pass would be locked as they are'),
+                ('sor lock a --confirm t1 t2', 'with --confirm t1, t2: a manual test would be recorded as checked by a person'),
+                ('sor lock a --results r.json', 'with --results r.json: the pass or fail of the tests would come from that file'),
+                ('sor test --targets py', 'it would run the commands that the spec of that target declares, with your rights')):
+            with self.subTest(command):
+                out = hook.pre_bash(bash(command))['hookSpecificOutput']
+                self.assertEqual(out['permissionDecision'], 'ask')
+                self.assertIn(said, out['permissionDecisionReason'])
+
+    def test_a_test_run_is_not_said_to_be_a_lock(self):
+        reason = hook.pre_bash(bash('sor test --targets py'))['hookSpecificOutput']['permissionDecisionReason']
+        self.assertIn(f'`{hook.CMD} test` with --targets py', reason)
+        self.assertNotIn('lock', reason)
 
 
 class TestWhatTheHookAnswers(unittest.TestCase):
@@ -116,7 +188,7 @@ class TestWhatTheHookAnswers(unittest.TestCase):
         self.assertEqual((out['hookEventName'], out['permissionDecision']), ('PreToolUse', 'ask'))
         self.assertIn('greet/bye, greet/hello', out['permissionDecisionReason'])
         self.assertIn('ts would stay behind the clause or have no code for it', out['permissionDecisionReason'])
-        self.assertIn('Allow it only if you have said that this language comes later, or have checked that its code fits', out['permissionDecisionReason'])
+        self.assertIn('Allow --allow-behind only if you have said that this language comes later', out['permissionDecisionReason'])
 
     def test_it_says_what_each_option_does(self):
         out = hook.pre_bash(bash('sor lock a --already-fits ts'))['hookSpecificOutput']['permissionDecisionReason']
@@ -170,13 +242,20 @@ class TestTheRegisteredCommands(unittest.TestCase):
         return subprocess.run(['sh', '-c', command], input=json.dumps(payload), capture_output=True, text=True, cwd=REPO,
                               env=dict(os.environ, PYTHONDONTWRITEBYTECODE='1', TMPDIR=NOTES, **env))
 
-    def test_each_asks_for_a_lock_with_either_flag(self):
+    def test_each_asks_for_a_lock_with_any_of_the_options_the_user_decides(self):
         for name, path, env in self.WHERE:
-            for flag in ('--allow-behind ts', '--already-fits ts', '--alr ts'):
+            for flag in ('--allow-behind ts', '--already-fits ts', '--alr ts', '--allow-incomplete', '--confirm t1', '--results r.json', '--targets py'):
                 with self.subTest(name, flag=flag):
                     done = self.run_command(registered_command(path, 'Bash'), env, bash(f'sor lock greet/bye {flag}'))
                     self.assertEqual(done.returncode, 0, done.stderr)
                     self.assertEqual(json.loads(done.stdout)['hookSpecificOutput']['permissionDecision'], 'ask')
+
+    def test_each_asks_for_a_test_run_that_names_a_target(self):
+        for name, path, env in self.WHERE:
+            with self.subTest(name):
+                done = self.run_command(registered_command(path, 'Bash'), env, bash('sor test --targets py'))
+                self.assertEqual(done.returncode, 0, done.stderr)
+                self.assertEqual(json.loads(done.stdout)['hookSpecificOutput']['permissionDecision'], 'ask')
 
     def test_each_is_silent_for_a_command_that_only_mentions_it_or_does_not_at_all(self):
         for name, path, env in self.WHERE:

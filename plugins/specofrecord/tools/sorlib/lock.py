@@ -574,7 +574,7 @@ def built_for(project, entries, old):
         prior = ((old or {}).get(key) or {}).get('targets') or {}
         for t, line in e['targets'].items():
             if t in prior and prior[t].get('code') == line['code']:
-                line.update({x: v for x, v in prior[t].items() if x not in ('code', 'result')})
+                line.update({x: v for x, v in prior[t].items() if x not in ('code', 'result', 'via')})
                 line['built'] = prior[t].get('built', old_basis.get(key))
                 if line['built'] != now_basis[key]:
                     line.pop('fits', None)   # confirmed for an older text of the clause: it says nothing about this one
@@ -652,6 +652,22 @@ def owner_parts(project):
     return owners
 
 
+VIA = ('run', 'command', 'file')   # where the pass or fail of a test came from: sor evaluated the test itself (a web run), a command that the spec declares wrote it
+#                                     (`--targets`), or it was read from a results file (`--results`). Said by the caller; a result nobody vouches for has none.
+
+
+def settle(holder, result, key, sources):
+    """Sets the `result` of a test entry, or of one language line of it, and `via`, where it came from. `sources` is {result key: one of VIA}, built
+    by the caller from what it knows. A result whose key is not in it, and a result that is neither pass nor fail, gets no label: the lock does not
+    say where it came from, and a caller that does not say never gets credit for having run the test."""
+    holder['result'] = result if result in ('pass', 'fail') else 'none'
+    source = sources.get(key)
+    if holder['result'] == 'none' or source not in VIA:
+        holder.pop('via', None)
+    else:
+        holder['via'] = source
+
+
 def result_language(key, languages, bare=None):
     """(language, reason) for a result given as `test` or `test@language` when the test has test code in `languages` (sorted names; none when it has
     no test code per language). The language is '' for a test with none, whose one result is the test's. The reason is None, or why the key names no
@@ -672,13 +688,15 @@ def result_language(key, languages, bare=None):
     return languages[0], None
 
 
-def accept(project, scan, results, allow_incomplete, findings=(), old=None, confirm=(), scope=None, allow_behind=(), already_fits=()):
+def accept(project, scan, results, allow_incomplete, findings=(), old=None, confirm=(), scope=None, allow_behind=(), already_fits=(), sources=None):
     """The entries `sor lock` would write, or the reasons it refuses. `confirm` names manual
     tests a person has just checked; earlier confirmations carry over while they still stand.
     `scope`: lock keys to accept; every other key keeps its entry from `old` (SPEC §11).
     `allow_behind`: targets that may stay behind the clause, or lack code for it (`sor lock --allow-behind`).
     `already_fits`: targets whose code was checked against the changed clause and needs no change (`sor lock --already-fits`): they are
-    marked built for it and confirmed, and nothing is behind for them."""
+    marked built for it and confirmed, and nothing is behind for them.
+    `sources`: {key of `results`: where it came from, one of VIA}, which becomes `via` on the result in the lock; a result with no source gets no label."""
+    sources = sources or {}
     old = upgrade(old, scan) if old else old
     entries = snapshot(project, scan)
     built_for(project, entries, old)
@@ -741,9 +759,9 @@ def accept(project, scan, results, allow_incomplete, findings=(), old=None, conf
         if why:
             reasons.append(why)
         elif lines:
-            lines[language]['result'] = res if res in ('pass', 'fail') else 'none'
+            settle(lines[language], res, key, sources)
         elif entry['result'] not in ('manual', 'checked', 'deferred'):   # a result never settles what CI proves
-            entry['result'] = res if res in ('pass', 'fail') else 'none'
+            settle(entry, res, key, sources)
     for entry in entries.values():
         if entry.get('kind') == 'test' and any('result' in line for line in (entry.get('targets') or {}).values()):
             entry['result'] = derived_result(entry['targets'])
@@ -796,11 +814,12 @@ def language_view(entry, target):
     return own, lines.get(target)
 
 
-def accept_language(project, scan, results, allow_incomplete, findings, old, wanted, already_fits=()):
+def accept_language(project, scan, results, allow_incomplete, findings, old, wanted, already_fits=(), sources=None):
     """What `sor lock K@t` writes (SPEC §16): the line of one language of a clause, the lines of its own test and of its rows in that language, and
     the glue of that language's files. The clause's text and every other language's line stay as the lock has them, so this lock and a lock of
     another language of the clause cannot step on each other. `wanted`: [(clause, language)]. Returns
-    ({(key, language): line}, {glue key: entry}, [reasons])."""
+    ({(key, language): line}, {glue key: entry}, [reasons]). `sources` as in `accept`."""
+    sources = sources or {}
     old = upgrade(old, scan) if old else {}
     entries = snapshot(project, scan)
     built_for(project, entries, old)
@@ -844,7 +863,7 @@ def accept_language(project, scan, results, allow_incomplete, findings, old, wan
             line['built'] = basis_of(project, entries, key)
             line['fits'] = True
             confirmed.append(name)
-        same = was is not None and {x: v for x, v in was.items() if x != 'result'} == {x: v for x, v in line.items() if x != 'result'}
+        same = was is not None and {x: v for x, v in was.items() if x not in ('result', 'via')} == {x: v for x, v in line.items() if x not in ('result', 'via')}
         if 'result' in line:
             # a test that stands as it was, and passed, needs no new result, unless the code it proves is locked now (the clause's or a row's):
             # a language is locked together with the proof that its test passes against it
@@ -859,14 +878,14 @@ def accept_language(project, scan, results, allow_incomplete, findings, old, wan
             reasons.append(f'no code  {key}@{t}  {key} has no code in {t}: write it (a region marked `@clause {key}` in a file of {t}), then lock again')
     for key, t, line in needing:
         langs = sorted(x for x, l in entries[key]['targets'].items() if 'result' in l)
-        got = results.get(f'{key}@{t}')
+        got, given = results.get(f'{key}@{t}'), f'{key}@{t}'
         if got is None and key in results:
             language, why = result_language(key, langs)   # the line of t is among langs, so a plain result is t's when it is nobody else's
             if why:
                 reasons.append(why)
             else:
-                got = results[key]
-        line['result'] = got if got in ('pass', 'fail') else 'none'
+                got, given = results[key], key
+        settle(line, got, given, sources)
         lines[(key, t)] = line
     bad = sorted((f'{k}@{t}', line['result']) for (k, t), line in lines.items() if 'result' in line and line['result'] != 'pass')
     if bad and not allow_incomplete:
@@ -937,6 +956,56 @@ def deferred_lines(project, keys):
         return []
     return [f'tests deferred ({len(keys)}) — left to the CI jobs that provide their environment; `sor verify` checks their evidence: '
             + listed(keys), '']
+
+
+def passed_by(lock):
+    """{'run': n, 'command': n, 'file': n, 'unlabeled': n}: the passed tests of a lock by where their result came from (`via`). A test with a result
+    for each language takes the least trusted of them, `file` before `command` before `run`. `unlabeled` is a pass with no label, or with one that is not
+    in VIA, which is a pass locked before results were labeled: the lock does not know where it came from, and it is not counted as run."""
+    out = {'run': 0, 'command': 0, 'file': 0, 'unlabeled': 0}
+    for e in lock.values():
+        if e.get('kind') != 'test' or e.get('result') != 'pass':
+            continue
+        lines = [line for line in (e.get('targets') or {}).values() if 'result' in line]
+        vias = {line.get('via') for line in lines} if lines else {e.get('via')}
+        vias = {v if v in VIA else None for v in vias}
+        out['file' if 'file' in vias else 'unlabeled' if None in vias else 'command' if 'command' in vias else 'run'] += 1
+    return out
+
+
+def mixed_sources(by):
+    """Whether the passes of a lock (`passed_by`) stand on a file or a command, or on different things, so that there is something to tell."""
+    return bool(by['file'] or by['command'] or (by['run'] and by['unlabeled']))
+
+
+def passed_text(by):
+    """'41 passed' and, when the passes do not all stand on the same thing, where the results came from: '41 passed (38 ran when locked, 3 from a
+    results file)'. `by` is `passed_by` of a lock. A lock whose passes were all run, or all locked before results were labeled, has nothing to add."""
+    total = sum(by.values())
+    if not mixed_sources(by):
+        return f'{total} passed'
+    parts = []
+    for what, text in (('run', 'ran when locked'), ('command', 'from a target command'), ('file', 'from a results file'),
+                       ('unlabeled', 'locked before results were labeled')):
+        if by[what]:
+            parts.append(f'{by[what]} {text}')
+    return f'{total} passed ({", ".join(parts)})'
+
+
+def tally_lines(lock):
+    """The line `sor status` prints about what the tests in the lock stand on, so that "agree" is not read as "everything was run": how many
+    passed and where their results came from, and how many are `manual:` and checked by a person or not yet. No lines when no test is manual
+    and the passes do not stand on a file or a command, since a lock whose tests were all run has nothing to add."""
+    results = [e.get('result') for e in lock.values() if e.get('kind') == 'test']
+    unchecked, checked, by = results.count('manual'), results.count('checked'), passed_by(lock)
+    if not (unchecked or checked or mixed_sources(by)):
+        return []
+    parts = [passed_text(by)]
+    if unchecked:
+        parts.append(f'{unchecked} manual and not yet checked by a person')
+    if checked:
+        parts.append(f'{checked} manual and checked by a person')
+    return ['tests locked: ' + ', '.join(parts), '']
 
 
 def pending_lines(project, pending, languages=None):

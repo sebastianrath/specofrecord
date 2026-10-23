@@ -948,8 +948,9 @@ Decided by the owner on 2026-10-22, because the flag now covers "no code yet" as
 - **It reads the command, not the text.** The program of a command has to be `sor` or `sor.py`, so a grep for the flag, a commit message and an
   `echo` pass: the agent greps for it in the docs all the time, and a prompt for each would teach the user to click through. A line it cannot read (an
   open quote) that holds `lock` and the flag counts, because a guard that errs the other way would not guard.
-- **The cost is paid only by a mention.** The registered command first looks at the text in the shell (about 15 ms for every other Bash call);
-  Python (about 120 ms) starts only for a command that contains `allow-b`.
+- **The cost is paid only by a mention.** Changed since: the hook now starts for every Bash command, because the check after a shell command needs the stamps from before it (see "A warning
+  after a shell command changes guarded files"). It first looked at the text in the shell (about 15 ms for every other Bash call);
+  Python (about 120 ms) started only for a command that contains `allow-b`.
 - **A here-document is skipped when it only writes data.** `cat > x.sh <<'EOF'` with a `sor lock --allow-behind` line inside asks nothing, because the
   lines are written to a file, not run; `bash <<EOF` and `sh -s <<EOF` are read, since there the lines are commands.
 - **What it does not cover:** a person's terminal (deliberately), another agent than Claude Code, a script that Claude writes and then runs, `ssh`, and a
@@ -1292,6 +1293,42 @@ Edit, Write and MultiEdit tools). The owner chose a warning, not a refusal, with
   mutation check of `shellguard.py` (223 changes, 27 of which do not compile and 165 of which fail a test; I read the 31 left and
   found none that changes what the hook says: limits compared with `<` and `<=`, `[]` where `None` means the same, defaults for a missing session id, two
   options of the shell tokenizer, and a filter that only matters for a claim of one language).
+
+## More options ask the user first, and the lock says where a result came from (2026-10-22)
+Decided with the owner after a design review of the tool ("Sor Design Review"), whose findings F1, F4, F6 and F7 this answers. The review judged the tool by
+three threat models, an honest agent that makes mistakes, an agent that lies on purpose, and an untrusted repository, and the owner kept the first and the third.
+Nothing inside the tool can stop an agent that lies on purpose, because that agent can reach everything the tool can. What the tool can do is record and show
+what it knows, and ask before the flags that weaken a lock.
+- **The Bash hook asks about six options instead of two.** They are `--allow-behind`, `--already-fits`, `--allow-incomplete`, `--confirm`, `--results` (of `sor lock`,
+  not of `sor evidence`, which is a CI job's own file) and `--targets` (of `sor lock` and of `sor test`). The last one runs a command that the spec declares, so a spec
+  from a repository nobody trusts could otherwise have it run under the approval `Bash(sor *)` gives the skill. Each option has its own reason and its own advice
+  in the prompt. The cost is a prompt each time an agent locks with `--results F` in a project with no web target, which the skill tells it to do.
+- **Not settled by the documentation.** The permissions page of Claude Code says that a `PreToolUse` hook runs before the permission prompt and can force a prompt,
+  and the hooks page says its `ask` prompts also in auto mode. Both pages say that ask and deny rules override a skill's `allowed-tools`. Neither names the case of
+  a matching allow rule such as `Bash(sor *)`, or of a skill's `allowed-tools`, against a hook's `ask`, and this was not tested in a live session. If an allow rule
+  wins, F7 of the review is not closed by the hook, and the way out is to narrow `allowed-tools` in the skill.
+- **The lock records `via` on a pass or a fail, with three values.** `run` is a web run that sor evaluated itself. `command` is a `--targets` run, where sor ran a
+  command that the spec declares and read the results file it wrote, whatever the command exited with (a first version called this `run`, and a review found a
+  command that crashed after writing `pass` locked as run). `file` is `--results F`, also for the tests marked EXTERNAL that take their result from a file next to
+  `--run-tests`. It is set and cleared together with `result`, on the language line for a test with test code in several languages. The label means "this lock
+  command got it this way" and not "sor ran it at some time". The documented way for the project's own framework is `sor test --out F` followed by
+  `sor lock --results F`, and the lock sees only a file.
+- **The caller says where a result came from, and nobody else gets credit.** `accept` and `accept_language` take the source of each result, and a result with no
+  source gets no label. A first version took the keys that were read from a file and called everything else run, so a caller that forgot to say, or a test that fed
+  results by hand, got the most trusted label.
+- **No label means unknown.** A lock made before the labels has none, and the status line says "locked before results were labeled". It never counts them as run.
+  An older sor that rewrites a result drops the label with the entry, except that on a language line it can keep a label the result no longer matches. This is
+  not worked around.
+- **`sor status` prints one line**, for example `tests locked: 41 passed (38 ran when locked, 3 from a results file), 9 manual and not yet checked by a person`. It
+  appears only when a test is manual, when a result came from a file or a target command, or when some passes are labeled and others are not, so a project whose tests were all run
+  reads as it did. The lock-time summary names the same sources. `status --json` is unchanged, so the JavaScript tool and the extension are not touched.
+- **A line that cannot be read** (an open quote) counts when it holds `lock` or `test` and a word that is one of these options, so `--cached` is not `--confirm`
+  and `--tb=short` is not `--targets`. A commit message written as `$(cat <<'EOF' … EOF)` is read line by line, because its first line has an open quote. A body line
+  that says `lock` and names one of the options therefore asks, as it did for `--allow-behind`. That is the price of reading the command and not the text, and no
+  multi line reader was built for it.
+- **Not done, on purpose.** A guarantee against an agent that lies on purpose would need a judge outside its reach, such as CI that reruns the tests and refuses a
+  lock it cannot reproduce, with branch protection. The label is what such a gate would read, and `sor verify` already gates the tests that say `runs on:`. The README
+  and the skill still say "in sync" and "the independent check", and rewording them is a separate change.
 
 ## Still open
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for
