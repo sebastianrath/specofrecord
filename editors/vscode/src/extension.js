@@ -2,7 +2,7 @@
 /*
  * Spec of Record for VS Code (rebuild from the clauses in editors/vscode/clauses).
  *
- * Notes and assumptions of the builder (more in BUILD-NOTES.md):
+ * Notes and assumptions of the builder (more in DECISIONS.md, "VS Code extension, choices the clauses left open"):
  * - Everything comes from `sor markers --json` and `sor status --json`; this file parses no clauses.
  * - A "marker line on its own" is a line of an index region (kind code/glue) at its start or end
  *   whose text is only an @clause comment. Line-end markers (kind "line") are never hidden.

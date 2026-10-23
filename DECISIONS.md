@@ -1363,6 +1363,47 @@ tool. The owner expected `py` and `js`, and asked for that layout.
   that still used that dotted form, which a search for slashes could not see.
 - **Not verified here.** The GitHub workflows, and `editors/vscode/test/grammar.js` and `suite.js`, which need `npm install` and a downloaded VS Code.
 
+## VS Code extension, choices the clauses left open (2026-10-22)
+These came out of building the extension (`editors/vscode`) from its clauses. They used to be in `editors/vscode/BUILD-NOTES.md`, which was a
+log of the builder and is gone. Each point is a place where the clauses said nothing or something unclear, and what was chosen. The code header of
+`src/extension.js` keeps the short list of assumptions.
+- **What a marker line is.** The index holds regions, not marker lines. For regions of kind `code`, `test` and `glue`, `start` and `end` are the
+  opener and the `@clause end` lines themselves. The extension takes both lines of each such region and keeps them only if the text is an own line
+  comment followed by `@clause` (`MARKER_RE`). So it looks at line text, a small step beyond "reads no markers itself". `test/regions.js`
+  checks the rule on lines that are markers and lines that are not.
+- **Which lines the hiding spares.** Only a marker that a selection is on. A fold still opens when the cursor is on the line above, and then the
+  opened marker shows as a blank row. Sparing the marker for the line above as well made the test (hidden lines equal all marker lines outside the
+  selection) fail.
+- **How to decide a marker can fold.** The extension asks `vscode.executeFoldingRangeProvider` for the ranges of the other providers (its own
+  answers `[]` meanwhile). A run of markers is skipped when the line before it starts or ends another range, or when ranges overlap partly.
+  About half of the markers of the example cannot fold, which is what the clause says.
+- **When no other provider exists.** Indentation folds are added only when no other provider gave ranges. The built-in HTML server sometimes answers
+  empty while it starts, which gave different fold plans and flaky tests, so for server languages (`SERVER_LANGS`) the extension asks up to 6
+  times, 400 ms apart. With hiding off it returns no ranges at all, no fallback either.
+- **When folds are applied.** The clause says "shortly after" and no more. `editor.foldAllMarkerRegions` runs at 150, 600, 1100, 1700 and 2500 ms
+  after a plan or a change, but only if some fold in view is still open. The selection is remembered before folding, folds the cursor touches are
+  unfolded, and the selection is put back, because VS Code moves a cursor out of folded lines. Turning hiding off runs
+  `editor.unfoldAllMarkerRegions` at once and again after 500 ms.
+- **Fold plan cache.** The plan is computed once per document version and also keyed by the list of marker lines, so a refresh that changes
+  nothing does not recompute it. Recomputing on every refresh made the plan, and the tests, wobble.
+- **Hiding a line.** A decoration with `opacity: 0`, and a folded marker shows as a blank row.
+- **Lens wording.** A flag is joined with one space (`out/index.html:26-28 ● to review`). A part heading with no code gets the title `no code` and
+  a click does nothing. A table row takes the flag of its one id. Marker lenses show the raw status word, as the known limit says.
+- **Highlight colour.** `editor.rangeHighlightBackground` was almost invisible in Default Dark Modern (about 4% white), so the highlight uses
+  `editor.selectionHighlightBackground`, the colour VS Code gives other occurrences of selected text. Both are theme colours, none is fixed.
+  Looked at in Default Dark Modern and Default Light Modern.
+- **Highlight, which regions lose their first and last line.** Kinds `code` and `test`, whose `start` and `end` are the marker lines. A `line`
+  region (a marker at the end of a code line) and an `anchor` region (a `code:` function) are lit whole.
+- **Highlight, which editor leads.** The editor whose cursor moved last, and an editor made active counts as a cursor that moved. In normal use
+  that is `activeTextEditor`. In a test window without focus `activeTextEditor` stayed on the code editor even after the spec's group was made
+  active, and the Mars row check failed 3 runs out of 3, so the highlight follows the cursor event.
+- **Highlight, unsaved changes.** Unsaved changes on either side clear it, because the index lines would be off. A save is followed by the
+  refresh, which lights it again. A file shown in two panes lights only the pane that does not hold the cursor.
+- **Highlight, not built.** Scrolling the counterpart into view. The scrollbar mark is the only hint for a counterpart out of view.
+- **The integration test needs a window that can take focus.** On a locked macOS screen (`IOConsoleLocked = Yes` in `ioreg -n Root -d1`) no window
+  gets focus, `editor.foldAll` leaves `visibleRanges` unchanged and the folding check fails with the plan intact. `test/run.js` stops with a message
+  when the screen is locked, and brings the window to the front every two seconds on macOS.
+
 ## Still open
 - `tools/sor.py` checks, locks, reports status, runs web tests and measures coverage for
   this format (SPEC §15). The old `fdd` prototype (previous syntax) is not in this folder.

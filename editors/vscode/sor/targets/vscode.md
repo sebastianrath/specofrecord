@@ -13,8 +13,8 @@ Why: where the extension runs, and how its code is delivered and tested.
 
 ## Approach
 - **markers** — JavaScript `// @clause …`; `package.json`, the grammar and the tests are not marked.
-- **notes** — the builder's notes go in the comment at the top of `extension.js` and in
-  `BUILD-NOTES.md`.
+- **notes** — the builder's notes go in the comment at the top of `extension.js`, and choices the
+  clauses left open in the repository's `DECISIONS.md`.
 - **test-run** — `npm test` runs `test/grammar.js`, `test/bundle.js` and `test/regions.js` (the code of a
   few clauses, run alone without VS Code), then a real VS Code with `@vscode/test-electron` on
   `examples/solar-system`, running `test/suite.js`.
