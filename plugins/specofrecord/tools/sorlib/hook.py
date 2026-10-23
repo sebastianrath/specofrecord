@@ -263,22 +263,39 @@ def pre_edit(payload):
 SHELL_OPERATOR = re.compile(r'^[();&|<>]+$')   # what shlex makes of `&&`, `||`, `;`, `|`, parentheses and redirections
 VALUE_FLAGS = {'lock': ('--as',), 'test': ('--out', '--provides')}   # options that take a value and are not guarded: the value is not an id
 
-# The options that need the user's yes. name, option, shortest prefix argparse takes for it, how many values follow it ('none', 'one', 'many'),
-# and the commands that have it. The `--results` of `sor evidence` is a CI job's own file, so it is not here.
-GUARDED = (('allow-behind', '--allow-behind', len('--allow-b'), 'one', ('lock',)),
-           ('already-fits', '--already-fits', len('--alr'), 'one', ('lock',)),
-           ('allow-incomplete', '--allow-incomplete', len('--allow-i'), 'none', ('lock',)),
-           ('confirm', '--confirm', len('--c'), 'many', ('lock',)),
-           ('results', '--results', len('--res'), 'one', ('lock',)),
-           ('targets', '--targets', len('--t'), 'one', ('lock', 'test')))
+# The options that need the user's yes, and everything the hook knows about each, so that a new one is a new row and nothing else.
+#   option, least: the option and the shortest prefix of it that argparse takes     values: how many values follow it ('none', 'one', 'many')
+#   commands: the commands that have it                                             fallback: what stands for its value when the command gives none
+#   says: what the user is told it would do ({value}, {cmd})                         advice: what to check before saying yes
+# The `--results` of `sor evidence` is a CI job's own file, so it is not here. The rows are in the order the user reads them.
+GUARDED = {
+    'allow-behind': dict(option='--allow-behind', least=len('--allow-b'), values='one', commands=('lock',), fallback='a language',
+                         says='with --allow-behind: {value} would stay behind the clause or have no code for it',
+                         advice='Allow --allow-behind only if you have said that this language comes later.'),
+    'already-fits': dict(option='--already-fits', least=len('--alr'), values='one', commands=('lock',), fallback='a language',
+                         says='with --already-fits: {value} would be cleared as fitting the changed clause, with no code change',
+                         advice='Allow --already-fits only if you have checked that its code fits the changed clause.'),
+    'allow-incomplete': dict(option='--allow-incomplete', least=len('--allow-i'), values='none', commands=('lock',), fallback='',
+                             says='with --allow-incomplete: tests that did not pass would be locked as they are',
+                             advice='Allow --allow-incomplete only if those tests were already failing before this change.'),
+    'confirm': dict(option='--confirm', least=len('--c'), values='many', commands=('lock',), fallback='a test',
+                    says='with --confirm {value}: a manual test would be recorded as checked by a person',
+                    advice='Allow --confirm only if you checked that behaviour yourself.'),
+    'results': dict(option='--results', least=len('--res'), values='one', commands=('lock',), fallback='a file',
+                    says='with --results {value}: the pass or fail of the tests would come from that file, which `{cmd}` does not check',
+                    advice='Allow --results only if the file comes from your own test run.'),
+    'targets': dict(option='--targets', least=len('--t'), values='one', commands=('lock', 'test'), fallback='a target',
+                    says='with --targets {value}: it would run the commands that the spec of that target declares, with your rights',
+                    advice='Allow --targets only if you trust those commands (`{run:}` in the spec).'),
+}
 
 
 def guarded_option(word, command):
     """The name of the option a word is, when it is one that `sor <command>` needs the user's yes for (see GUARDED), also as `--allow-behind=ts` and
     as the shortest prefix argparse takes for it; else None."""
     name = word.split('=', 1)[0]
-    for short, option, least, _, commands in GUARDED:
-        if command in commands and len(name) >= least and option.startswith(name):
+    for short, row in GUARDED.items():
+        if command in row['commands'] and len(name) >= row['least'] and row['option'].startswith(name):
             return short
     return None
 
@@ -318,7 +335,6 @@ def guarded_call(words):
     if k >= len(words) or words[k] not in ('lock', 'test'):
         return None
     command, args = words[k], words[k + 1:]
-    kinds = {short: kind for short, _, _, kind, _ in GUARDED}
     ids, found, n = [], {}, 0
     while n < len(args):
         a = args[n]
@@ -327,9 +343,9 @@ def guarded_call(words):
             values, n = [], n + 1
             if '=' in a:
                 values = [v for v in a.split('=', 1)[1].split(',') if v]
-            elif kinds[short] == 'one' and n < len(args) and not args[n].startswith('-'):
+            elif GUARDED[short]['values'] == 'one' and n < len(args) and not args[n].startswith('-'):
                 values, n = [v for v in args[n].split(',') if v], n + 1
-            elif kinds[short] == 'many':
+            elif GUARDED[short]['values'] == 'many':
                 while n < len(args) and not args[n].startswith('-'):
                     values, n = values + [args[n]], n + 1
             found.setdefault(short, []).extend(values)
@@ -416,26 +432,11 @@ def pre_bash(payload):
         what = ', '.join(ids) if ids else 'what it claimed'
         run = f'`{CMD} {command}`' + (f' of {what}' if command == 'lock' else '')
 
-        def said(option, fallback):
-            return ', '.join(found[option]) if found.get(option) else fallback
-        if 'allow-behind' in found:
-            parts.append(f'{run} with --allow-behind: {said("allow-behind", "a language")} would stay behind the clause or have no code for it')
-            advice.append('Allow --allow-behind only if you have said that this language comes later.')
-        if 'already-fits' in found:
-            parts.append(f'{run} with --already-fits: {said("already-fits", "a language")} would be cleared as fitting the changed clause, with no code change')
-            advice.append('Allow --already-fits only if you have checked that its code fits the changed clause.')
-        if 'allow-incomplete' in found:
-            parts.append(f'{run} with --allow-incomplete: tests that did not pass would be locked as they are')
-            advice.append('Allow --allow-incomplete only if those tests were already failing before this change.')
-        if 'confirm' in found:
-            parts.append(f'{run} with --confirm {said("confirm", "a test")}: a manual test would be recorded as checked by a person')
-            advice.append('Allow --confirm only if you checked that behaviour yourself.')
-        if 'results' in found:
-            parts.append(f'{run} with --results {said("results", "a file")}: the pass or fail of the tests would come from that file, which `{CMD}` does not check')
-            advice.append('Allow --results only if the file comes from your own test run.')
-        if 'targets' in found:
-            parts.append(f'{run} with --targets {said("targets", "a target")}: it would run the commands that the spec of that target declares, with your rights')
-            advice.append('Allow --targets only if you trust those commands (`{run:}` in the spec).')
+        for name, row in GUARDED.items():
+            if name in found:
+                value = ', '.join(found[name]) or row['fallback']
+                parts.append(f'{run} ' + row['says'].format(value=value, cmd=CMD))
+                advice.append(row['advice'])
     reason = '; '.join(parts) + '. ' + ' '.join(dict.fromkeys(advice))
     return {'hookSpecificOutput': {'hookEventName': 'PreToolUse', 'permissionDecision': 'ask', 'permissionDecisionReason': reason}}
 

@@ -269,6 +269,9 @@ LOCK.append({'name': 'keys are ordered by code point, so an astral key comes aft
 LOCK.append({'name': 'a test entry with a result', 'fmt': 1,
              'entries': {'a/test:x': {'kind': 'test', 'result': 'pass', 'text': 't'}},
              'text': '{\n"a/test:x": {"kind": "test", "result": "pass", "text": "t"}\n}\n'})
+LOCK.append({'name': 'a test entry says where its result came from, and the key sorts last', 'fmt': 1,
+             'entries': {'a/test:x': {'kind': 'test', 'via': 'file', 'result': 'pass', 'text': 't'}},
+             'text': '{\n"a/test:x": {"kind": "test", "result": "pass", "text": "t", "via": "file"}\n}\n'})
 LOCK.append({'name': 'no entries is an empty line between the braces', 'fmt': 1, 'entries': {}, 'text': '{\n\n}\n'})
 LOCK.append({'name': 'a later format opens with its marker, then the entries as before', 'fmt': 2,
              'entries': {'a': {'kind': 'part', 'text': 'y'}}, 'text': '{\n"*format": 2,\n"a": {"kind": "part", "text": "y"}\n}\n'})
@@ -337,6 +340,14 @@ LOCK.append({'name': 'a test with a result on each line: the result is on the li
              'text': '{\n"*format": 3,\n"g/test:h": {"kind": "test", "text": "tt"},\n'
                      '"g/test:h@py": {"built": "tt", "code": "%s", "kind": "code", "of": "g/test:h", "result": "pass", "target": "py"},\n'
                      '"g/test:h@ts": {"built": "tt", "code": "%s", "kind": "code", "of": "g/test:h", "result": "fail", "target": "ts"}\n}\n' % (PY_C, TS_C)})
+LOCK.append({'name': 'a test with a result and a source on each line: the source is on the lines, never on the test, and the lock is format 3',
+             'fmt': None,
+             'entries': {'g/test:h': dict(TEST, result='pass', code='ignored',
+                                          targets={'py': {'code': PY_C, 'built': 'tt', 'result': 'pass', 'via': 'command'},
+                                                   'ts': {'code': TS_C, 'built': 'tt', 'result': 'pass', 'via': 'file'}})},
+             'text': '{\n"*format": 3,\n"g/test:h": {"kind": "test", "text": "tt"},\n'
+                     '"g/test:h@py": {"built": "tt", "code": "%s", "kind": "code", "of": "g/test:h", "result": "pass", "target": "py", "via": "command"},\n'
+                     '"g/test:h@ts": {"built": "tt", "code": "%s", "kind": "code", "of": "g/test:h", "result": "pass", "target": "ts", "via": "file"}\n}\n' % (PY_C, TS_C)})
 LOCK.append({'name': 'a test whose lines carry no result keeps its result and the lock stays format 2', 'fmt': None,
              'entries': {'g/test:h': dict(TEST, result='manual', code='ignored', targets={'py': {'code': PY_C, 'built': 'tt'}})},
              'text': '{\n"*format": 2,\n"g/test:h": {"kind": "test", "result": "manual", "text": "tt"},\n'

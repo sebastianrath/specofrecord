@@ -1295,18 +1295,25 @@ Edit, Write and MultiEdit tools). The owner chose a warning, not a refusal, with
   options of the shell tokenizer, and a filter that only matters for a claim of one language).
 
 ## More options ask the user first, and the lock says where a result came from (2026-10-22)
-Decided with the owner after a design review of the tool ("Sor Design Review"), whose findings F1, F4, F6 and F7 this answers. The review judged the tool by
-three threat models, an honest agent that makes mistakes, an agent that lies on purpose, and an untrusted repository, and the owner kept the first and the third.
+Written after a design review of the tool ("Sor Design Review"), whose findings F1, F4, F6 and F7 this answers. On 2026-10-22 the owner approved building the prompts
+and the labels (layers 1 and 2 of the proposal) and leaving out a CI gate (layer 3). They did not otherwise rule on the review's three threat models, an honest agent
+that makes mistakes, an agent that lies on purpose, and an untrusted repository, and this entry works from the first and the third.
 Nothing inside the tool can stop an agent that lies on purpose, because that agent can reach everything the tool can. What the tool can do is record and show
 what it knows, and ask before the flags that weaken a lock.
 - **The Bash hook asks about six options instead of two.** They are `--allow-behind`, `--already-fits`, `--allow-incomplete`, `--confirm`, `--results` (of `sor lock`,
   not of `sor evidence`, which is a CI job's own file) and `--targets` (of `sor lock` and of `sor test`). The last one runs a command that the spec declares, so a spec
   from a repository nobody trusts could otherwise have it run under the approval `Bash(sor *)` gives the skill. Each option has its own reason and its own advice
   in the prompt. The cost is a prompt each time an agent locks with `--results F` in a project with no web target, which the skill tells it to do.
-- **Not settled by the documentation.** The permissions page of Claude Code says that a `PreToolUse` hook runs before the permission prompt and can force a prompt,
-  and the hooks page says its `ask` prompts also in auto mode. Both pages say that ask and deny rules override a skill's `allowed-tools`. Neither names the case of
-  a matching allow rule such as `Bash(sor *)`, or of a skill's `allowed-tools`, against a hook's `ask`, and this was not tested in a live session. If an allow rule
-  wins, F7 of the review is not closed by the hook, and the way out is to narrow `allowed-tools` in the skill.
+- **Tested, because the documentation does not say.** The permissions page of Claude Code says that a `PreToolUse` hook runs before the permission prompt and can
+  force a prompt, and the hooks page says its `ask` prompts also in auto mode. Neither names a matching allow rule such as `Bash(sor *)`, or a skill's
+  `allowed-tools`, against a hook's `ask`. So it was run on 2026-10-22 with Claude Code 2.1.303, headless (`claude -p`, the haiku model, `--setting-sources project,local`
+  so that no plugin of the user's loaded), in scratch projects that differ only in a rule, a hook and a skill, and judged by the files left on disk and not by what
+  the model said. The command was `touch ran.txt`, which writes and so is not pre-approved. With `Bash(touch *)` allowed on the command line it ran. With the same rule and
+  a hook that returns `ask` it did not run, and the hook's marker file was written. A skill with `allowed-tools: Bash(touch *)` ran it, and the same skill with the hook
+  did not. A hook's `ask` therefore beats both an allow rule and a skill's `allowed-tools`, and the `Bash(sor *)` in the skill does not defeat the new prompts.
+  The limits are that an unanswered `ask` in `-p` is a denial, so this shows that the hook wins and not how the prompt looks; that an allow rule in project settings
+  was not honored by `-p` in an untrusted scratch folder and so was not tested that way; that the hooks were project hooks and not the plugin's `hooks.json`; and that
+  Claude Code can change this, so a new major version is worth repeating the seven calls (three plain arms, two of them again with the rule on the command line, and two skill arms).
 - **The lock records `via` on a pass or a fail, with three values.** `run` is a web run that sor evaluated itself. `command` is a `--targets` run, where sor ran a
   command that the spec declares and read the results file it wrote, whatever the command exited with (a first version called this `run`, and a review found a
   command that crashed after writing `pass` locked as run). `file` is `--results F`, also for the tests marked EXTERNAL that take their result from a file next to
@@ -1316,6 +1323,10 @@ what it knows, and ask before the flags that weaken a lock.
 - **The caller says where a result came from, and nobody else gets credit.** `accept` and `accept_language` take the source of each result, and a result with no
   source gets no label. A first version took the keys that were read from a file and called everything else run, so a caller that forgot to say, or a test that fed
   results by hand, got the most trusted label.
+- **The lock now depends on how it was made.** SPEC section 11 says identical input gives identical bytes, and where a result came from is part of the input. The same
+  state locked once with `--run-tests` and once with `--results F` gives different bytes on the test lines, so a lock made on one machine with a file and relocked in CI
+  by a run rewrites every test line, and a merge of the two touches those lines. This was accepted: a label that kept the old value when the way of locking changed
+  would say something false about the lock that carries it. Locking twice the same way gives the same bytes, and a test pins that.
 - **No label means unknown.** A lock made before the labels has none, and the status line says "locked before results were labeled". It never counts them as run.
   An older sor that rewrites a result drops the label with the entry, except that on a language line it can keep a label the result no longer matches. This is
   not worked around.

@@ -421,7 +421,8 @@ when the root file has none; and a clause whose lock line `clause@target` (§11)
   job proves it, so no environment and no result of a job is ever in the lock. A pass or a fail also says where it came from, in `via`.
   It is `run` when sor evaluated the test itself, in a web run, `command` when a command that the spec declares (`--targets`) wrote the result, and `file` when
   it read the result from `--results F`. A command is not judged by its exit code, so `command` says only that sor ran it and read what it wrote. The label is the
-  lock's own account of how it got the result and nothing more, since a file may hold what `sor test --out` wrote or what somebody typed. A result whose source
+  lock's own account of how it got the result and nothing more, since a file may hold what `sor test --out` wrote or what somebody typed. It is part of the input to the lock: the same state locked
+  by a run and from a file gives different bytes on the test lines. A result whose source
   the caller did not say has no label, a lock made before the labels has none, and a pass without a label is never counted as run. A result that is neither
   pass nor fail has no label, and it is dropped with the result.
 - Sorted, one entry per line, no line numbers, no timestamps, no measurements: identical

@@ -128,7 +128,7 @@ class TestManualTestsAreCounted(Labeled):
         os.remove(os.path.join(self.dir, 'test', 'limit.test.js'))
         code, out, _ = self.ask('lock', '--all', '--run-tests')
         self.assertEqual(code, 0, out)
-        self.assertIn('tests: 2 passed, 0 manual checks confirmed', out)       # no brackets: nothing to tell
+        self.assertIn('tests: 2 passed, 0 manual and checked by a person', out)       # no brackets: nothing to tell
         self.assertNotIn('tests locked', self.status())
 
 

@@ -583,13 +583,12 @@ def cmd_lock(args):
         print_language_lock(project, entries, wanted, lines, glue)
         if not ids:
             return 0
-    tests = [e for e in entries.values() if e.get('kind') == 'test']
-    n = {r: sum(e['result'] == r for e in tests) for r in ('pass', 'checked', 'manual', 'deferred')}
+    n = lockfile.result_counts(entries)
     what = f'{len(scope)} of {len(entries)} entries' if scope is not None else f'{len(entries)} entries'
     print(f'locked {what} in {os.path.relpath(project.lock_path, project.root)}; '
-          f'tests: {lockfile.passed_text(lockfile.passed_by(entries))}, {n["checked"]} manual checks confirmed, {n["manual"]} manual '
-          f'unconfirmed, ' + (f'{n["deferred"]} deferred to CI, ' if n['deferred'] else '')
-          + f'{len(tests) - sum(n.values())} not passed')
+          f'tests: {lockfile.passed_text(lockfile.passed_by(entries))}, {lockfile.MANUAL_CHECKED.format(n["checked"])}, '
+          f'{lockfile.MANUAL_UNCHECKED.format(n["manual"])}, ' + (f'{n["deferred"]} deferred to CI, ' if n['deferred'] else '')
+          + f'{n["other"]} not passed')
     if scope is not None:
         left, _ = lockfile.status(project, scan, entries)
         left = [f for f in left if f.status in PENDING and f.key not in scope]

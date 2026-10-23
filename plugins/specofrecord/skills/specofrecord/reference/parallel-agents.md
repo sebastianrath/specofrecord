@@ -52,6 +52,8 @@ language: `greet/hello@py`. Use it when another agent rebuilds the other languag
   agent locked. It is refused while the clause has an unlocked change ("lock the clause first"), for code that did not change (use `--already-fits ts`
   only after you checked that it fits the changed clause as it is), and while the test in that language has no passing result (`--results` with
   `greet/test:hello@ts`).
+- A language that is `behind` the clause, or has no code for it (`Targets:`), gets its code first. `--already-fits T` is only for code of T that you read against the changed
+  clause, and `--allow-behind T` only if the user says so; the hook asks the user before either runs.
 - Two clauses that share one code region in a language are locked together: `sor lock greet/hello@py greet/bye@py`.
 - A lock of one language tells you which other languages of the clause are still behind or without code. When you release a language that has code
   that is not locked, `sor release` says so.

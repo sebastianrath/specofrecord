@@ -4289,6 +4289,19 @@
     "text": "{\n\"a/test:x\": {\"kind\": \"test\", \"result\": \"pass\", \"text\": \"t\"}\n}\n"
    },
    {
+    "name": "a test entry says where its result came from, and the key sorts last",
+    "fmt": 1,
+    "entries": {
+     "a/test:x": {
+      "kind": "test",
+      "via": "file",
+      "result": "pass",
+      "text": "t"
+     }
+    },
+    "text": "{\n\"a/test:x\": {\"kind\": \"test\", \"result\": \"pass\", \"text\": \"t\", \"via\": \"file\"}\n}\n"
+   },
+   {
     "name": "no entries is an empty line between the braces",
     "fmt": 1,
     "entries": {},
@@ -4385,6 +4398,33 @@
      }
     },
     "text": "{\n\"*format\": 3,\n\"g/test:h\": {\"kind\": \"test\", \"text\": \"tt\"},\n\"g/test:h@py\": {\"built\": \"tt\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/test:h\", \"result\": \"pass\", \"target\": \"py\"},\n\"g/test:h@ts\": {\"built\": \"tt\", \"code\": \"0f1e2d3c4b5a\", \"kind\": \"code\", \"of\": \"g/test:h\", \"result\": \"fail\", \"target\": \"ts\"}\n}\n"
+   },
+   {
+    "name": "a test with a result and a source on each line: the source is on the lines, never on the test, and the lock is format 3",
+    "fmt": null,
+    "entries": {
+     "g/test:h": {
+      "kind": "test",
+      "text": "tt",
+      "result": "pass",
+      "code": "ignored",
+      "targets": {
+       "py": {
+        "code": "a1b2c3d4e5f6",
+        "built": "tt",
+        "result": "pass",
+        "via": "command"
+       },
+       "ts": {
+        "code": "0f1e2d3c4b5a",
+        "built": "tt",
+        "result": "pass",
+        "via": "file"
+       }
+      }
+     }
+    },
+    "text": "{\n\"*format\": 3,\n\"g/test:h\": {\"kind\": \"test\", \"text\": \"tt\"},\n\"g/test:h@py\": {\"built\": \"tt\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/test:h\", \"result\": \"pass\", \"target\": \"py\", \"via\": \"command\"},\n\"g/test:h@ts\": {\"built\": \"tt\", \"code\": \"0f1e2d3c4b5a\", \"kind\": \"code\", \"of\": \"g/test:h\", \"result\": \"pass\", \"target\": \"ts\", \"via\": \"file\"}\n}\n"
    },
    {
     "name": "a test whose lines carry no result keeps its result and the lock stays format 2",

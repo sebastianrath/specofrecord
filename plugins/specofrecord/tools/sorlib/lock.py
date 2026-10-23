@@ -992,19 +992,33 @@ def passed_text(by):
     return f'{total} passed ({", ".join(parts)})'
 
 
+MANUAL_UNCHECKED = '{} manual and not yet checked by a person'   # the words for a manual test, in the line of `sor lock` and in the line of `sor status`
+MANUAL_CHECKED = '{} manual and checked by a person'
+
+
+def result_counts(lock):
+    """{'pass', 'checked', 'manual', 'deferred', 'other': number of tests} of a lock. `other` is every test that did not pass (`fail`, `none`)."""
+    out = dict.fromkeys(('pass', 'checked', 'manual', 'deferred', 'other'), 0)
+    for e in lock.values():
+        if e.get('kind') == 'test':
+            result = e.get('result')
+            out[result if result in out and result != 'other' else 'other'] += 1
+    return out
+
+
 def tally_lines(lock):
     """The line `sor status` prints about what the tests in the lock stand on, so that "agree" is not read as "everything was run": how many
     passed and where their results came from, and how many are `manual:` and checked by a person or not yet. No lines when no test is manual
     and the passes do not stand on a file or a command, since a lock whose tests were all run has nothing to add."""
-    results = [e.get('result') for e in lock.values() if e.get('kind') == 'test']
-    unchecked, checked, by = results.count('manual'), results.count('checked'), passed_by(lock)
+    count, by = result_counts(lock), passed_by(lock)
+    unchecked, checked = count['manual'], count['checked']
     if not (unchecked or checked or mixed_sources(by)):
         return []
     parts = [passed_text(by)]
     if unchecked:
-        parts.append(f'{unchecked} manual and not yet checked by a person')
+        parts.append(MANUAL_UNCHECKED.format(unchecked))
     if checked:
-        parts.append(f'{checked} manual and checked by a person')
+        parts.append(MANUAL_CHECKED.format(checked))
     return ['tests locked: ' + ', '.join(parts), '']
 
 
