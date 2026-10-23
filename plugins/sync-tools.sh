@@ -44,7 +44,7 @@ if [ "$1" = "--check" ]; then
   trap 'rm -rf "$tmp"' EXIT
   build "$tmp"
   bad=0
-  diff -r -q -x __pycache__ "$tmp/tools" "$plugin/tools" >&2 || bad=1
+  diff -r -q -x __pycache__ -x .DS_Store "$tmp/tools" "$plugin/tools" >&2 || bad=1
   diff -q "$tmp/$sheet_rel" "$plugin/$sheet_rel" >&2 || bad=1
   [ -x "$plugin/bin/sor" ] || { echo "plugins/specofrecord/bin/sor is not executable (the plugin puts bin/ on the PATH): chmod +x it" >&2; bad=1; }
   if [ "$bad" = 0 ]; then
@@ -55,7 +55,7 @@ if [ "$1" = "--check" ]; then
   bad_extension=0
   if [ "$has_extension" = 1 ]; then
     copy_js_tool "$tmp/vscode"
-    diff -r -q "$tmp/vscode/tools" "$vscode/tools" >&2 || bad_extension=1
+    diff -r -q -x .DS_Store "$tmp/vscode/tools" "$vscode/tools" >&2 || bad_extension=1
     if [ "$bad_extension" = 0 ]; then
       echo "extension tools are in sync"
     else

@@ -370,6 +370,12 @@ class TestTheLicenses(unittest.TestCase):
         self.assertEqual(json.loads(read('plugins/specofrecord/.claude-plugin/plugin.json')).get('license'), 'MIT')
         self.assertEqual(json.loads(read('editors/vscode/package.json')).get('license'), 'MIT')
 
+    def test_the_plugin_readme_says_the_code_is_mit_and_never_that_no_license_is_chosen(self):
+        readme = flat(read('plugins/specofrecord/README.md'))
+        self.assertIn('The code in this plugin is MIT', readme)
+        self.assertIn('CC BY 4.0', readme)
+        self.assertNotIn('not been chosen', readme)
+
 
 if __name__ == '__main__':
     unittest.main()
