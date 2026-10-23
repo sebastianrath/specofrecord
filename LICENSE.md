@@ -1,6 +1,6 @@
 # License
 
-Spec of Record is published under two licenses: one for the spec itself, one for the tools.
+Spec of Record is published under two licenses: one for the spec itself, one for the tools. The Clawd artwork is excluded from both.
 
 ## The spec: CC BY 4.0
 
@@ -9,6 +9,13 @@ The spec itself, this draft (`SPEC.md`, the project page and the documents next 
 You may share and adapt it, including commercially, if you credit the author, link the license and say what you changed.
 
 Copyright (c) 2026 Sebastian Rath
+
+## Excluded: the Clawd artwork
+
+The Clawd images in [`static/`](static) (`clawd_idle.png`, `clawd_sleeping.png`, `clawd_detective.gif` and
+`clawd-typing.svg`) are not part of Spec of Record and are not covered by either license. They belong to their
+respective owners, who keep all rights to them. They are in this repository only to illustrate the project page, and
+this license gives you no right to use, copy, modify or distribute them.
 
 ## The tools: MIT
 
