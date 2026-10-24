@@ -685,6 +685,13 @@ class TestClaimCommands(Flow):
         code, out, _ = self.sor('status', '--json')
         self.assertEqual(json.loads(out)['claims'][0]['agent'], 'alice')
 
+    def test_a_claim_does_not_hold_the_glue_of_the_file_its_clause_sits_in(self):
+        # parallel-agents.md says so: the wiring in `@clause glue` is shared by every agent in the folder
+        self.assertEqual(self.sor('claim', 'greet/hello', '--as', 'alice')[0], 0)
+        (held,) = self.claims_file()
+        self.assertEqual(held['regions'], [['out/app.js', ['greet/hello']]])
+        self.assertFalse([k for k in held['keys'] if k.startswith('glue')])
+
     def test_a_clause_held_by_someone_else_is_refused_with_exit_3_and_the_holder(self):
         self.sor('claim', 'greet/hello', '--as', 'alice')
         code, out, _ = self.sor('claim', 'greet/hello', '--as', 'bob')

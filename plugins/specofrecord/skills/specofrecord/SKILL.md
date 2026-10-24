@@ -23,7 +23,7 @@ pass `-C <folder>`. The format is in `reference/format-cheatsheet.md`.
 | "build it", after a person changed clauses | step 3 of the change: `sor status` lists what changed |
 | "keep my change", or drift that was there before you started | "Code a person changed", below |
 | plain sentences: bullets without **names**, or `sor check` says `unnamed test` or `loose text` | `reference/plain-clauses.md` |
-| other agents work at the same time, or one per language of a clause (`greet/hello@py`) | `reference/parallel-agents.md` |
+| other agents work at the same time (also when one picks up other work), or one per language of a clause (`greet/hello@py`) | `reference/parallel-agents.md` |
 | a test that needs a place (an OS, a GPU, a database) or must run in CI | `reference/ci-evidence.md` |
 
 A new project: nothing else is asked of the user, and there is no `sor init`. Write the specs and stop: write code
@@ -37,7 +37,7 @@ only when asked, or when the project is tiny like hello world.
 | `sor test` | runs the clauses' tests (headless Chrome, web projects only) |
 | `sor claim <ids>` / `sor release --all` | say you work on these clauses / give them up |
 | `sor lock` | accept what you claimed, with its code and test results (the forms are in "Locking") |
-| `sor new <part>` / `sor new --root` | a skeleton with `<fill in: ...>` placeholders, which `sor check` reports until filled; a part name must not be an item's name (`reference/new-project.md`) |
+| `sor new <part>` / `sor new --root` | a skeleton with `<fill in: ...>` placeholders, which `sor check` reports until filled |
 | `sor show <id>`, `sor markers <id or file:line>` | a part's clauses with their code; where a clause's code is, or which clause a line serves |
 | `sor parts [--tree] [<parts>]` | an index of every part, or of those and the parts inside them: run it first in a project you do not know |
 | `sor needs [part]`, `sor changes` | what a part uses from other parts; the pending changes in words |
@@ -85,7 +85,7 @@ and the changed parts under a claimed part; `sor lock <ids>` locks only the ids 
   goes with every lock). If `sor status` still lists something afterwards, claim that clause or part and lock it.
 
 ## Claims
-Claims say who works on which clauses. They are advisory, so make them a habit even when you seem to be alone.
+Claims say who works on which clauses. They are advisory, so make them a habit even when you seem to be alone. Agents in another worktree, clone or Perforce client do not see your claims; agents in the same folder see them.
 - Before you edit a clause or its code: `sor claim <id> ...`. To add a clause, claim the part that will hold it. A claim
   also holds the code regions marked with the clause. It ends after 30 minutes without activity (`--ttl 2h` for longer) or with your session.
 - If it prints REFUSED (exit 3), do not edit that clause or its code, and do not look for a way around it (never delete

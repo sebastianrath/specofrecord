@@ -31,6 +31,7 @@ PLUGIN = os.path.join(HERE, 'specofrecord')
 TOP = 'specofrecord'
 SKIP_DIRS = {'__pycache__', '.git'}
 SKIP_FILES = {'.DS_Store'}
+SKIP_PATHS = {'evals/results'}   # what `claude plugin eval` writes when it runs the suite in plugins/specofrecord/evals
 REQUIRED = [
     '.claude-plugin/plugin.json', 'hooks/hooks.json', 'skills/specofrecord/SKILL.md',
     'tools/sor.py', 'tools/sorlib/cli.py', 'bin/sor',
@@ -57,7 +58,8 @@ def check_in_sync():
 def plugin_files():
     found = []
     for folder, dirs, files in os.walk(PLUGIN):
-        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
+        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS
+                         and os.path.relpath(os.path.join(folder, d), PLUGIN).replace(os.sep, '/') not in SKIP_PATHS)
         for name in sorted(files):
             if name in SKIP_FILES or name.endswith('.pyc'):
                 continue

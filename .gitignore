@@ -29,5 +29,8 @@ node_modules/
 # Claude Code: the folders where it keeps a checkout of its own for each session
 .claude/worktrees/
 
+# Results of the plugin's behavior evals (plugins/specofrecord/evals/README.md)
+plugins/specofrecord/evals/results/
+
 # Built plugin zips and .vsix packages
 dist/

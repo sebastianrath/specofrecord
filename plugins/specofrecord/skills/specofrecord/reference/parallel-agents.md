@@ -6,8 +6,14 @@ stop) are in `SKILL.md`, under "Claims" and "Locking".
 
 ## What a claim is
 A claim says which clauses you work on. The tool records it, `sor status` shows it in the `claims` group, and `sor lock`
-respects it. It is advice: an agent that never claims is not stopped. Claims end after 30 minutes without activity (`--ttl`, or
-`Claims:` in the root file, changes it) and when their session ends, so an agent that crashed does not block the project for good.
+respects it. It is advice: an agent that never claims is not stopped.
+
+Agents in another worktree, clone or Perforce client do not see your claims; agents in the same folder see them, so claims are how they
+coordinate. A claim holds a clause and the code marked with it. It does not hold glue (`@clause glue`), files the edit guard does not govern
+or build output: agents in one folder share all three.
+
+Claims end after 30 minutes without activity (`--ttl`, or `Claims:` in the root file, changes it) and when their session ends, so an agent
+that crashed does not block the project for good.
 
 ## Who you are
 The tool knows who you are from your Claude Code session, so you do not have to say. Pass `--as <name>` (or set

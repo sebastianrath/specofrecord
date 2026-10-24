@@ -184,6 +184,12 @@ class TestNumbersInTheDocuments(unittest.TestCase):
             self.assertTrue(found, f'{doc} no longer says how long a claim lasts')
             self.assertEqual(set(found), {minutes}, doc)
 
+    def test_the_skill_documents_say_who_sees_a_claim(self):
+        # A skill that leaves this out sends an agent to a worktree to dodge collisions the claims already prevent. Where the claims file
+        # is, and that a claim does not hold glue, are pinned in the claims tests (test_sor_claims.py, test_sor_flows.py).
+        for doc in (SKILL, os.path.join(os.path.dirname(SKILL), 'reference', 'parallel-agents.md')):
+            self.assertIn('do not see your claims; agents in the same folder see them', flat(read(doc)), doc)
+
 
 class TestThePluginHasOneName(unittest.TestCase):
     def setUp(self):
