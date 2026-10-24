@@ -34,11 +34,11 @@ the tools and the questions people ask. This README only says what is in this re
   After changing `tools/` or the cheat sheet in `SPEC.md`, run `sh plugins/sync-tools.sh` (`--check` fails when a copy is
   out of date).
 - To release, set the version fields to the new version, commit, and push a tag `v<version>`, for example
-  `git tag -s v0.1.14 -m v0.1.14 && git push origin v0.1.14`. The whole repository has one version, kept in
+  `git tag -s v0.1.15 -m v0.1.15 && git push origin v0.1.15`. The whole repository has one version, kept in
   `plugins/specofrecord/.claude-plugin/plugin.json`, `editors/vscode/package.json` (and its lock file) and
   `tools/js/package.json`, and a release fails when a build finds a version other than the tag's.
   `.github/workflows/release.yml` builds the plugin zip with `plugins/build-plugin.py`
-  and the `.vsix`, then makes one GitHub release with both files (`sor-plugin-v0.1.14.zip`, `sor-vscode-v0.1.14.vsix`), a
+  and the `.vsix`, then makes one GitHub release with both files (`sor-plugin-v0.1.15.zip`, `sor-vscode-v0.1.15.vsix`), a
   checksum for the zip, and an attestation receipt for each file (`<file>.attestation.jsonl`). A download can be checked
   against this repository with `gh attestation verify <file> --repo sebastianrath/specofrecord`, or offline by giving that
   command the receipt as its bundle. It has to be one job, because GitHub locks a release once it is published. The `.vsix` is then
