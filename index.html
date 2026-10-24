@@ -590,7 +590,7 @@ export <span class="t-k">function</span> <span class="t-f">moveMonsters</span>(g
 </div>
 <p>A real compiler gives the same output every time, so it can throw that output away and start over. An AI cannot, so Spec of Record keeps finished code.</p>
 <p>Several agents can work on one project at once. A sub-agent first claims a spec clause and its code blocks. It changes the clause and locks it, then changes the code and releases the claim. A clause that someone else holds is refused, so the agent waits or takes another one.</p>
-<div class="cl" id="claims" role="group" aria-label="Animation of two agents working in parallel: each claims a clause, changes it, locks it once it moves on to the code, changes the code and releases it, and an agent refused a clause the other holds, directly or through a shared code block, waits and comes back for it later.">
+<div class="cl" id="claims" role="group" aria-label="Animation of two agents working in parallel: each claims a clause, changes it, locks it once it moves on to the code, changes the code and releases it, and an agent refused a clause the other holds takes a free one first and comes back for it later.">
     <div class="cl-stage">
     <div class="cl-box">
       <div class="cl-head"><div class="fe-file"><span class="tab"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg><span class="tab-name">sor/</span></span></div><div class="fe-file"><span class="tab"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9z M9.3 1.5v3.2h3.2"/></svg><span class="tab-name">src/</span></span></div></div>
@@ -610,9 +610,16 @@ export <span class="t-k">function</span> <span class="t-f">withLives</span>(play
 }
 <span class="t-m">// @clause end</span></pre></div>
         <div class="cl-spec cl-gap" aria-hidden="true" style="grid-row:3"></div>
-        <div class="cl-code" data-cl="movement lives" data-i="2" style="grid-row:3"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"></svg><pre><span class="t-m">// @clause player/movement player/lives</span>
+        <div class="cl-code" data-cl="movement" data-i="2" style="grid-row:3"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"></svg><pre><span class="t-m">// @clause player/movement</span>
 <span class="t-k">const</span> ROOM = <span class="t-n" data-k="room">500</span>;
 export <span class="t-k">function</span> <span class="t-f">keepInRoom</span>(player) {
+  ...
+}
+<span class="t-m">// @clause end</span></pre></div>
+        <div class="cl-spec" data-cl="chase" style="grid-row:4"><div class="cl-id"><svg class="cl-bd" viewBox="0 0 16 16" aria-hidden="true"></svg>monsters/chase<span class="cl-no">blocked</span></div><p>Every turn a monster steps <span class="val">20 px</span> toward the player.</p></div>
+        <div class="cl-code" data-cl="chase movement" data-i="3" style="grid-row:4"><svg class="cl-bd cl-bd-code" viewBox="0 0 16 16" aria-hidden="true"></svg><pre><span class="t-m">// @clause monsters/chase player/movement</span>
+<span class="t-k">const</span> MONSTER_STEP = <span class="t-n">20</span>;
+export <span class="t-k">function</span> <span class="t-f">chase</span>(monster, player) {
   ...
 }
 <span class="t-m">// @clause end</span></pre></div>
@@ -1623,12 +1630,11 @@ export <span class="t-k">function</span> <span class="t-f">keepInRoom</span>(pla
       { a: 's:movement', b: P,          cl: { movement: 'a.claimed' },                      m: { a: 'working', b: 'idle' },    ed: [['v', 'step', '40 px']],                            cap: 'An agent claims a clause and changes the clause first: a longer step.' },
       { a: 'c:0',        b: P,          cl: { movement: 'a.locked' },                       m: { a: 'working', b: 'idle' },    ed: [['k', 'step', '40']],                              cap: 'As it moves on to the code, the clause and all its code blocks are locked, the last one too, which names two clauses.' },
       { a: 'c:0',        b: 's:movement', cl: { movement: 'a.locked' },                     m: { a: 'working', b: 'refused' }, ed: [],                                                 cap: 'While it works, a second agent wants a bigger room in the same clause, and finds it blocked.' },
-      { a: 'c:0',        b: 's:lives',   cl: { movement: 'a.locked' },                       m: { a: 'working', b: 'refused' }, ed: [],                                                 cap: 'It tries the clause below instead and is blocked there too: the last code block belongs to both clauses, and the first agent holds it.' },
-      { a: P,            b: 's:lives',   cl: {},                                           m: { a: 'idle', b: 'idle' },       ed: [],                                                  cap: 'The first agent is done and releases its clause. The second one is no longer blocked.' },
-      { a: P,            b: 's:movement', cl: { movement: 'b.claimed' },                     m: { a: 'idle', b: 'working' },    ed: [['v', 'room', '600 px']],                           cap: 'The second agent goes back to the first clause, claims it and makes the room bigger, next to the first agent’s change.' },
-      { a: P,            b: 'c:2',       cl: { movement: 'b.locked' },                      m: { a: 'idle', b: 'working' },    ed: [['k', 'room', '600']],                              cap: 'It locks the clause, with both of its code blocks, and changes the one that needs it.' },
-      { a: P,            b: 's:lives',   cl: { lives: 'b.claimed' },                         m: { a: 'idle', b: 'working' },    ed: [['v', 'lives', '5 lives']],                         cap: 'It releases that clause, then claims the one that was blocked before and changes it.' },
-      { a: P,            b: 'c:1',       cl: { lives: 'b.locked' },                          m: { a: 'idle', b: 'working' },    ed: [['k', 'lives', '5']],                               cap: 'It locks the clause with its two code blocks, the shared one included, and changes the code.' },
+      { a: 'c:0',        b: 's:lives',   cl: { movement: 'a.locked', lives: 'b.claimed' },  m: { a: 'working', b: 'working' }, ed: [['v', 'lives', '5 lives']],                         cap: 'It could wait. Instead it claims the free clause below and changes it.' },
+      { a: 'c:0',        b: 'c:1',       cl: { movement: 'a.locked', lives: 'b.locked' },   m: { a: 'idle', b: 'working' },    ed: [['k', 'lives', '5']],                               cap: 'The first agent is done. The second locks its clause as it moves on to the code, and changes it.' },
+      { a: P,            b: 's:movement', cl: { movement: 'b.claimed' },                     m: { a: 'idle', b: 'working' },    ed: [['v', 'room', '600 px']],                           cap: 'Both release their clauses. The second goes back to the first clause, claims it and makes the room bigger, next to the first agent’s change.' },
+      { a: P,            b: 'c:2',       cl: { movement: 'b.locked' },                      m: { a: 'idle', b: 'working' },    ed: [['k', 'room', '600']],                              cap: 'It locks the clause, with all three of its code blocks, and changes the one that needs it.' },
+      { a: P,            b: 'c:2',       cl: { movement: 'b.locked' },                      m: { a: 'idle', b: 'idle' },       ed: [],                                                  cap: 'Done. <code>monsters/chase</code> stays unclaimed, but nobody can claim it while its code block is held.' },
       { a: P,            b: P,           cl: {},                                           m: { a: 'idle', b: 'idle' },       ed: [],                                                  cap: 'Released. Nothing is held any more.' }
     ];
     var rest = { a: P, b: P, cl: {}, m: { a: 'idle', b: 'idle' }, ed: [], cap: 'Two agents work on one spec. Nothing is claimed yet.' };   /* before the first step: both Clawds sit in the tab bar, nothing is claimed */
@@ -1662,10 +1668,10 @@ export <span class="t-k">function</span> <span class="t-f">keepInRoom</span>(pla
       return { x: Math.round(c.right - s.left - W - (p === P ? 10 : GAP)), y: Math.round(c.top - s.top + (c.height - H) / 2) };
     }
     function put(name, p, hop) {
-      var el = who[name], to = spot(p, name), from = at[name] && at[name].xy, moved = false;
+      var el = who[name], to = spot(p, name), from = at[name] && at[name].xy, same = at[name] && at[name].p === p, moved = false;
       at[name] = { p: p, xy: to };
       var end = 'translate(' + to.x + 'px,' + to.y + 'px)';
-      if (hop && from && el.animate && !reduce && (from.x !== to.x || from.y !== to.y)) {
+      if (hop && from && !same && el.animate && !reduce && (from.x !== to.x || from.y !== to.y)) {   /* only a Clawd that goes to another cell jumps: a cell that shifts by a pixel as a value changes does not make the one standing in it hop */
         var up = Math.min(from.y, to.y) - 26;
         moved = true;
         el.animate([{ transform: 'translate(' + from.x + 'px,' + from.y + 'px)' },
@@ -1750,7 +1756,7 @@ export <span class="t-k">function</span> <span class="t-f">keepInRoom</span>(pla
         var later = function (ms, f) { landing[n].push(setTimeout(f, ms)); };
         if (jumped[n]) {                             /* in the air it is the plain Clawd; once it has landed: its clause locks, it starts work, then the value changes */
           setMode(n, 'idle');
-          if (hop && s[n] !== P) later(HOP, function () { readValues(n, cellOf(s[n])); });   /* it reads the values of the cell it lands on, whether it may change them or not */
+          if (hop && s[n] !== P && s.m[n] !== 'refused') later(HOP, function () { readValues(n, cellOf(s[n])); });   /* it reads the values of the cell it lands on, unless it is refused there: a blocked agent sees nothing */
           var t = HOP;
           if (late[n].length) {
             later(t += LOCKS, function () { late[n].forEach(function (k) { held[k] = s.cl[k]; }); paint(s, held, busy); });
