@@ -78,7 +78,7 @@ and the changed parts under a claimed part; `sor lock <ids>` locks only the ids 
 - Other agents hold claims: lock only your own clauses; `--all` is refused while they hold claims.
 - Failures that were already there: add `--allow-incomplete` and say so; it does not cover a test of code shared with a changed clause.
 - A person checks a `manual:` test: `sor lock --confirm <test>` is for people, never for you.
-- The user is asked before `--allow-behind`, `--already-fits`, `--allow-incomplete`, `--confirm`, `--results` or `--targets` runs, in plain words with no option name. Say the same in a line first (what you want to save or run, and what they trust you on) and wait.
+- The user decides before `--allow-behind`, `--already-fits`, `--allow-incomplete`, `--confirm`, `--results` or `--targets` runs, and the hook asks them in plain words with no option name. So just run it, after one line saying what you want to save or run and what they trust you on; do not also wait for an answer in chat. If the hook did not ask (it says it failed, or there is none), ask in chat first and wait.
 - A lock is refused while a test that is not `manual:` or `runs on:` has no passing result: the `tests (N)` block of `sor status`
   lists them and says the way out (for a test nobody can run yet, a `manual:` line saying what a person checks).
 - The lock takes the code of the clauses and the glue files with it (a file that is only glue, such as `__init__.py`,

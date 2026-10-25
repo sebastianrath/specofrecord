@@ -18,6 +18,8 @@ The tool is `python3 tools/py/sor.py -C <project> <command>` (a project is a fol
   `sor parts` first, `sor show` or `sor markers` before you edit code, and `sor status` after: drift that appears
   after your own edit means you broke the order. Drift that was already there is a person's change: see "Code a person
   changed" in the skill. `sor status` still reports drift and `sor lock` still refuses it.
+- No hook asks the user before `--allow-behind`, `--already-fits`, `--allow-incomplete`, `--confirm`, `--results` or `--targets` runs, so you
+  ask in chat first, in plain words (what you want to save or run, and what they trust you on), and wait for the answer.
 - You have no Claude session id, so the tool cannot tell who you are. Choose one name and pass `--as NAME` on every
   `sor claim`, `sor lock` and `sor release` (or set `SOR_AGENT=NAME`); no other command takes `--as`. Use the same name
   every time: another name is another agent. Without a name, a claim and a release fail and a plain `sor lock` is

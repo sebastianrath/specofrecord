@@ -4,7 +4,7 @@
                           code of a clause that has not changed since the last lock
     sor hook post-read   PostToolUse on Read: adds the clauses behind the regions just read
     sor hook session-start   SessionStart: a note saying this project has a spec, when it has, a short index of its parts, and what is pending
-    sor hook pre-bash    PreToolUse on Bash: asks the user before a `sor lock` that carries --allow-behind runs, and notes which files the command could change
+    sor hook pre-bash    PreToolUse on Bash: asks the user before a `sor lock` or `sor test` runs with an option that is theirs to decide (GUARDED), and notes which files the command could change
     sor hook post-bash   PostToolUse and PostToolUseFailure on Bash: says what the guard would have refused if the command changed code or the lock (shellguard.py)
     sor hook session-end   SessionEnd: frees the claims the ending session made
 
@@ -351,11 +351,17 @@ def program_index(words):
     return i
 
 
+VARIABLE = re.compile(r'^\$\{?[A-Za-z_]\w*\}?$')   # a whole word that is a variable (`$P`, `${P}`), not a path that starts with one
+
+
 def guarded_call(words):
     """(command, ids, found) when these words are a `sor lock` or `sor test` that carries an option the user has to say yes to (see GUARDED), else
     None. `ids` are the clauses it names; `found` has each of those options with the values after it."""
     i = program_index(words)
-    if i >= len(words) or os.path.basename(words[i]) not in ('sor', 'sor.py'):
+    if i < len(words) and VARIABLE.match(words[i]):   # `$P lock ...` with P="python3 tools/py/sor.py": the program is whatever the variable holds, so it counts as sor
+        if i + 1 < len(words) and os.path.basename(words[i + 1]) in ('sor', 'sor.py'):   # `$PY tools/py/sor.py lock ...`
+            i += 1
+    elif i >= len(words) or os.path.basename(words[i]) not in ('sor', 'sor.py'):
         return None
     k = i + 1
     while k < len(words) and words[k].startswith('-'):   # the options before the command: `-C folder`
