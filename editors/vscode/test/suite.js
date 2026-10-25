@@ -41,6 +41,19 @@ exports.run = async function run() {
   assert(ed.document.fileName.endsWith('index.html') && ed.selection.start.line + 1 === sun.command.arguments[0][0].start, 'jumped to the sun region');
   ok('codelens: ' + sun.command.title);
 
+  // 1a. a rule with no code anywhere: a plain `no code yet` lens and a grey mark; the sun item has neither (lenses/clause-lens, state/gutter)
+  const root = await vscode.workspace.openTextDocument(file('sor', 'SPECOFRECORD.md'));
+  const calmAt = [...Array(root.lineCount).keys()].find((n) => /^- \*\*calm\*\*/.test(root.lineAt(n).text));
+  assert(calmAt !== undefined, 'the calm rule is in the root file');
+  const calmLenses = (await lensesAt(root, calmAt)).filter((l) => l.range.start.line === calmAt);
+  assert(calmLenses.length === 1 && calmLenses[0].command.title === 'no code yet' && !calmLenses[0].command.command, 'calm has one plain "no code yet" lens: ' + JSON.stringify(calmLenses.map((l) => l.command)));
+  assert(!/no code yet/.test(sun.command.title), 'the sun item has code, so no "no code yet"');
+  const calmMarks = api.state.marks.get(path.normalize(root.uri.fsPath).toLowerCase());
+  const sunMarks = api.state.marks.get(path.normalize(bodies.uri.fsPath).toLowerCase());
+  assert(calmMarks.nocode.includes(calmAt + 1), 'calm has a grey mark: ' + JSON.stringify(calmMarks.nocode));
+  assert(!sunMarks.nocode.includes(bLine(/\*\*sun\*\*/) + 1), 'the sun item has no grey mark');
+  ok('no code yet: a lens and a grey mark on calm, none on sun');
+
   // 1b. CodeLens on @clause marker lines in code
   const code = await vscode.workspace.openTextDocument(file('out', 'index.html'));
   const lineOf = (re) => code.getText().split(/\r?\n/).findIndex((l) => re.test(l));

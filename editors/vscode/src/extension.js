@@ -199,8 +199,15 @@ function activate(context) {
   };
   // @clause end
 
-  // @clause state state/status-bar
+  // @clause state state/status-bar state/gutter lenses/clause-lens
   // ---------------------------------------------------------------- state: marks and status bar
+  /** A rule or table row with no code of its own and none in its part: it gets a grey mark and a `no code yet` lens, no state (state/gutter, lenses/clause-lens). */
+  function noCode(project, it) {
+    if ((it.kind !== 'rules' && it.kind !== 'row') || it.regions.length) return false;
+    const part = it.id.includes('/') ? it.id.slice(0, it.id.lastIndexOf('/')) : 'ROOT';
+    return !project.index.regions.some((r) => r.keys.includes(part));
+  }
+
   function computeMarks() {
     const files = new Map();   // key -> Map(line -> cls)
     const put = (file, line, cls) => {
@@ -241,15 +248,27 @@ function activate(context) {
       }
     }
     state.marks.clear();
+    const bare = new Map();   // key -> lines of the rules and rows with no code: grey where no state mark is
+    for (const project of state.projects) {
+      if (!project.index) continue;
+      for (const it of project.index.items) {
+        if (!noCode(project, it)) continue;
+        const k = norm(it.path);
+        if (!bare.has(k)) bare.set(k, []);
+        for (let l = it.line; l <= (it.endLine || it.line); l++) bare.get(k).push(l);
+      }
+    }
     for (const [k, m] of files) {
-      const o = { drift: [], review: [], recompile: [] };
+      const o = { drift: [], review: [], recompile: [], nocode: [] };
       for (const [l, c] of [...m].sort((a, b) => a[0] - b[0])) o[c].push(l);
+      o.nocode = (bare.get(k) || []).filter((l) => !m.has(l)).sort((a, b) => a - b);
       state.marks.set(k, o);
     }
   }
 
+  const MARKS = ['drift', 'review', 'recompile', 'nocode'];
   const decoTypes = {};
-  for (const c of ['drift', 'review', 'recompile']) {
+  for (const c of MARKS) {
     decoTypes[c] = vscode.window.createTextEditorDecorationType({
       gutterIconPath: vscode.Uri.file(context.asAbsolutePath(path.join('media', c + '.svg'))),
       gutterIconSize: 'contain',
@@ -260,7 +279,7 @@ function activate(context) {
   function applyMarks(editor) {
     const doc = editor.document;
     const m = doc.uri.scheme === 'file' ? state.marks.get(norm(doc.uri.fsPath)) : null;
-    for (const c of ['drift', 'review', 'recompile']) {
+    for (const c of MARKS) {
       const ranges = m && docProject(doc) ? m[c].filter((l) => l <= doc.lineCount).map((l) => new vscode.Range(l - 1, 0, l - 1, 0)) : [];
       editor.setDecorations(decoTypes[c], ranges);
     }
@@ -595,11 +614,12 @@ function activate(context) {
         for (const it of project.index.items) {
           if (norm(it.path) !== k || it !== block.item) continue;
           const regs = it.regions.map((i) => project.index.regions[i]);
-          if (!regs.length && it.kind !== 'part') continue;
-          let title = codeTitle(regs);
+          if (!regs.length && it.kind !== 'part' && !noCode(project, it)) continue;
+          let title = regs.length || it.kind === 'part' ? codeTitle(regs) : 'no code yet';
           const w = project.worst.get(it.id);
           if (w) title += ' ' + FLAG[w.cls];
-          lenses.push(new vscode.CodeLens(at(Math.max(0, it.line - 1)), { title, command: 'sor.showCode', arguments: [regs] }));
+          lenses.push(new vscode.CodeLens(at(Math.max(0, it.line - 1)), regs.length || it.kind === 'part'
+            ? { title, command: 'sor.showCode', arguments: [regs] } : { title, command: '' }));   // no code yet: nothing to jump to
         }
         return lenses;
       }
@@ -659,15 +679,16 @@ function activate(context) {
     drift: 'the code was edited and no longer matches what was last locked',
     review: 'this clause, or one it depends on, changed: check that it still holds',
     recompile: 'new, changed or removed since the last lock: its code has to be built from it',
+    nocode: 'no code is marked for this rule or for its part (a rule about a quality may need none)',
   };
   function markHover(project, doc, line) {
     const k = norm(doc.uri.fsPath);
     const m = state.marks.get(k);
-    const cls = m && ['drift', 'review', 'recompile'].find((c) => m[c].includes(line));
+    const cls = m && MARKS.find((c) => m[c].includes(line));
     if (!cls) return null;
     const item = project.index.items.filter((it) => norm(it.path) === k && it.line <= line && line <= (it.endLine || it.line))
       .sort((a, b) => (b.line - a.line) || ((a.endLine || a.line) - (b.endLine || b.line)))[0];
-    return new vscode.Hover(new vscode.MarkdownString(`${item ? `**${item.id}** · ` : ''}${WORD[cls]}\n\n${MEANS[cls]}`));
+    return new vscode.Hover(new vscode.MarkdownString(`${item ? `**${item.id}** · ` : ''}${WORD[cls] || 'no code yet'}\n\n${MEANS[cls]}`));
   }
 
   const hoverProvider = {
