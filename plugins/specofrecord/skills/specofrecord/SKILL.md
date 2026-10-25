@@ -36,6 +36,7 @@ only when asked, or when the project is tiny like hello world.
 | `sor check [<parts>]` | every problem in the spec and the markers, plus notes; with parts, only those and the parts inside them: use it while others work |
 | `sor test` | runs the clauses' tests (headless Chrome, web projects only) |
 | `sor claim <ids>` / `sor release --all` | say you work on these clauses / give them up |
+| `sor claims [--json]`, `sor queued <holder> --by <name>` | every claim in force and what is the matter with each (it writes nothing) / whoever merges says that a holder's work is queued for its merge |
 | `sor lock` | accept what you claimed, with its code and test results (the forms are in "Locking") |
 | `sor new <part>` / `sor new --root` | a skeleton with `<fill in: ...>` placeholders, which `sor check` reports until filled |
 | `sor show <id>`, `sor markers <id or file:line>` | a part's clauses with their code; where a clause's code is, or which clause a line serves |
@@ -85,16 +86,14 @@ and the changed parts under a claimed part; `sor lock <ids>` locks only the ids 
   goes with every lock). If `sor status` still lists something afterwards, claim that clause or part and lock it.
 
 ## Claims
-Claims say who works on which clauses. They are advisory, so make them a habit even when you seem to be alone. Agents in another worktree, clone or Perforce client do not see your claims; agents in the same folder see them.
-- Before you edit a clause or its code: `sor claim <id> ...`. To add a clause, claim the part that will hold it. A claim
-  also holds the code regions marked with the clause. It ends after 30 minutes without activity (`--ttl 2h` for longer) or with your session.
-- If it prints REFUSED (exit 3), do not edit that clause or its code, and do not look for a way around it (never delete
-  `sor/.sor-claims*`). A refused claim takes none of its ids, free ones included. Say who holds it; take another clause,
-  wait and retry, or ask the user.
-- Release when you are done, and before you stop even if the work failed: `sor release --all`. The tool tells you when
-  your claims ran out (at `sor lock` with no ids, or `sor release`): claim again and re-read the clause before you go on.
-- A sub-agent passes its own `--as <name>` on every claim, lock and release (no other command takes `--as`) and frees
-  only its own claims. `sor release --all` without a name frees every claim of the session, its siblings' too, so only
+Claims say who works on which clauses. They are advisory, so make them a habit even when you seem to be alone. Every working folder of the project sees them (one folder, git worktrees, and clones or workspaces
+that set one `SOR_CLAIMS_DIR`); `sor claims` says what they are shared with.
+- Before you edit a clause or its code: `sor claim <id> ...`. To add a clause, claim the part that will hold it. A claim also holds the code regions marked with the clause, is held while you work (no `--ttl`), and ends when you release it.
+- If it prints REFUSED (exit 3), do not edit that clause or its code, and do not look for a way around it (never delete `sor/.sor-claims*`, never `sor release --force`). A refused claim takes none of its ids, free ones included. The refusal
+  says why: *held* (its holder is at work: take another clause, wait and retry, or ask the user), *parked* (its holder is gone and left unfinished work elsewhere: `sor claim --take-over <ids>` continues it there), *waiting for the merge*
+  (finished work not in your copy yet: update your copy once it is merged, or take another clause).
+- Release when you are done, and before you stop even if the work failed: `sor release --all`. A claim of yours that was freed while you were away is told at `sor lock` or `sor release`: claim again and re-read the clause first.
+- A sub-agent passes its own `--as <name>` on every claim, lock and release (the hook refuses one without) and frees only its own claims. `sor release --all` without a name frees every claim of the session, its siblings' too, so only
   the parent runs it. More: `reference/parallel-agents.md`.
 
 ## Code a person changed ("keep my change")

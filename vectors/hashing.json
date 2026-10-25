@@ -4232,7 +4232,7 @@
   ]
  },
  "lock_render": {
-  "how": "render(entries, fmt) -> text of the lock file (fmt null: the format the entries need, 3 when a line of `targets` holds more than code and built, 2 when a clause has `targets`, else 1): a clause with `targets` loses `targets` and `code` and gets a line `<clause>@<target>` of kind \"code\" per target; keys sorted, one entry per line, entry keys sorted, separators \", \" and \": \", non-ASCII as written; a fmt above 1 opens with its marker line.",
+  "how": "render(entries, fmt) -> text of the lock file (fmt null: the newest format, 4; a fmt below 4 is written as before, and must not be lower than the entries need: 3 when a line of `targets` holds more than code and built, 2 when a clause has `targets`, else 1): a clause with `targets` loses `targets` and `code` and gets a line `<clause>@<target>` of kind \"code\" per target; keys sorted, one entry per line (from fmt 4 on, a blank line between the entries), entry keys sorted, separators \", \" and \": \", non-ASCII as written; a fmt above 1 opens with its marker line.",
   "rows": [
    {
     "name": "sorted keys, one entry per line, entry keys sorted",
@@ -4346,10 +4346,10 @@
       "code": "123456789abc"
      }
     },
-    "text": "{\n\"*format\": 2,\n\"g/b\": {\"code\": \"123456789abc\", \"kind\": \"item\", \"text\": \"t2\"},\n\"g/h\": {\"kind\": \"item\", \"refs\": {\"x\": \"r1\"}, \"text\": \"text1\"},\n\"g/h@py\": {\"built\": \"text1\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"py\"},\n\"g/h@ts\": {\"built\": \"text0\", \"code\": \"0f1e2d3c4b5a\", \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"ts\"}\n}\n"
+    "text": "{\n\"*format\": 4,\n\n\"g/b\": {\"code\": \"123456789abc\", \"kind\": \"item\", \"text\": \"t2\"},\n\n\"g/h\": {\"kind\": \"item\", \"refs\": {\"x\": \"r1\"}, \"text\": \"text1\"},\n\n\"g/h@py\": {\"built\": \"text1\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"py\"},\n\n\"g/h@ts\": {\"built\": \"text0\", \"code\": \"0f1e2d3c4b5a\", \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"ts\"}\n}\n"
    },
    {
-    "name": "a line that says more than code and built makes the lock format 3",
+    "name": "a line that says more than code and built needs line fields, and is written as format 4",
     "fmt": null,
     "entries": {
      "g/h": {
@@ -4372,10 +4372,10 @@
       }
      }
     },
-    "text": "{\n\"*format\": 3,\n\"g/h\": {\"kind\": \"item\", \"refs\": {\"x\": \"r1\"}, \"text\": \"text1\"},\n\"g/h@py\": {\"built\": \"text1\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"py\"},\n\"g/h@ts\": {\"built\": \"text1\", \"code\": \"0f1e2d3c4b5a\", \"fits\": true, \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"ts\"}\n}\n"
+    "text": "{\n\"*format\": 4,\n\n\"g/h\": {\"kind\": \"item\", \"refs\": {\"x\": \"r1\"}, \"text\": \"text1\"},\n\n\"g/h@py\": {\"built\": \"text1\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"py\"},\n\n\"g/h@ts\": {\"built\": \"text1\", \"code\": \"0f1e2d3c4b5a\", \"fits\": true, \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"ts\"}\n}\n"
    },
    {
-    "name": "a test with a result on each line: the result is on the lines and not on the test, and the lock is format 3",
+    "name": "a test with a result on each line: the result is on the lines and not on the test, and the entries need line fields (format 3 before 4), written as format 4",
     "fmt": null,
     "entries": {
      "g/test:h": {
@@ -4397,10 +4397,10 @@
       }
      }
     },
-    "text": "{\n\"*format\": 3,\n\"g/test:h\": {\"kind\": \"test\", \"text\": \"tt\"},\n\"g/test:h@py\": {\"built\": \"tt\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/test:h\", \"result\": \"pass\", \"target\": \"py\"},\n\"g/test:h@ts\": {\"built\": \"tt\", \"code\": \"0f1e2d3c4b5a\", \"kind\": \"code\", \"of\": \"g/test:h\", \"result\": \"fail\", \"target\": \"ts\"}\n}\n"
+    "text": "{\n\"*format\": 4,\n\n\"g/test:h\": {\"kind\": \"test\", \"text\": \"tt\"},\n\n\"g/test:h@py\": {\"built\": \"tt\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/test:h\", \"result\": \"pass\", \"target\": \"py\"},\n\n\"g/test:h@ts\": {\"built\": \"tt\", \"code\": \"0f1e2d3c4b5a\", \"kind\": \"code\", \"of\": \"g/test:h\", \"result\": \"fail\", \"target\": \"ts\"}\n}\n"
    },
    {
-    "name": "a test with a result and a source on each line: the source is on the lines, never on the test, and the lock is format 3",
+    "name": "a test with a result and a source on each line: the source is on the lines, never on the test, and the entries need line fields (format 3 before 4), written as format 4",
     "fmt": null,
     "entries": {
      "g/test:h": {
@@ -4424,10 +4424,10 @@
       }
      }
     },
-    "text": "{\n\"*format\": 3,\n\"g/test:h\": {\"kind\": \"test\", \"text\": \"tt\"},\n\"g/test:h@py\": {\"built\": \"tt\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/test:h\", \"result\": \"pass\", \"target\": \"py\", \"via\": \"command\"},\n\"g/test:h@ts\": {\"built\": \"tt\", \"code\": \"0f1e2d3c4b5a\", \"kind\": \"code\", \"of\": \"g/test:h\", \"result\": \"pass\", \"target\": \"ts\", \"via\": \"file\"}\n}\n"
+    "text": "{\n\"*format\": 4,\n\n\"g/test:h\": {\"kind\": \"test\", \"text\": \"tt\"},\n\n\"g/test:h@py\": {\"built\": \"tt\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/test:h\", \"result\": \"pass\", \"target\": \"py\", \"via\": \"command\"},\n\n\"g/test:h@ts\": {\"built\": \"tt\", \"code\": \"0f1e2d3c4b5a\", \"kind\": \"code\", \"of\": \"g/test:h\", \"result\": \"pass\", \"target\": \"ts\", \"via\": \"file\"}\n}\n"
    },
    {
-    "name": "a test whose lines carry no result keeps its result and the lock stays format 2",
+    "name": "a test whose lines carry no result keeps its result and the entries need target lines, and are written as format 4",
     "fmt": null,
     "entries": {
      "g/test:h": {
@@ -4443,7 +4443,7 @@
       }
      }
     },
-    "text": "{\n\"*format\": 2,\n\"g/test:h\": {\"kind\": \"test\", \"result\": \"manual\", \"text\": \"tt\"},\n\"g/test:h@py\": {\"built\": \"tt\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/test:h\", \"target\": \"py\"}\n}\n"
+    "text": "{\n\"*format\": 4,\n\n\"g/test:h\": {\"kind\": \"test\", \"result\": \"manual\", \"text\": \"tt\"},\n\n\"g/test:h@py\": {\"built\": \"tt\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/test:h\", \"target\": \"py\"}\n}\n"
    },
    {
     "name": "a higher format than the entries need is written as asked, with plain lines",
@@ -4467,7 +4467,7 @@
     "text": "{\n\"*format\": 3,\n\"g/h\": {\"kind\": \"item\", \"refs\": {\"x\": \"r1\"}, \"text\": \"text1\"},\n\"g/h@py\": {\"built\": \"text1\", \"code\": \"a1b2c3d4e5f6\", \"kind\": \"code\", \"of\": \"g/h\", \"target\": \"py\"}\n}\n"
    },
    {
-    "name": "the format follows the entries: none with a line is format 1 with no marker",
+    "name": "the format follows the entries: none with a line is written as format 4 all the same",
     "fmt": null,
     "entries": {
      "g/b": {
@@ -4476,7 +4476,29 @@
       "code": "123456789abc"
      }
     },
-    "text": "{\n\"g/b\": {\"code\": \"123456789abc\", \"kind\": \"item\", \"text\": \"t2\"}\n}\n"
+    "text": "{\n\"*format\": 4,\n\n\"g/b\": {\"code\": \"123456789abc\", \"kind\": \"item\", \"text\": \"t2\"}\n}\n"
+   },
+   {
+    "name": "from format 4 on a blank line separates the entries, and the marker is followed by one too",
+    "fmt": 4,
+    "entries": {
+     "b/item": {
+      "kind": "item",
+      "text": "x",
+      "code": "c"
+     },
+     "a": {
+      "kind": "part",
+      "text": "y"
+     }
+    },
+    "text": "{\n\"*format\": 4,\n\n\"a\": {\"kind\": \"part\", \"text\": \"y\"},\n\n\"b/item\": {\"code\": \"c\", \"kind\": \"item\", \"text\": \"x\"}\n}\n"
+   },
+   {
+    "name": "no entries in format 4 is the marker alone",
+    "fmt": 4,
+    "entries": {},
+    "text": "{\n\"*format\": 4\n}\n"
    }
   ]
  }

@@ -57,7 +57,8 @@ class TestOneResultForEachLanguage(Tested):
         raw = self.raw()
         self.assertNotIn('result', raw[TEST])                                  # derived when the lock is read
         self.assertEqual((self.line('py')['result'], self.line('ts')['result']), ('pass', 'pass'))
-        self.assertTrue(flows.lock_bytes(self.dir).startswith(b'{\n"*format": 3,\n'))
+        self.assertTrue(flows.lock_bytes(self.dir).startswith(flows.LOCK_HEAD))
+        self.assertIn(b'"kind": "code"', flows.lock_bytes(self.dir))      # lines per target
         self.assertEqual(lockfile.read(Project(self.dir))[TEST]['result'], 'pass')
         self.assertEqual(self.sor('status')[0], 0)
 
@@ -195,7 +196,8 @@ class TestWhatKeepsOneResult(Tested):
         self.lock_all()
         self.assertEqual(self.raw()[TEST]['result'], 'manual')
         self.assertNotIn('result', self.raw()[f'{TEST}@py'])                   # its lines have code and built, so the lock stays format 2
-        self.assertTrue(flows.lock_bytes(self.dir).startswith(b'{\n"*format": 2,\n'))
+        self.assertTrue(flows.lock_bytes(self.dir).startswith(flows.LOCK_HEAD))
+        self.assertIn(b'"kind": "code"', flows.lock_bytes(self.dir))      # lines per target
 
     def test_a_result_is_not_carried_to_the_next_lock(self):
         self.assertEqual(self.lock_with({f'{TEST}@py': 'pass', f'{TEST}@ts': 'pass'})[0], 0)

@@ -42,7 +42,7 @@ class Labeled(flows.Flow):
     results = flows.TestExternalTests.results
 
     def entries(self):
-        return json.loads(flows.lock_bytes(self.dir))
+        return {k: e for k, e in json.loads(flows.lock_bytes(self.dir)).items() if k != lockfile.FORMAT_KEY}
 
     def status(self):
         return self.sor('status')[1]

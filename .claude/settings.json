@@ -67,6 +67,39 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"$CLAUDE_PROJECT_DIR\"; [ -f \"$d/tools/py/sor.py\" ] || { d=\"$PWD\"; while [ \"$d\" != / ] && [ ! -f \"$d/tools/py/sor.py\" ]; do d=$(dirname \"$d\"); done; }; [ -f \"$d/tools/py/sor.py\" ] || exit 0; python3 \"$d/tools/py/sor.py\" hook stop || exit 1",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"$CLAUDE_PROJECT_DIR\"; [ -f \"$d/tools/py/sor.py\" ] || { d=\"$PWD\"; while [ \"$d\" != / ] && [ ! -f \"$d/tools/py/sor.py\" ]; do d=$(dirname \"$d\"); done; }; [ -f \"$d/tools/py/sor.py\" ] || exit 0; python3 \"$d/tools/py/sor.py\" hook subagent-start || exit 1",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"$CLAUDE_PROJECT_DIR\"; [ -f \"$d/tools/py/sor.py\" ] || { d=\"$PWD\"; while [ \"$d\" != / ] && [ ! -f \"$d/tools/py/sor.py\" ]; do d=$(dirname \"$d\"); done; }; [ -f \"$d/tools/py/sor.py\" ] || exit 0; python3 \"$d/tools/py/sor.py\" hook subagent-stop || exit 1",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   }
 }

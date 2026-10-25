@@ -4,7 +4,8 @@
 const crypto = require('crypto');
 const { compare, sorted, own, put } = require('./pytext');
 
-const FORMAT = 3;               // the newest lock format this tool reads and writes
+const FORMAT = 4;               // the newest lock format this tool reads and writes
+const BLANK_LINES = 4;          // from this format on a blank line separates the entries, so that git merges neighbouring entries that two branches changed
 const LINE_FIELDS = ['code', 'built'];   // what a format 2 line holds; a line with more is format 3
 const LINE_KIND = 'code';       // the kind of a per-target line in the file
 const FORMAT_KEY = '*format';   // the marker of a format above 1
@@ -107,9 +108,10 @@ function dumps(value) {
 }
 
 /**
- * The text of a lock file: a format above 1 opens with its marker, then one entry per line, sorted by code point. The format follows
- * the entries: 3 when a line of a language holds more than `code` and `built`, 2 when a clause has code per target, else 1. A caller
- * cannot name a lower one than the entries need. `newest` is the newest format this tool writes; the tests move it to try a later one.
+ * The text of a lock file: a format above 1 opens with its marker, then one entry per line, sorted by code point. The format is the newest this
+ * tool writes (FORMAT) unless a caller names another; it cannot be lower than the entries need: 3 when a line of a language holds more than
+ * `code` and `built`, 2 when a clause has code per target, else 1. From format 4 on a blank line separates the entries, so that git merges two
+ * branches that changed neighbouring entries. `newest` is the newest format this tool writes; the tests move it to try a later one.
  */
 function render(entries, fmt, newest = FORMAT) {
   let needed = 1;
@@ -120,13 +122,13 @@ function render(entries, fmt, newest = FORMAT) {
       needed = Math.max(needed, more ? 3 : 2);
     }
   }
-  const format = fmt === null || fmt === undefined ? needed : fmt;
+  const format = fmt === null || fmt === undefined ? newest : fmt;
   if (format > newest) throw new ValueError(`lock format ${format} is newer than this tool (${newest})`);
   if (format < needed) throw new ValueError(`these entries need lock format ${needed}, not ${format}`);
   const unfolded = unfold(entries);
   const lines = Object.keys(unfolded).sort(compare).map((k) => `${JSON.stringify(k)}: ${dumps(unfolded[k])}`);
   if (format > 1) lines.unshift(`${JSON.stringify(FORMAT_KEY)}: ${format}`);
-  return `{\n${lines.join(',\n')}\n}\n`;
+  return `{\n${lines.join(format >= BLANK_LINES ? ',\n\n' : ',\n')}\n}\n`;
 }
 
 module.exports = { FORMAT, LINE_KIND, FORMAT_KEY, LockWriteError, ValueError, h, digest, fold, unfold, render, dumps };

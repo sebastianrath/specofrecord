@@ -254,10 +254,11 @@ class TestTheNoteThatATargetLacksCode(TwoTargets):
 class TestTheLockDoesNotChange(TwoTargets):
     def test_two_targets_give_one_entry_per_clause_and_no_marker(self):
         self.assertEqual(self.sor('lock', '--all', '--allow-incomplete')[0], 0)
-        keys = set(json.loads(flows.lock_bytes(self.dir)))
+        keys = set(json.loads(flows.lock_bytes(self.dir))) - {lockfile.FORMAT_KEY}      # the marker is not an entry
         self.assertFalse([k for k in keys if '@' in k or k.startswith('*')])
         self.assertEqual(keys, set(lockfile.snapshot(Project(self.dir), Scan(Project(self.dir)))))
-        self.assertNotIn(b'*format', flows.lock_bytes(self.dir))
+        self.assertTrue(flows.lock_bytes(self.dir).startswith(flows.LOCK_HEAD))
+        self.assertNotIn(b'"kind": "code"', flows.lock_bytes(self.dir))      # no line per target
         self.assertEqual(lockfile.read(Project(self.dir))['greet/hello']['code'],
                          Scan(Project(self.dir)).code_hashes()['greet/hello'])   # one code hash for the clause, from both languages
 

@@ -1,12 +1,14 @@
-"""Tests for the lock's format number (SPEC §11): format 1 has no marker and keeps its bytes, a number this tool does not know is
-refused by everything that reads or rewrites the lock, and nothing is changed when it refuses.
+"""Tests for the lock's format number (SPEC §11): the lock is written in the newest format, which opens with its marker and has a blank line between the
+entries, the older formats (1 to 3) are still read, a number this tool does not know is refused by everything that reads or rewrites the lock, and nothing
+is changed when it refuses.
 
     cd <repo> && python3 -m unittest discover -s tools/py -p 'test_*.py' -v
 
-Python 3.9, standard library only. No format above 1 exists yet, so a later one is made by hand, or by moving `FORMAT` in the test.
+Python 3.9, standard library only. No format above the newest exists yet, so a later one is made by hand, or by moving `FORMAT` in the test.
 """
 import json
 import os
+import re
 import sys
 import unittest
 from unittest import mock
@@ -37,19 +39,36 @@ class Locked(flows.Flow):
         self.path = os.path.join(self.spec, 'sor-lock.json')
 
     def mark(self, value):
-        """The lock file with a format marker as its first entry, as a later format would write it."""
+        """The lock file with another format marker as its first entry, as a later format would write it."""
         text = read(self.path)
+        marker = json.dumps(lockfile.FORMAT_KEY) + ': '
+        self.assertIn(marker + str(lockfile.FORMAT) + ',', text)      # a written lock always carries its marker
         with open(self.path, 'w', encoding='utf8', newline='\n') as fh:
-            fh.write(text.replace('{\n', '{\n' + json.dumps(lockfile.FORMAT_KEY) + ': ' + json.dumps(value) + ',\n', 1))
+            fh.write(text.replace(marker + str(lockfile.FORMAT) + ',', marker + json.dumps(value) + ',', 1))
         return read(self.path)
 
+    def as_format(self, number):
+        """The lock rewritten the way an older tool of that format number wrote it (no blank lines before 4, no marker in 1)."""
+        project = Project(self.dir)
+        entries = lockfile.read(project)
+        with open(self.path, 'w', encoding='utf8', newline='\n') as fh:
+            fh.write(lockfile.render(entries, number))
+        return entries
 
-class TestFormatOne(Locked):
-    def test_a_lock_has_no_marker_and_keeps_the_same_bytes(self):
+
+class TestTheNewestFormat(Locked):
+    def test_a_lock_opens_with_its_marker_has_a_blank_line_between_entries_and_keeps_the_same_bytes(self):
         before = flows.lock_bytes(self.dir)
-        self.assertNotIn(lockfile.FORMAT_KEY.encode(), before)
+        self.assertTrue(before.startswith(('{\n"*format": %d,\n\n"' % lockfile.FORMAT).encode()), before[:60])
+        lines = before.decode().split('\n')[1:-2]
+        self.assertTrue(all((n % 2 == 1) == (line == '') for n, line in enumerate(lines)), 'a blank line after every entry, and only there')
         self.assertEqual(self.sor('lock', '--all', '--allow-incomplete')[0], 0)
         self.assertEqual(flows.lock_bytes(self.dir), before)
+
+    def test_the_file_is_still_one_json_object_that_an_older_reader_parses_apart_from_the_marker(self):
+        data = json.loads(read(self.path))
+        self.assertEqual(data[lockfile.FORMAT_KEY], lockfile.FORMAT)
+        self.assertIn('greet/hello', data)
 
     def test_the_locks_of_the_two_real_projects_are_what_this_tool_would_write(self):
         for rel in ('examples/solar-system', 'editors/vscode'):
@@ -58,11 +77,41 @@ class TestFormatOne(Locked):
                 with open(project.lock_path, encoding='utf8', newline='') as fh:
                     self.assertEqual(lockfile.render(lockfile.read(project)), fh.read())
 
+    def test_an_older_format_is_read_the_same_and_the_next_lock_writes_the_newest(self):
+        for number in (1, 2, 3):
+            with self.subTest(number):
+                entries = self.as_format(number)
+                self.assertEqual(lockfile.FORMAT_KEY in read(self.path), number > 1)
+                self.assertNotIn('\n\n', read(self.path))      # no blank lines before format 4
+                self.assertEqual(lockfile.read(Project(self.dir)), entries)
+                self.assertEqual(self.sor('status')[0], 0)
+                flows.replace_in(self.app, '"Hello"', '"Hi"')
+                flows.replace_in(os.path.join(self.spec, 'greet.md'), '{text: Hello}', '{text: Hi}')
+                self.assertEqual(self.sor('lock', 'greet/hello', '--allow-incomplete')[0], 0)
+                self.assertTrue(read(self.path).startswith('{\n"*format": %d,\n\n' % lockfile.FORMAT))
+                flows.replace_in(self.app, '"Hi"', '"Hello"')
+                flows.replace_in(os.path.join(self.spec, 'greet.md'), '{text: Hi}', '{text: Hello}')
+                self.assertEqual(self.sor('lock', 'greet/hello', '--allow-incomplete')[0], 0)
+
+    def test_rehash_rewrites_an_older_form_and_nothing_else(self):
+        entries = self.as_format(2)
+        code, out, err = self.sor('lock', '--rehash')
+        self.assertEqual(code, 0, err)
+        self.assertIn(f'in lock format {lockfile.FORMAT}', out)
+        self.assertEqual(lockfile.read(Project(self.dir)), entries)
+        self.assertTrue(read(self.path).startswith('{\n"*format": %d,\n\n' % lockfile.FORMAT))
+        code, out, err = self.sor('lock', '--rehash')
+        self.assertEqual(code, 0, err)
+        self.assertIn('nothing to rewrite', out)
+
     def test_a_marker_that_says_1_is_read_as_format_1_and_not_kept(self):
-        self.mark(1)
+        self.as_format(1)
+        text = read(self.path)
+        with open(self.path, 'w', encoding='utf8', newline='\n') as fh:
+            fh.write(text.replace('{\n', '{\n"*format": 1,\n', 1))
         self.assertEqual(self.sor('status')[0], 0)
         self.assertEqual(self.sor('lock', '--all', '--allow-incomplete')[0], 0)
-        self.assertNotIn(lockfile.FORMAT_KEY, read(self.path))
+        self.assertNotIn('"*format": 1', read(self.path))
 
     def test_no_key_can_start_with_the_marker_character(self):
         # item names stop at `*`, and every other key has a prefix of its own
@@ -132,15 +181,15 @@ class TestWhatTheWriterRefuses(unittest.TestCase):
     ENTRY = {'kind': 'item', 'text': 'abc', 'targets': {'py': {'code': 'aaa', 'built': 'abc'}}}
 
     def test_entries_with_code_per_target_cannot_be_written_as_format_1(self):
-        self.assertTrue(lockfile.render({'a/b': self.ENTRY}).startswith('{\n"*format": 2,\n'))
-        self.assertTrue(lockfile.render({'a/b': self.ENTRY}, 2).startswith('{\n"*format": 2,\n'))
+        self.assertTrue(lockfile.render({'a/b': self.ENTRY}).startswith('{\n"*format": 4,\n\n'))
+        self.assertTrue(lockfile.render({'a/b': self.ENTRY}, 2).startswith('{\n"*format": 2,\n"'))      # no blank lines before format 4
         with self.assertRaises(ValueError) as caught:
             lockfile.render({'a/b': self.ENTRY}, 1)
         self.assertIn('need lock format 2, not 1', str(caught.exception))
 
     def test_a_line_that_says_more_than_code_and_built_is_format_3_and_cannot_be_written_as_format_2(self):
         fits = dict(self.ENTRY, targets={'py': {'code': 'aaa', 'built': 'abc'}, 'ts': {'code': 'bbb', 'built': 'abc', 'fits': True}})
-        self.assertTrue(lockfile.render({'a/b': fits}).startswith('{\n"*format": 3,\n'))
+        self.assertTrue(lockfile.render({'a/b': fits}, 3).startswith('{\n"*format": 3,\n"'))
         self.assertIn('"fits": true', lockfile.render({'a/b': fits}))
         with self.assertRaises(ValueError) as caught:
             lockfile.render({'a/b': fits}, 2)
@@ -149,7 +198,7 @@ class TestWhatTheWriterRefuses(unittest.TestCase):
     def test_every_field_of_a_line_goes_into_its_clause_and_comes_back(self):
         text = lockfile.render({'a/b': dict(self.ENTRY, targets={'ts': {'code': 'bbb', 'built': 'abc', 'fits': True, 'later': 'x'}})})
         data = json.loads(text)
-        self.assertEqual(data.pop(lockfile.FORMAT_KEY), 3)
+        self.assertEqual(data.pop(lockfile.FORMAT_KEY), lockfile.FORMAT)
         entries = lockfile.fold(data)
         self.assertEqual(entries['a/b']['targets'], {'ts': {'code': 'bbb', 'built': 'abc', 'fits': True, 'later': 'x'}})
         self.assertEqual(lockfile.render(entries), text)
@@ -179,7 +228,7 @@ class TestALaterFormatRoundTrip(Locked):
     def test_the_marker_does_not_move_the_other_lines(self):
         entries = lockfile.read(Project(self.dir))
         with mock.patch.object(lockfile, 'FORMAT', self.LATER):
-            self.assertEqual(lockfile.render(entries, self.LATER).split('\n', 2)[2], lockfile.render(entries).split('\n', 1)[1])
+            self.assertEqual(lockfile.render(entries, self.LATER).split('\n', 2)[2], lockfile.render(entries).split('\n', 2)[2])
 
 
 class TestRunningTestsOnALockItCannotRead(flows.Flow):
@@ -189,7 +238,7 @@ class TestRunningTestsOnALockItCannotRead(flows.Flow):
         write(self.dir, 'out/index.html', flows.PAGE)
         self.assertEqual(self.sor('lock', '--all', '--allow-incomplete')[0], 0)
         path = os.path.join(self.spec, 'sor-lock.json')
-        write(self.dir, 'sor/sor-lock.json', read(path).replace('{\n', '{\n"*format": 99,\n', 1))
+        write(self.dir, 'sor/sor-lock.json', re.sub(r'"\*format": \d+', '"*format": 99', read(path), 1))
         asked = []
 
         def page(target, script, ids, timeout):

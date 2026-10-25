@@ -38,7 +38,8 @@ class TestConfirmingALanguage(targeted.Targeted):
         code, out, _ = self.sor('lock', 'greet/hello', '--already-fits', 'ts')
         self.assertEqual(code, 0, out)
         self.assertIn('confirmed to fit the clause, not rebuilt: greet/hello in ts', out)
-        self.assertTrue(flows.lock_bytes(self.dir).startswith(b'{\n"*format": 3,\n'))
+        self.assertTrue(flows.lock_bytes(self.dir).startswith(flows.LOCK_HEAD))
+        self.assertIn(b'"kind": "code"', flows.lock_bytes(self.dir))      # lines per target
         text = self.raw()['greet/hello']['text']
         ts = self.line('ts')
         self.assertEqual((ts['fits'], ts['built']), (True, text))
@@ -114,7 +115,8 @@ class TestConfirmingALanguage(targeted.Targeted):
         write(self.dir, 'src_ts/bye.ts', '// @clause greet/bye\nexport const BYE = "Bye";\n// @clause end\n')
         self.assertEqual(self.sor('lock', 'greet/bye')[0], 0)
         self.assertTrue(self.line('ts')['fits'])
-        self.assertTrue(flows.lock_bytes(self.dir).startswith(b'{\n"*format": 3,\n'))
+        self.assertTrue(flows.lock_bytes(self.dir).startswith(flows.LOCK_HEAD))
+        self.assertIn(b'"kind": "code"', flows.lock_bytes(self.dir))      # lines per target
 
 
 class TestWhenTheConfirmationNoLongerHolds(targeted.Targeted):
@@ -131,7 +133,8 @@ class TestWhenTheConfirmationNoLongerHolds(targeted.Targeted):
         write(self.dir, 'src_ts/greet.ts', self.TS.replace('Hello', 'Howdy'))
         self.assertEqual(self.sor('lock', 'greet/hello')[0], 0)
         self.assertNotIn('fits', self.raw()['greet/hello@ts'])
-        self.assertTrue(flows.lock_bytes(self.dir).startswith(b'{\n"*format": 2,\n'))
+        self.assertTrue(flows.lock_bytes(self.dir).startswith(flows.LOCK_HEAD))
+        self.assertIn(b'"kind": "code"', flows.lock_bytes(self.dir))      # lines per target
         self.assertNotIn('note: confirmed', self.sor('status')[1])
 
     def test_a_change_to_the_clause_makes_the_language_behind_again_and_the_old_confirmation_says_nothing(self):
@@ -150,7 +153,8 @@ class TestWhenTheConfirmationNoLongerHolds(targeted.Targeted):
 class TestTheFormatFollowsTheLines(targeted.Targeted):
     def test_a_targeted_project_nobody_confirmed_anything_in_stays_format_2(self):
         self.lock_all()
-        self.assertTrue(flows.lock_bytes(self.dir).startswith(b'{\n"*format": 2,\n'))
+        self.assertTrue(flows.lock_bytes(self.dir).startswith(flows.LOCK_HEAD))
+        self.assertIn(b'"kind": "code"', flows.lock_bytes(self.dir))      # lines per target
 
     def test_an_older_tool_refuses_a_lock_with_a_confirmation_instead_of_dropping_it(self):
         self.lock_all()

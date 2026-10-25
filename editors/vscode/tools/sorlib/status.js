@@ -22,6 +22,23 @@ function same(a, b) {
 }
 
 class LockFormatError extends Error {}
+/** The lock file has merge conflict markers in it: a merge left both versions. */
+class LockConflict extends LockFormatError {}
+/** The lock file is no JSON, or holds a key twice (a merge that kept both sides). */
+class LockDamaged extends LockFormatError {}
+
+const CONFLICT_MARK = /^(<{7}|={7}|>{7})( |$)/mu;
+const KEY_AT_LINE_START = /^("(?:[^"\\]|\\.)*"):/gmu;
+
+/** The first key that the text of a lock file holds twice (every entry starts a line), or null. */
+function keyTwice(text) {
+  const seen = new Set();
+  for (const m of text.matchAll(KEY_AT_LINE_START)) {
+    if (seen.has(m[1])) return JSON.parse(m[1]);
+    seen.add(m[1]);
+  }
+  return null;
+}
 
 function existingPath(project) {
   for (const p of [project.lockPath, project.legacyLockPath]) {
@@ -38,11 +55,26 @@ function existingPath(project) {
 function read(project) {
   const file = existingPath(project);
   if (!file) return {};
-  const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const rel = path.relative(project.root, file).split(path.sep).join('/');
+  const text = fs.readFileSync(file, 'utf8');
+  const mark = CONFLICT_MARK.exec(text);
+  if (mark) {
+    const line = text.slice(0, mark.index).split('\n').length;
+    throw new LockConflict(`${rel} has merge conflict markers (line ${line}): a merge left both versions of the lock in it. Restore either side's version of the file, then run \`sor lock <ids>\` for the clauses the other side changed (\`sor status\` lists them). Nothing was changed.`);
+  }
+  const twice = keyTwice(text);
+  if (twice !== null) {
+    throw new LockDamaged(`${rel} has the key ${twice} twice (a merge that kept both sides, or a union merge). Restore one side's version of the file, then run \`sor lock <ids>\` for the clauses the other side changed. Nothing was changed.`);
+  }
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    throw new LockDamaged(`${rel} is not the JSON that \`sor lock\` writes (${e.message}). The file may be damaged: restore it from your version control, then run \`sor lock <ids>\`. Nothing was changed.`);
+  }
   if (isObject(data) && has(data, lock.FORMAT_KEY)) {
     const number = data[lock.FORMAT_KEY];
     delete data[lock.FORMAT_KEY];
-    const rel = path.relative(project.root, file).split(path.sep).join('/');
     if (typeof number !== 'number' || !Number.isInteger(number) || number < 1) {
       throw new LockFormatError(`${rel} has ${lock.FORMAT_KEY} ${JSON.stringify(number)}, which is not a lock format number (a whole number from 1 up). The file may be damaged. Nothing was changed.`);
     }
@@ -405,15 +437,104 @@ function deferredTests(project) {
   return T.sorted([...project.allItems()].filter((i) => i.isTest && i.runsOn().length && !isManual(i)).map((i) => i.id));
 }
 
-/** The claims in force: [{agent, asked, since, until}]. */
-function activeClaims(project, now = Date.now() / 1000) {
-  let data;
+const crypto = require('crypto');
+const os = require('os');
+
+const CLAIMS_FILE = '.sor-claims.json';   // the claims file of a project whose claims live in its own folder
+const STORE_SUBDIR = 'sor-claims';        // under the common git directory
+const STORE_FILE = 'claims.json';
+
+/** [top of the checkout, its common git directory] for a folder inside a git checkout, else null (`claims.git_dirs`): read from the files git keeps. */
+function gitDirs(root) {
+  let d;
   try {
-    data = JSON.parse(fs.readFileSync(path.join(project.specDir, '.sor-claims.json'), 'utf8')).claims || [];
+    d = fs.realpathSync(root);
   } catch (e) {
-    return [];
+    d = path.resolve(root);
   }
-  return data.filter((c) => c.until > now).map((c) => ({ agent: c.agent, asked: c.asked, since: c.since, until: c.until }));
+  for (;;) {
+    const g = path.join(d, '.git');
+    let st = null;
+    try {
+      st = fs.statSync(g);
+    } catch (e) {
+      // not here
+    }
+    if (st && st.isDirectory()) return [d, g];
+    if (st && st.isFile()) {
+      let first;
+      try {
+        first = fs.readFileSync(g, 'utf8').split('\n')[0].trim();
+      } catch (e) {
+        return null;
+      }
+      if (!first.startsWith('gitdir:')) return null;
+      const gitdir = path.resolve(d, first.slice('gitdir:'.length).trim());   // resolve, not join: the path is usually absolute
+      let common = gitdir;
+      try {
+        common = path.resolve(gitdir, fs.readFileSync(path.join(gitdir, 'commondir'), 'utf8').trim());
+      } catch (e) {
+        // a submodule's git directory, or one with no linked worktrees
+      }
+      return [d, common];
+    }
+    const parent = path.dirname(d);
+    if (parent === d) return null;
+    d = parent;
+  }
 }
 
-module.exports = { read, status, pendingTests, deferredTests, activeClaims, Finding, LockFormatError };
+/** The title of the root file (`# Title`), '' when there is none. */
+function rootTitle(specDir) {
+  for (const name of ['SPECOFRECORD.md', 'CLAUSES.md']) {
+    try {
+      for (const line of fs.readFileSync(path.join(specDir, name), 'utf8').split('\n')) if (line.startsWith('# ')) return line.slice(2).trim();
+    } catch (e) {
+      // try the next name
+    }
+  }
+  return '';
+}
+
+/** The folder name of a project in a store several projects share (`claims.project_key`). */
+function projectKey(project, top) {
+  let name;
+  if (top) {
+    const rel = path.relative(fs.realpathSync(top), fs.realpathSync(project.root)).split(path.sep).join('/');
+    name = rel === '' || rel === '.' ? '' : rel;
+  } else {
+    name = rootTitle(project.specDir);
+  }
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24) || 'project';
+  return `${slug}-${crypto.createHash('sha1').update(name, 'utf8').digest('hex').slice(0, 8)}`;
+}
+
+/** Where this project's claims are kept (`claims.store`): SOR_CLAIMS_DIR, else the common git directory, else the project's own folder. */
+function claimsFile(project) {
+  const git = gitDirs(project.root);
+  const env = process.env.SOR_CLAIMS_DIR || '';
+  if (env) {
+    const home = env.startsWith('~') ? path.join(os.homedir(), env.slice(1)) : env;
+    return path.join(path.resolve(home), projectKey(project, git ? git[0] : null), STORE_FILE);
+  }
+  if (git) return path.join(git[1], STORE_SUBDIR, projectKey(project, git[0]), STORE_FILE);
+  return path.join(project.specDir, CLAIMS_FILE);
+}
+
+/** The claims in force: [{agent, asked, since, until}]. Every claim that has not been freed: one whose holder is quiet is among them until somebody
+ * decides that nothing is left to protect in it (`claims.active`). A project whose claims are kept elsewhere and that still has a claims file of its own
+ * (from before the shared store) is read from that file: the Python tool moves it on its next read. */
+function activeClaims(project) {
+  let data = null;
+  for (const file of [claimsFile(project), path.join(project.specDir, CLAIMS_FILE)]) {
+    try {
+      data = JSON.parse(fs.readFileSync(file, 'utf8')).claims || [];
+      break;
+    } catch (e) {
+      // not there, or not readable
+    }
+  }
+  return (data || []).filter((c) => !c.freed).map((c) => ({ agent: c.agent, asked: c.asked, since: c.since, until: c.until }));
+}
+
+module.exports = { read, status, pendingTests, deferredTests, activeClaims, claimsFile, gitDirs, projectKey, Finding, LockFormatError, LockConflict, LockDamaged };

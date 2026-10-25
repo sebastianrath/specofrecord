@@ -575,7 +575,7 @@ class Project1(flows.Flow):
         self.code = write(self.dir, 'src/calc.py', self.CODE)
 
     def entries(self):
-        return json.loads(flows.lock_bytes(self.dir))
+        return {k: e for k, e in json.loads(flows.lock_bytes(self.dir)).items() if k != lockfile.FORMAT_KEY}
 
     def hashes(self, legacy=False):
         project = Project(self.dir)

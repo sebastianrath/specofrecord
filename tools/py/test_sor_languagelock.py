@@ -209,7 +209,8 @@ class TestAlreadyFits(Locked):
         self.assertIn('confirmed to fit the clause, not rebuilt: greet/hello in ts', out)
         line = self.lines()['greet/hello@ts']
         self.assertEqual((line['fits'], line['built']), (True, self.raw()['greet/hello']['text']))
-        self.assertTrue(flows.lock_bytes(self.dir).startswith(b'{\n"*format": 3,\n'))
+        self.assertTrue(flows.lock_bytes(self.dir).startswith(flows.LOCK_HEAD))
+        self.assertIn(b'"kind": "code"', flows.lock_bytes(self.dir))      # lines per target
         self.assertEqual(self.findings(), [])
 
     def test_it_is_refused_when_the_language_is_not_behind(self):

@@ -210,7 +210,7 @@ class TestTheEditHookAndALanguageClaim(Claimed):
 class TestAnExpiredClaimOfALanguage(Claimed):
     def test_it_is_no_news_once_the_whole_clause_is_claimed_again(self):
         self.take('greet/hello@py', agent='a', session='A')
-        self.expire()
+        self.expire(freed=True)
         self.assertEqual([c['asked'] for c in claims.lost(Project(self.dir), 'a', [], session='A')], [['greet/hello@py']])
         self.assertEqual(claims.lost(Project(self.dir), 'a', ['greet/hello'], session='A'), [])
         self.take('greet/hello', agent='a', session='A')

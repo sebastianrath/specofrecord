@@ -278,7 +278,7 @@ for that item) or `bug:` (a regression test).
   tool reads no jest or pytest output. External
   tests are not run by `sor test`, so they do not count toward its clause coverage, and the tool trusts the framework's
   result, as it does for `--results` alone. **In a project that says its targets (§9)** a test with marked code in more than one language has a result for each:
-  its lock entry gets a line `part/test:name@py` per language with test code, like a clause (the lock is then format 3, §11), each line holds `result`, and the
+  its lock entry gets a line `part/test:name@py` per language with test code, like a clause (§11), each line holds `result`, and the
   result of the test is worked out from them when the lock is read (`fail` if one failed, `pass` if all passed, else `none`), so everything that reads a test's
   result goes on reading one. `F` then holds `{"part/test:name@py": "pass", "part/test:name@ts": "pass"}`; a plain id is the result of the only language that
   has test code for it, and is refused, naming the lines, when two have; a language with no test code for the test is refused. A language with no test code
@@ -372,7 +372,7 @@ is what happens to a language nobody rebuilt after the clause changed, or after 
 clause was brought in line with it. `sor status` lists what is behind with the recompile group, naming the targets, and `sor lock`
 refuses to lock a clause while a target that applies to it would stay behind. `sor lock --allow-behind ts` locks it anyway, and `ts`
 stays listed as behind until its code changes, or until `sor lock --already-fits ts` says that the code of `ts` was checked against the changed
-clause and needs no change: the line then holds `built` for the new text and `"fits": true`, the lock is format 3, and `sor status` keeps a note
+clause and needs no change: the line then holds `built` for the new text and `"fits": true`, the line holds a field besides `code` and `built` (§11), and `sor status` keeps a note
 (not a pending change, no exit code, nothing in `--json`) for as long as the line is confirmed and not rebuilt. A rebuild of that code, or the next
 change to the clause, ends the confirmation. The flag refuses a language that is also named by `--allow-behind`, one that is not behind in any clause
 being locked, and one with no code for a clause (that is `--allow-behind`'s).
@@ -426,8 +426,9 @@ when the root file has none; and a clause whose lock line `clause@target` (§11)
   by a run and from a file gives different bytes on the test lines. A result whose source
   the caller did not say has no label, a lock made before the labels has none, and a pass without a label is never counted as run. A result that is neither
   pass nor fail has no label, and it is dropped with the result.
-- Sorted, one entry per line, no line numbers, no timestamps, no measurements: identical
-  input gives identical bytes; a line-based merge keeps different entries apart.
+- Sorted, one entry per line, a blank line between the entries, no line numbers, no timestamps, no measurements: identical
+  input gives identical bytes; a line-based merge keeps different entries apart, and the blank line is what lets it merge two branches that changed
+  neighbouring entries, which it would report as a conflict if their lines touched.
 - Hashes do not depend on line endings: spec text is read with universal newlines and code is hashed
   without layout, so an LF checkout and a CRLF checkout of the same files give the same lock.
 - The file is written through a temp file and a rename that keeps the permissions the file had, and
@@ -455,18 +456,24 @@ when the root file has none; and a clause whose lock line `clause@target` (§11)
   changed since the last lock `built` = the clause's text now; a target whose code is the same keeps the `built` it had, which is how
   it ends up behind (§9). A lock made before the project said its targets (one joined `code`) is read as it is: nothing is behind and
   nothing is drift, and a clause moves to lines when it is next locked. The file holds both kinds until every clause has been locked.
-- **The lock has a format number.** The lock format described here is number 3. Format 1 has no marker in the file: a lock written
-  before the number existed is format 1, and a project that has no per-target lines keeps the same bytes. Format 2 opens the file with
-  `"*format": 2`, a plain number and not an entry, and is written exactly when a clause has per-target lines; no item, row, value, test
-  or glue key can start with `*`. Format 3 opens it with `"*format": 3` and is written exactly when a per-target line holds a field besides `code`
-  and `built` (today `fits`, set by `sor lock --already-fits`, §9): a reader of format 2 would take only those two fields from a line and drop the other
-  without a word, so a line with more has a number of its own, and a project that never uses such a field stays in format 2 with the same bytes. A tool that reads a
+- **The lock has a format number.** The lock format described here is number 4. The marker `"*format": 4` opens the file, a plain number and not an entry
+  (no item, row, value, test or glue key can start with `*`), and a blank line separates every entry from the next; the file is still one JSON object,
+  the blank lines are whitespace. The blank line is what format 4 adds: a line-based merge keeps two entries apart only when a line that nobody changed lies between
+  them. Formats 1 to 3 are read as they are. Format 1 has no marker (a lock written before the number existed); formats 2 and 3 added the per-target lines
+  (`greet/hello@py`, for a clause with code per target) and a line with a field besides `code` and `built` (today `fits`, set by `sor lock --already-fits`, §9). Whatever the
+  entries hold, the tool writes the newest format, so the next `sor lock` rewrites an older lock (`sor lock --rehash` does only that: it rewrites the file and
+  accepts nothing), and a tool from before the blank lines stops at the marker instead of rewriting the lock without them. A tool that reads a
   number it does not know stops with exit 2, says to update, and changes nothing. That covers `sor status`, `sor lock` in every form
   (a lock that a newer tool wrote while it was running is not replaced either), `sor changes`, and `sor test` when it runs tests.
   `sor check`, `sor parts`, `sor show` and the other commands that never read the lock go on working. The edit hook refuses edits to
   code, because it cannot tell what drifted, and answers reads without the list of pending changes. A tool older than the number
   cannot be taught: given the marker it stops with a Python error, and its edit hook fails open as for any error of its own. So the
   number protects a lock only from tools that have it; update every copy of the tool (the project's, the plugin's and the extension's).
+- **A lock a merge has damaged is named, not guessed at.** A lock with conflict markers in it, one that is no JSON, and one that holds a key twice (a union merge)
+  stop every command that reads it with exit 2 and a message that says what happened and what to do: restore either side's version of the file, then `sor lock <ids>`
+  for the clauses the other side changed (this gives the same lock as a correct hand merge). `sor check` lists it as a problem. The edit hook goes on letting
+  edits through, because those are the edits that resolve the merge. A hook that meets an error of its own exits 0 and says so to the agent, never 1, which Claude
+  Code treats as a noisy error and lets the call through all the same.
 - Large projects may split it: a folder with a project of its own (§1) holds its own lock.
 
 ## 12. Where does it go?
@@ -532,16 +539,18 @@ with `-C <folder>`:
 | `sor test --strength [id …]` | test strength (§8): reruns each passing test with every value it refers to changed; lists weak tests and the value that did not matter, and the passing tests it could not vary (`IDLE`) |
 | `sor lock [--run-tests [--targets NAMES] \| --results F] [--confirm test …] [--allow-incomplete]` | writes the lock; refuses on problems, drift, or tests that did not pass. With `--run-tests`, a refusal that does not depend on a test result is given first and no test runs (§11). What a scoped lock waits for is in §16. With both `--run-tests` and `--results F`, F gives the results of the EXTERNAL tests only (§8). The refusal for tests without a result says `N test(s) did not pass (F failed, M not run)`, lists the first ten and the way out: with no web target a `manual:` line for a test nobody can run yet, or `--results F` for a test in the project's own framework; with a web target `sor lock --run-tests`, adding `--results F` for a test marked `@clause test <id>`; with targets that say how their tests run (§9) `sor lock --run-tests --targets NAMES`, naming those targets, in both cases; and `--allow-incomplete` in all of them. `sor status` gives the same way out in its `tests (N)` block |
 | `sor lock [<id …> \| --all] [--allow-behind TARGETS] [--already-fits TARGETS]` | accepts the named clauses only, none of the child parts under them unless named (§11); with no ids, what you claimed, and the child parts under a claimed part that have a change of their own (new, changed or removed; parts made after the claim too): it prints `locking the parts under them too: …`, and leaves out a child part that another agent's claim overlaps, naming it (`not locking audio/mixer, which is claimed: …`); `ROOT` is not expanded; `--all` the whole project (§16). Refused while someone else claims them. With no ids and every claim of the agent expired, it is refused and says so; when only some expired, it warns (§16) |
-| `sor claim <id …> [--as NAME] [--ttl 30m]` | says you are working on these clauses, and how long it holds without activity: `claimed audio, held while you work: it ends at 00:31 if you do nothing for 30 min` (`--ttl never`: `no idle limit`; without `--ttl`, the root file's `Claims: idle …`, else 30 minutes); exit 3 and who holds them when someone else is: the refusal names the ids in the way, and says when the others asked for were free but not claimed either, for a claim takes all its ids or none (§16) |
+| `sor claim <id …> [--as NAME] [--ttl 30m] [--take-over]` | says you are working on these clauses, and how long it holds without activity: `claimed audio, held while you work: it ends at 00:31 if you do nothing for 30 min` (`--ttl never`: `no idle limit`; without `--ttl`, the root file's `Claims: idle …`, else 30 minutes); exit 3 and who holds them when someone else is: the refusal names the ids in the way, and says when the others asked for were free but not claimed either, for a claim takes all its ids or none; `--take-over` continues the work of a parked claim (§16) |
+| `sor claims [--json]` | every claim in force with its holder, ids, folder, branch, times and state (`held`, `parked`, `waiting`, `free`) and what the store is shared with; writes nothing (§16) |
+| `sor queued HOLDER --by NAME` | says that whoever merges has queued the work of a holder: a notice for finished work that waits for its merge, and nothing else (§16) |
 | `sor claim greet/hello@py`, `sor lock greet/hello@py` | one language of a clause, in a project that says its targets (§9, §16): the claim holds that language's line, the lines of its own test and of its rows and the code regions in its files; the lock writes those lines and the glue of that language's files, and never the clause's own line. `sor release` of it says when the language has code that is not locked |
-| `sor release [id … \| --all] [--as NAME] [--force]` | gives claims up again. A caller that names itself (`--as NAME` or `SOR_AGENT`) frees only that agent's claims; releasing another agent's claim by id prints `NOT released (held by someone else; --force overrides)` and exits 3. A caller that gives no name (the parent, or the only agent) frees every claim made in its session (§16). `--force` overrides. Claims that had expired are named: `nothing to release: your claims on X expired at 00:31`, or the same as a `note:` beside what was released |
+| `sor release [id … \| --all] [--as NAME] [--force]` | gives claims up again. A caller that names itself (`--as NAME` or `SOR_AGENT`) frees only that agent's claims; releasing another agent's claim by id prints `NOT released (held by someone else; a person can force it from a terminal with --force)` and exits 3. A caller that gives no name (the parent, or the only agent) frees every claim made in its session (§16). `--force` overrides, for a person at a terminal: the Bash hook refuses it to an agent (§16). Claims that were freed are named: `nothing to release: your claims on X expired at 00:31`, or the same as a `note:` beside what was released |
 | `sor markers [id \| file:line]` | where an item's code is, or which clauses a line of code serves; `--json` gives every region with the `targetName` of the target its file belongs to (null when it belongs to none) |
 | `sor show <part \| item>` | the clauses with their code underneath, and under an item every test that proves it: one view for people and agents |
 | `sor parts [--json] [--tree] [PART …]` | an index of every part (`--tree`: each part indented under its parent, with the number of parts under it; with parts, only those and the parts inside them, as in `sor check`, and a name that is no part is exit 2 with the closest ones): id, title, `Why:`, Owner, Source, bullets per section, what it gives, open questions. Printed, never written into `sor/`, because every `.md` file there is a part. The session-start hook adds a compact version of it |
 | `sor needs [part] [--json]` | what a part needs, derived from the `{references}` in its items to items of other parts (words of its parent files, its own child parts and design tokens do not count, so the root needs nothing), each marked `gives` or not. A `needs` bullet (§7) stays allowed and is optional |
 | `sor changes [--json]` | the changes pending since the last lock, grouped: **Added**, **Changed**, **Removed**, **Fixes** (new or changed tests with `bug:`), and every item retired with `retired:` |
 | `sor new <part> [--why TEXT]` · `sor new --root [--why TEXT]` | writes a skeleton part (the four sections) or the root file (Rules and Approach), with hint comments at the start of a line and `<fill in: …>` placeholders, which `sor check` reports until they are filled in. Never overwrites a file. The edit hook lets one Write fill in a skeleton that is still exactly as written, whatever sentence it was given for `--why` (see the hooks below). Refuses (writing nothing): a `-C` folder that does not exist; an id that is already an item (parts and items share one set of ids, §3; the message says where the item is, `the rule **mixer** in audio.md`, and the two ways out: another part name, or rename that item first); an id whose folder already holds parts; a `--why` with a `Word:` setting inside the sentence (`Owner:`, `Run:`, …), which the reader would take for a setting of the part |
-| `sor hook pre-edit \| post-read \| session-start \| pre-bash \| post-bash \| session-end` | Claude Code hooks, registered in `.claude/settings.json` (below); `pre-bash` asks the user before a `sor lock` runs with `--allow-behind`, `--already-fits`, `--allow-incomplete`, `--confirm` or `--results`, or a `sor lock` or `sor test` runs with `--targets` (the `--results` of `sor evidence` is a CI job's own file and is not asked about), `session-end` frees the claims of the ending session |
+| `sor hook pre-edit \| post-read \| session-start \| pre-bash \| post-bash \| session-end \| stop \| subagent-start \| subagent-stop` | Claude Code hooks, registered in `.claude/settings.json` (below); `pre-bash` asks the user before a `sor lock` runs with `--allow-behind`, `--already-fits`, `--allow-incomplete`, `--confirm` or `--results`, or a `sor lock` or `sor test` runs with `--targets` (the `--results` of `sor evidence` is a CI job's own file and is not asked about), `session-end` frees the claims of the ending session |
 
 Drift lines name who last changed their lines when the environment can tell (today from `git blame`):
 `(changed by NAME in 1a2b3c4 (2026-10-17))`, or `(not committed yet)`; without git nothing is added.
@@ -776,13 +785,13 @@ What the tool does about it:
   clauses (a part holds its items, an item its rows, values and own test) and the code regions
   marked with them. Two agents conflict when their claims overlap in either: the same clause, a
   part and its item, or two clauses marked on one region. A clause that shares *another* region
-  is not held: claiming the moon does not lock out the light. A claim is held while its holder is active: it ends after a window with no
-  activity, up to 5 minutes sooner because activity is recorded at most that often (default 30 minutes idle; `--ttl` changes it for one claim, and `Claims: idle 2h` or `Claims: idle never` in the root file for the project)
-  and when its Claude Code session ends (`sor hook session-end`, which looks for the project from the folder the session ends in: a session started above its
-  project keeps its claims until the window runs out), so a closed or crashed chat does not block the project. Activity is a `sor` command or a
+  is not held: claiming the moon does not lock out the light. A claim is held while its holder is at work: activity renews it (a `sor` command or a
   hook call that carries the holder's session id, so the extension's refreshes, which carry none, keep nothing alive; a person at a terminal renews by
-  naming themselves (`--as`) at `sor lock`. `sor claim` says when the claim ends if nothing more happens (`claimed audio, held while you work: it ends at
-  00:31 if you do nothing for 30 min`), and `sor status` and a refusal show the last activity of each claim.
+  naming themselves with `--as` at `sor lock`), at most every 5 minutes. A holder that shows no activity for a window (default 30 minutes idle; `--ttl` changes it for one
+  claim, and `Claims: idle 2h` or `Claims: idle never` in the root file for the project) is *quiet*, and that alone frees nothing: whether the claim
+  stands is decided when somebody asks for the clause, by what its holder left behind (**How a claim ends**, below). `sor claim` says when the claim goes quiet if
+  nothing more happens (`claimed audio, held while you work: it ends at 00:31 if you do nothing for 30 min`), and `sor status` and a refusal show the last
+  activity of each claim and, for a holder that is gone, what is the matter.
   To add a clause, claim the part that will hold it. A claim on a part holds its own items; it does not hold the child
   parts under it, so another agent may claim `audio/mixer` while `audio` is claimed (the plain `sor lock`, below, is what
   covers the child parts). A claim of several ids takes all of them or none.
@@ -791,18 +800,18 @@ What the tool does about it:
   live on 2026-10-18). So an agent never has to say who it is. Each claim also records the `session` it was made
   in. The edit hook compares sessions, never names: a claim made under `--as` still protects its own session's
   edits, a claim by another session blocks them, and a claim by a person at a terminal (no session) blocks every
-  agent; an old claim without a `session` field is compared by name. **Subagents share their parent's session id**
-  (checked live: the Bash tool and the hook both report the parent's id; the hook also sees a different `agent_id` per
-  subagent, the CLI cannot). For the hook the subagents of one session are therefore one agent. At the CLI an agent is
-  a session plus a name: a parent that runs subagents in parallel gives each its own name and has it pass `--as <name>`
-  on every claim, lock and release (a shell variable does not survive between calls), and does not claim what it
-  delegates. Two subagents then conflict at `sor claim`, and so do two chats that both use the same name. The hook does
-  not enforce between sibling subagents, so a subagent that skips claiming is not stopped. Claims are advisory: the tool records and shows them (`sor status`, group `claims`, and `claims` in
-  `--json`) and `sor lock` respects them, but an agent that never claims is not stopped. The edit hook checks
-  them only when `SOR_ENFORCE_CLAIMS=1` is set for it (next points).
+  agent; an old claim without a `session` field is compared by name. **Subagents share their parent's session id** (checked live: the Bash tool and the hook both
+  report the parent's id), but Claude Code gives a hook inside a subagent an `agent_id` of its own, and the CLI has none. So at the CLI an agent is a session plus a
+  name: a subagent passes `--as <name>` on every claim, lock and release, and the Bash hook enforces it: a `sor claim`, `lock` or `release` from a subagent without
+  `--as` is refused with what to pass, and the name binds the subagent (`bindings.json` in the store): a name that a sibling of the same session already acts under is
+  refused. The edit hook then attributes an edit made inside a subagent to its name, so a subagent's edit to a clause that a sibling or its parent holds is refused, and
+  a subagent that has bound no name holds nothing: it may edit what nobody holds, and is refused what somebody does. The parent (no `agent_id`) is the session, as before.
+  A subagent's activity renews the claims under its own name only, and the parent's does not renew a subagent's, so a finished subagent's claim does not live as long as
+  its parent works. Claims are advisory: the tool records and shows them (`sor status`, group `claims`, `claims` in `--json`, and `sor claims --json`) and `sor lock`
+  respects them, but an agent that never claims is not stopped. The edit hook checks them only when `SOR_ENFORCE_CLAIMS=1` is set for it (next points).
 - **Releasing follows the name.** `sor release <ids>` and `sor release --all` by a caller that names itself (`--as NAME`
   or `SOR_AGENT`) free only that agent's claims: another agent's claim named by id is `NOT released (held by someone
-  else; --force overrides)` and exits 3, and `--all` leaves it alone. A caller that gives no name (the parent, or the
+  else; a person can force it from a terminal with --force)` and exits 3, and `--all` leaves it alone. A caller that gives no name (the parent, or the
   only agent) frees every claim made in its session under any name, so it can clear what its subagents left behind.
   A subagent that forgets `--as` cannot be told from the parent, and its `release --all` frees its siblings' claims too:
   each subagent passes its own `--as <name>`, and the parent's last `sor release --all` carries no name at all (no `--as`,
@@ -859,24 +868,57 @@ What the tool does about it:
   It cannot tell who edits without a `session_id` and then allows. Without the variable it is off, as it
   must be wherever the hook's `session_id` is not the id the CLI finds in `CLAUDE_CODE_SESSION_ID`: if they
   differed, an agent would be refused by its own claim.
-- **The claims file** (`sor/.sor-claims.json`, `{"claims": [{agent, asked, keys, regions, pins, session, since, last, idle, until}]}`) is
-  written whole through a temp file and a rename, under a short mutex (`sor/.sor-claims.lock`, an `O_EXCL` file broken
-  when older than 10 s); temp files older than 5 minutes are removed. A claim that expired is kept for 2 hours as a
-  tombstone (`claims.TOMBSTONE`), only so that its holder can be told (next point); every write of the file prunes the
-  older ones, and a tool from before tombstones sees them as expired claims, which they are. The file is deleted when no
-  claim and no tombstone is left, so a project where everyone has released has nothing left in it.
-- **Expired claims tell their holder.** A claim that expires while its holder works does not stop it, so the holder is
-  told at its next lock or release. `sor lock` with no ids, when all its claims expired, is refused with "your claims on
-  X, Y expired at 00:31; claims end after 30 min idle by default: claim again, `--ttl 2h` for a longer window". A no-ids lock that covers
-  live claims prints a `warning:` for the expired ones, which are not in that lock. `sor release` says "nothing to
+- **Where claims live.** In one store for every working folder of a project, found the same way from each: a folder named by `SOR_CLAIMS_DIR` (for clones, Perforce
+  workspaces, a shared drive, anything; the projects that use it have a folder each in it, named for their path in the repository, or for the title of their root
+  file), else the common git directory of the checkout (`sor-claims/` in it: every worktree of a repository has the same one, and the sandbox of Claude Code lets sor
+  write there), else `sor/.sor-claims.json` of the project's own folder, where claims lived before. The store is never in a working folder when there is a repository, so
+  git has nothing to ignore; where it is in the project's folder, the claims file, its mutex, its temp files and the bindings (`sor/.sor-claims.*`, `.sor-bindings.*`)
+  are to be ignored by the version control. The first read of a project finds claims in its own old file and moves them into the store. Another clone of a git
+  repository has a store of its own unless both set `SOR_CLAIMS_DIR`, and `sor status`, `sor claims` and the note a session starts with say what the store is shared with.
+- **The store** is `claims.json` (`{"claims": [{agent, asked, keys, regions, pins, session, since, last, idle, until, grant, rev, base, where, ended, stopped, busy_at,
+  locked, queued, freed}]}`; in the project's own folder `.sor-claims.json`), written whole through a temp file and a rename, under a mutex: an OS file lock on
+  `claims.lock` (`fcntl` on Unix, `msvcrt` on Windows), which ends with the process that holds it, so a crashed holder leaves nothing to break and the lock file is
+  never removed. Where the file system gives no OS lock (some network shares) the old way is the fallback: an `O_EXCL` file, broken when older than 10 s, which two waiters
+  can race for after a crash. Temp files older than 5 minutes are removed. `grant` numbers a record (it rises with the clock, so a record that comes back after the file
+  was emptied is still a new one), `rev` counts the writes that changed it, `base` is the signature of the lock entries of its keys at the moment of the grant, `where`
+  the working folder, the machine and the branch it was made in. A claim that was freed stays for 2 hours as a tombstone (`freed`; `claims.TOMBSTONE`), only so that
+  its holder can be told (below). The file is deleted when no claim and no tombstone is left.
+- **How a claim ends.** A holder releases it, or `sor claim` finds that nothing is left to protect, or somebody takes it over. Events are recorded as facts on the
+  claim and free nothing: the session ended (`SessionEnd`, with its reason, in the time the hook has: it reads the claims file and not the project), a subagent stopped
+  (`SubagentStop`; `SubagentStart`, which also fires when one is resumed, clears it), and the `Stop` of the session listed work in flight (`background_tasks`: a long build
+  runs in the background and renews nothing), which keeps its claims from falling quiet until the parked window has passed since then. A holder is *gone* when its
+  session ended, it stopped, or it is quiet and not busy in the background. `SIGKILL` sends no `SessionEnd`; such a holder becomes quiet. When somebody asks for a clause
+  that a holder holds (`sor claim`, and the edit guard when the holder is gone), the claim stands or not by these rules, the first that fits: its working folder is
+  gone (free, unless the holder locked work, which waits for its merge); the holder is not gone (held, even after it locked part of its work: five hours of a build is
+  not a reason to free it); its work has arrived in this copy, that is, its locked entries for its keys differ from `base` and the lock of this copy differs from `base`
+  too (free); it is gone and its folder is this one (free: what it left is in files that are shared, and shows as changes to finish, an agent's unfinished work and not a
+  person's change to keep); it left unfinished work in another folder (*parked*; free when the parked window passes, `Claims: parked 12h`, default 24 hours); it left
+  finished work that has not reached this copy (*waiting for the merge*: no takeover, no time limit, freed when the work arrives or a person releases it); it left
+  nothing (free). A folder that cannot be read from here (another machine, no permission) leaves the idle window alone to decide. What stands is read in the holder's folder
+  as `sor status` reads a project, and nothing is written there. The look is taken without the mutex, then the record is read again under it, and the claim is
+  decided on only if its `rev` has not changed; else the look is taken again. A claim found to hold nothing back is freed (a tombstone), and the claim goes ahead.
+- **Taking over.** `sor claim --take-over <ids>` continues the work of a parked claim, with no question to anybody: a wrong takeover costs duplicate or abandoned work and
+  never a lost file, since the old branch stays and the old holder is refused when it comes back. It is refused for a holder at work, and for finished work waiting for
+  its merge (it would only redo it). The new claim records whose it was and what was left (`took_over`), the old holder is told at its next lock or release, and
+  the work continues in the old holder's folder and branch, which the refusal that leads to it names. From a session isolated in a worktree, the main checkout cannot be
+  edited: then the work is handed to a session that can, or the parked window passes. `sor release --force` frees a claim somebody else holds and asks nobody: an agent
+  does not run it (the Bash hook refuses it, with the reason), and a person at a terminal can.
+- **Fence.** `sor lock` and the edit guard refuse a holder whose claim is gone to somebody else (`claimed  b: …`), and `sor lock` of named clauses is refused for a holder whose
+  claim on them was freed without it, until it claims again and reads the clause again (the clause, or the branch, may have changed): the worst case of freeing a claim is a message.
+- **Queued.** `sor queued HOLDER --by NAME` says that whoever merges (a merge queue, an orchestrator, a CI job, a person) has queued the work of a holder. It is a notice
+  and nothing else: it changes the words for finished work that waits for its merge (queued by NAME since 14:02, nobody has said they will merge it, or queued but the queue
+  went silent six hours ago) and no rule. sor knows nothing of merge queues, git or CI; the name is not a proof.
+- **Reading claims.** `sor claims [--json]` lists every claim in force with its holder, ids, keys, session, folder, branch, machine, times, state (`held`, `parked`,
+  `waiting`, `free`), why, the number of unfinished changes, the reason its session ended, whether it locked work, the queued signal, `grant` and `rev`. It writes nothing.
+  `sor status --json` keeps four fields per claim (agent, asked, since, until) for the editor.
+- **Freed claims tell their holder.** A claim that was freed while its holder was away (quiet with nothing left, the parked window over, or taken over) does not
+  stop it, so the holder is told at its next lock or release. `sor lock` with no ids, when all its claims were freed, is refused with "your claims on
+  X, Y expired at 00:31 (or: taken over by NAME at 00:31); claim again (a holder is quiet after 30 min idle by default; `--ttl 2h` for a longer window)". A no-ids lock that covers
+  live claims prints a `warning:` for the freed ones, which are not in that lock; a lock of named clauses whose claim was freed is refused (the fence, above). `sor release` says "nothing to
   release: your claims on X expired at 00:31", or adds it as a `note:`. Once the agent claims the same clauses again,
   the tombstone is no news and goes.
 - **Exit codes:** a refused claim or release is 3.
-- **Not covered:** claims stay inside one workspace (another one, such as a git worktree, a Perforce client or a
-  Lore instance, or another machine does not see them: sharing them needs a shared place that differs per
-  environment, and none is built); contradictions between clauses (the compiler's review and the tests find those); a Write
-  by an agent that does not use the hook; the read-to-write gap of an Edit; a claim that expires
-  while its holder is still working (it is not stopped, but the tool tells the holder at its next `sor lock` or
-  `sor release`, above: claim again and re-read the clause first; an agent that does neither is not told); two agents that
-  both break the same stale mutex file after a crash can both enter the critical section; Windows
-  (`os.replace` may fail while a reader has the file open) was not tried.
+- **Not covered:** claims across clones that share no `SOR_CLAIMS_DIR` and no machine; contradictions between clauses (the compiler's review and the tests find those); a Write
+  by an agent that does not use the hook; the read-to-write gap of an Edit; a shell command that changes code (a warning afterwards); whether `SessionEnd` runs when the
+  desktop app quits (it does for `SIGTERM` and `SIGHUP`, not for `SIGKILL`: checked, Claude Code 2.1.310, macOS); the claims of ids that exist only on a branch (a new
+  clause is claimed through the part that will hold it); Windows (`os.replace` may fail while a reader has the file open) was not tried.

@@ -162,7 +162,8 @@ class TestNumbersInTheDocuments(unittest.TestCase):
         spec = flat(read('SPEC.md'))
         for what, value, pattern in (
                 ('a claim lasts (minutes)', claims.DEFAULT_TTL // 60, r'default (\d+) minutes'),
-                ('an expired claim is kept to tell its holder (hours)', claims.TOMBSTONE // 3600, r'kept for (\d+) hours'),
+                ('a freed claim is kept to tell its holder (hours)', claims.TOMBSTONE // 3600, r'stays for (\d+) hours as a tombstone'),
+                ('a claim a gone holder left unfinished work behind is held (hours)', claims.DEFAULT_PARKED // 3600, r'default (\d+) hours'),
                 ('a leftover mutex is broken after (seconds)', claims.STALE_LOCK, r'older than (\d+) s\b'),
                 ('the parts index at session start (characters)', hook.INDEX_MAX, r'`Why:`, at most (\d+) characters'),
                 ('the line about what is pending at session start (characters)', hook.PENDING_MAX, r'in a line of at most (\d+) characters')):
@@ -175,20 +176,21 @@ class TestNumbersInTheDocuments(unittest.TestCase):
         self.assertEqual({int(n) for n in re.findall(r'lock format described here is number (\d+)', spec)}, {lockfile.FORMAT})
         self.assertIn(f'`"{lockfile.FORMAT_KEY}": {lockfile.FORMAT}`', spec)
 
-    def test_the_claim_lifetime_the_skill_documents_give_is_the_one_in_the_code(self):
-        minutes = claims.DEFAULT_TTL // 60
-        for doc, pattern in ((SKILL, r'It ends after (\d+) minutes without activity'),
-                             (os.path.join(os.path.dirname(SKILL), 'reference', 'parallel-agents.md'),
-                              r'Claims end after (\d+) minutes without activity|end after (\d+) min idle by default')):
-            found = [int(n) for m in re.findall(pattern, flat(read(doc))) for n in (m if isinstance(m, tuple) else (m,)) if n]
-            self.assertTrue(found, f'{doc} no longer says how long a claim lasts')
-            self.assertEqual(set(found), {minutes}, doc)
+    def test_the_idle_window_the_claims_reference_gives_is_the_one_in_the_code(self):
+        doc = os.path.join(os.path.dirname(SKILL), 'reference', 'parallel-agents.md')
+        found = [int(n) for n in re.findall(r'after (\d+) minutes without activity', flat(read(doc)))]
+        self.assertTrue(found, f'{doc} no longer says when a holder goes quiet')
+        self.assertEqual(set(found), {claims.DEFAULT_TTL // 60}, doc)
+        self.assertNotIn('minutes without activity', flat(read(SKILL)), 'the skill leaves the number to the reference: an agent needs no --ttl')
 
     def test_the_skill_documents_say_who_sees_a_claim(self):
-        # A skill that leaves this out sends an agent to a worktree to dodge collisions the claims already prevent. Where the claims file
-        # is, and that a claim does not hold glue, are pinned in the claims tests (test_sor_claims.py, test_sor_flows.py).
+        # A skill that says claims stop at the folder sends agents to share one folder, and one that says nothing leaves them to guess. Where the store is, and that
+        # a claim does not hold glue, are pinned in the claims tests (test_sor_store.py, test_sor_claims.py, test_sor_flows.py).
         for doc in (SKILL, os.path.join(os.path.dirname(SKILL), 'reference', 'parallel-agents.md')):
-            self.assertIn('do not see your claims; agents in the same folder see them', flat(read(doc)), doc)
+            text = flat(read(doc))
+            self.assertIn('Every working folder of the project sees', text, doc)
+            self.assertIn('SOR_CLAIMS_DIR', text, doc)
+            self.assertNotIn('do not see your claims', text, doc)
 
 
 class TestThePluginHasOneName(unittest.TestCase):

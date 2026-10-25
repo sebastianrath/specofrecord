@@ -141,14 +141,24 @@ class TestWhatRenewsAClaim(Lives):
         self.assertEqual(claims.renew(Project(self.dir), SESSION), 0)
         self.assertEqual((os.stat(self.path).st_mtime_ns, read(self.path)), (before, content))
 
-    def test_a_claim_that_ran_out_is_never_renewed(self):
-        # it may be someone else's by now; its holder is told at the next lock or release
+    def test_a_claim_that_only_ran_out_is_renewed_by_its_holder_nobody_freed_it(self):
         self.age(60 * 60)
         gone = self.until()
         self.assertLess(gone, time.time())
         self.run_as(SESSION, 'status', '--json')
+        self.assertGreater(self.until(), time.time())
+        self.assertEqual(self.run_as(OTHER, 'claim', 'greet/hello')[0], 3)
+
+    def test_a_claim_that_was_freed_is_never_renewed(self):
+        # it may be someone else's by now; its holder is told at the next lock or release
+        self.age(60 * 60)
+        self.assertEqual(self.run_as(OTHER, 'claim', 'greet/hello')[0], 0)         # nothing was left in it: freed
+        (old,) = [c for c in self.claims_file() if c['session'] == SESSION]
+        gone = old['until']
+        self.run_as(SESSION, 'status', '--json')
         hook.pre_edit(dict(flows.edit(os.path.join(self.spec, 'greet.md'), '{text: Bye}', '{text: Ciao}'), session_id=SESSION))
-        self.assertEqual(self.until(), gone)
+        (old,) = [c for c in self.claims_file() if c['session'] == SESSION]
+        self.assertEqual(old['until'], gone)
         code, out, _ = self.run_as(SESSION, 'lock')
         self.assertEqual(code, 2)
         self.assertIn('expired at', out)
@@ -245,11 +255,15 @@ class TestWhatRenewsAClaim(Lives):
 
 
 class TestAClaimThatEnds(Lives):
-    def test_after_its_idle_window_a_claim_blocks_nobody(self):
+    def test_after_its_idle_window_a_claim_blocks_nobody_when_nothing_is_left_to_protect(self):
         self.claim('greet/hello', ttl='90s')
         self.age(120)
-        self.assertEqual(claims.active(Project(self.dir)), [])
+        self.assertEqual(len(claims.active(Project(self.dir))), 1)         # quiet, not freed: nobody has decided anything about it yet
+        self.assertEqual(claims.others_for_session(Project(self.dir), OTHER, ['greet/hello']), [])      # but it holds nothing back
         self.assertEqual(self.run_as(OTHER, 'claim', 'greet/hello')[0], 0)
+        (old,) = [c for c in self.claims_file() if c['session'] == SESSION]
+        self.assertEqual((old['freed']['by'], old['freed']['why']), (claims.session_agent(OTHER), 'quiet'))      # and it is told when it comes back
+        self.assertEqual(claims.active(Project(self.dir))[0]['session'], OTHER)
 
     def test_a_claim_with_no_window_blocks_until_it_is_released_or_forced(self):
         self.claim('greet/hello', ttl='never')
@@ -259,22 +273,38 @@ class TestAClaimThatEnds(Lives):
         self.assertEqual(self.run_as(OTHER, 'release', 'greet/hello', '--force')[0], 0)
         self.assertEqual(self.run_as(OTHER, 'claim', 'greet/hello')[0], 0)
 
-    def test_the_end_of_a_session_frees_its_claims_and_only_those(self):
+    def test_the_end_of_a_session_is_recorded_on_its_claims_and_only_those_and_frees_nothing(self):
         self.claim('greet/hello', session=SESSION)
         self.claim('greet/bye', session=OTHER)
-        self.assertEqual(claims.release_session(Project(self.dir), SESSION), 1)
-        self.assertEqual([c['asked'] for c in self.claims_file()], [['greet/bye']])
-        self.assertEqual(claims.release_session(Project(self.dir), SESSION), 0)
-        self.assertEqual(claims.release_session(Project(self.dir), ''), 0)
+        self.assertEqual(claims.mark_ended(Project(self.dir), SESSION, 'other'), 1)
+        mine, theirs = self.mine(SESSION)[0], self.mine(OTHER)[0]
+        self.assertEqual(mine['ended']['reason'], 'other')
+        self.assertNotIn('ended', theirs)
+        self.assertEqual(sorted(c['asked'][0] for c in claims.active(Project(self.dir))), ['greet/bye', 'greet/hello'])      # still in the file, still claims
+        self.assertEqual(claims.mark_ended(Project(self.dir), '', 'other'), 0)
 
-    def test_the_session_end_hook_run_as_a_program_frees_them_too(self):
+    def test_what_a_session_that_ended_held_is_free_to_the_next_agent_in_the_same_folder(self):
         self.claim('greet/hello', session=SESSION)
-        code, out, err = flows.run_hook('session-end', {'session_id': SESSION, 'cwd': self.dir, 'reason': 'other'})
+        claims.mark_ended(Project(self.dir), SESSION, 'other')
+        self.assertEqual(claims.others_for_session(Project(self.dir), OTHER, ['greet/hello']), [])
+        self.assertEqual(self.run_as(OTHER, 'claim', 'greet/hello')[0], 0)
+
+    def test_a_session_that_ends_and_is_resumed_has_its_claims_back(self):
+        self.claim('greet/hello', session=SESSION)
+        claims.mark_ended(Project(self.dir), SESSION, 'other')
+        self.run_as(SESSION, 'status', '--json')          # the resumed session shows signs of life
+        self.assertNotIn('ended', self.mine(SESSION)[0])
+        self.assertEqual(self.run_as(OTHER, 'claim', 'greet/hello')[0], 3)
+
+    def test_the_session_end_hook_run_as_a_program_records_the_end(self):
+        self.claim('greet/hello', session=SESSION)
+        code, out, err = flows.run_hook('session-end', {'session_id': SESSION, 'cwd': self.dir, 'reason': 'prompt_input_exit'})
         self.assertEqual((code, out), (0, ''), err)
-        self.assertEqual(self.claims_file(), [])
+        self.assertEqual([c['ended']['reason'] for c in self.claims_file()], ['prompt_input_exit'])
         done = subprocess.run([sys.executable, base.SOR, 'hook', 'session-end'], input='not json', cwd=REPO, capture_output=True, text=True,
                               env=dict(os.environ, PYTHONDONTWRITEBYTECODE='1'))
-        self.assertEqual((done.returncode, done.stdout), (1, ''))
+        self.assertEqual((done.returncode, done.stdout), (0, ''))      # a hook that fails fails open; SessionEnd output is discarded anyway
+        self.assertIn('sor hook session-end failed', done.stderr)
 
     def test_the_session_end_hook_of_a_folder_with_no_project_does_nothing(self):
         empty = tempfile.mkdtemp()           # outside this project: a folder inside it would find it

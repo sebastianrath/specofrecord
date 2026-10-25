@@ -36,6 +36,6 @@ In this repository:
   with the Python tool on a project in many states). A change in `tools/py/sorlib/` to how a project is read, or to what those commands print, goes
   into `tools/js/sorlib/` in the same change; a change to the hashing, marker or lock rules also goes into `vectors/hashing.json` through
   `python3 vectors/make_hashing.py`. After a change to how the Python tool reads a project, run the whole suite once with `SOR_COMPARE_JS=1`
-  (about twelve minutes): it compares the two tools on every state the tests build.
+  (about half an hour; `test_sor_permutations.py` compares once per case, not after every command, or it would take hours): it compares the two tools on every state the tests build.
 - Do not run `lock` or `claim` against `examples/` or `editors/vscode` to try the tool out: use a temporary
   folder.

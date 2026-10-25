@@ -360,6 +360,23 @@ LOCK.append({'name': 'the format follows the entries: none with a line is format
              'entries': {'g/b': {'kind': 'item', 'text': 't2', 'code': ALL_C}},
              'text': '{\n"g/b": {"code": "%s", "kind": "item", "text": "t2"}\n}\n' % ALL_C})
 
+# From format 4 on, a blank line separates the entries (so that git merges neighbouring entries) and every written lock carries the marker 4: the rows that
+# asked for "the format the entries need" now get format 4. The rows that name a lower format (1 to 3) still show how those are written.
+def format_4(text):
+    if '"*format"' in text:
+        text = text.replace('"*format": 2,', '"*format": 4,').replace('"*format": 3,', '"*format": 4,')
+    else:
+        text = text.replace('{\n', '{\n"*format": 4,\n', 1)
+    return text.replace(',\n"', ',\n\n"')
+for r in LOCK:
+    if r['fmt'] is None:
+        r['text'] = format_4(r['text'])
+        r['name'] = r['name'].replace('the lock is format 3', 'the entries need line fields (format 3 before 4), written as format 4').replace('makes the lock format 3', 'needs line fields, and is written as format 4').replace('the lock stays format 2', 'the entries need target lines, and are written as format 4').replace('is format 1 with no marker', 'is written as format 4 all the same')
+LOCK.append({'name': 'from format 4 on a blank line separates the entries, and the marker is followed by one too', 'fmt': 4,
+             'entries': {'b/item': {'kind': 'item', 'text': 'x', 'code': 'c'}, 'a': {'kind': 'part', 'text': 'y'}},
+             'text': '{\n"*format": 4,\n\n"a": {"kind": "part", "text": "y"},\n\n"b/item": {"code": "c", "kind": "item", "text": "x"}\n}\n'})
+LOCK.append({'name': 'no entries in format 4 is the marker alone', 'fmt': 4, 'entries': {}, 'text': '{\n"*format": 4\n}\n'})
+
 MARK = []
 for name, path, line, starters, expected in [
     ('a line comment', 'a.js', '// @clause a/b', [], ['', ['a/b']]),
@@ -416,7 +433,7 @@ doc = {
     'fold': {'how': 'fold(file entries) -> entries: a line of kind "code" goes into the entry named by its `of` as targets[<target>], with every field it has but kind, of and target ({code, built}, and fits when the language was confirmed to fit), and that entry gets code = digest(targets); a line without its clause is dropped.', 'rows': FOLD},
     **({'marker': {'how': 'parse_marker(path, line, starters) -> null | {code, words}: a marker is `@clause` after a comment starter, the whole line or after code (a line marker). Every file has the starters // # /* <!-- -- ; as runs (// and ///, ; and ;;), its type adds more (SPEC section 10), and `starters` are those its target declares, which add and never take away. Words are what follows `@clause` without a closing */ --> or *); REM and :: count only at the start of a line.', 'rows': MARK}}),
     **({'starters_of': {'how': 'starters_of(path) -> [starter]: the comment starters, besides // # /* <!-- -- ; (SPEC section 10), that a marker may follow in a file of that type: the `starters` column of the table, in order. A row for every extension in it.', 'rows': STARTERS}}),
-    'lock_render': {'how': 'render(entries, fmt) -> text of the lock file (fmt null: the format the entries need, 3 when a line of `targets` holds more than code and built, 2 when a clause has `targets`, else 1): a clause with `targets` loses `targets` and `code` and gets a line `<clause>@<target>` of kind "code" per target; keys sorted, one entry per line, entry keys sorted, separators ", " and ": ", non-ASCII as written; a fmt above 1 opens with its marker line.', 'rows': LOCK},
+    'lock_render': {'how': 'render(entries, fmt) -> text of the lock file (fmt null: the newest format, 4; a fmt below 4 is written as before, and must not be lower than the entries need: 3 when a line of `targets` holds more than code and built, 2 when a clause has `targets`, else 1): a clause with `targets` loses `targets` and `code` and gets a line `<clause>@<target>` of kind "code" per target; keys sorted, one entry per line (from fmt 4 on, a blank line between the entries), entry keys sorted, separators ", " and ": ", non-ASCII as written; a fmt above 1 opens with its marker line.', 'rows': LOCK},
 }
 names = [r['name'] for k in doc if isinstance(doc[k], dict) and 'rows' in doc[k] for r in doc[k]['rows']]
 assert len(names) == len(set(names)), 'duplicate row names'

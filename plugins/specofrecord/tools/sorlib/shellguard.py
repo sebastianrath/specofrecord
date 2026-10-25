@@ -295,7 +295,7 @@ def check_project(root, was, payload, has_tool):
     if enforcing() and session:
         keys = {k for r in scan.regions if r.file in code for k in r.keys if not k.startswith('glue:')}
         regions = {(f, ids) for f, ids in claims.regions_of(scan, keys) if f in code}
-        held = claims.others_for_session(project, session, keys, regions, text=False)
+        held = claims.others_for_agent(project, session, payload.get('agent_id') or '', keys, regions, text=False)
         if held:
             lines.append('Someone else is working on this: the code of a clause in a file the command changed is claimed.')
             lines += [f'- {claims.describe(c)}' for c in held]

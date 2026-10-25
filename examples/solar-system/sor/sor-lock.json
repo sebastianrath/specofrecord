@@ -1,259 +1,517 @@
 {
+"*format": 4,
+
 "ROOT": {"kind": "part", "text": "cd32fa57f462"},
+
 "bodies": {"kind": "part", "text": "c3a539e2b22c"},
+
 "bodies/moon": {"code": "6fb78f180516", "kind": "item", "text": "2e4c6c7a2370"},
+
 "bodies/moon.days": {"kind": "value", "text": "7cfe8259d731"},
+
 "bodies/moon.orbit": {"kind": "value", "text": "8527a891e224"},
+
 "bodies/moon.size": {"kind": "value", "text": "d4735e3a265e"},
+
 "bodies/motion": {"code": "9d5ad1c6af23", "kind": "item", "text": "c8e2b6cf3f1b"},
+
 "bodies/planets": {"code": "cc95c4189a0d", "kind": "item", "text": "7dab54adfbd7"},
+
 "bodies/planets/Earth": {"code": "06a6c4a89a5b", "kind": "row", "text": "2bd70b5a4956"},
+
 "bodies/planets/Earth.days": {"kind": "value", "text": "4e47eb5525df"},
+
 "bodies/planets/Earth.orbit": {"kind": "value", "text": "0f8ef3377b30"},
+
 "bodies/planets/Earth.size": {"kind": "value", "text": "7902699be42c"},
+
 "bodies/planets/Jupiter": {"code": "ac8c221d4fef", "kind": "row", "text": "c552a5a13a63"},
+
 "bodies/planets/Jupiter.days": {"kind": "value", "text": "2d71287dce71"},
+
 "bodies/planets/Jupiter.orbit": {"kind": "value", "text": "a0eaec5a55dc"},
+
 "bodies/planets/Jupiter.size": {"kind": "value", "text": "b17ef6d19c7a"},
+
 "bodies/planets/Mars": {"code": "15f8288757cc", "kind": "row", "text": "a002f704178f"},
+
 "bodies/planets/Mars.days": {"kind": "value", "text": "c2077253a9b1"},
+
 "bodies/planets/Mars.orbit": {"kind": "value", "text": "a512db2741cd"},
+
 "bodies/planets/Mars.size": {"kind": "value", "text": "ef2d127de37b"},
+
 "bodies/planets/Mercury": {"code": "81a42384015c", "kind": "row", "text": "048c8a7a00ec"},
+
 "bodies/planets/Mercury.days": {"kind": "value", "text": "8b940be7fb78"},
+
 "bodies/planets/Mercury.orbit": {"kind": "value", "text": "39fa9ec190ee"},
+
 "bodies/planets/Mercury.size": {"kind": "value", "text": "4b227777d4dd"},
+
 "bodies/planets/Neptune": {"code": "ceca053babe5", "kind": "row", "text": "27cebc663497"},
+
 "bodies/planets/Neptune.days": {"kind": "value", "text": "d50afb1bc329"},
+
 "bodies/planets/Neptune.orbit": {"kind": "value", "text": "db55da3fc309"},
+
 "bodies/planets/Neptune.size": {"kind": "value", "text": "4a44dc153642"},
+
 "bodies/planets/Saturn": {"code": "6484989d9254", "kind": "row", "text": "b188ac65f811"},
+
 "bodies/planets/Saturn.days": {"kind": "value", "text": "49d47c56fa74"},
+
 "bodies/planets/Saturn.orbit": {"kind": "value", "text": "983bd614bb5a"},
+
 "bodies/planets/Saturn.size": {"kind": "value", "text": "3fdba35f04dc"},
+
 "bodies/planets/Uranus": {"code": "e16f736f1368", "kind": "row", "text": "986ce1ae0e4a"},
+
 "bodies/planets/Uranus.days": {"kind": "value", "text": "dc22707f7ecc"},
+
 "bodies/planets/Uranus.orbit": {"kind": "value", "text": "4e47eb5525df"},
+
 "bodies/planets/Uranus.size": {"kind": "value", "text": "4a44dc153642"},
+
 "bodies/planets/Venus": {"code": "f628582be268", "kind": "row", "text": "ed9c7470420d"},
+
 "bodies/planets/Venus.days": {"kind": "value", "text": "0e6523810856"},
+
 "bodies/planets/Venus.orbit": {"kind": "value", "text": "69f59c273b6e"},
+
 "bodies/planets/Venus.size": {"kind": "value", "text": "6b51d431df5d"},
+
 "bodies/start-places": {"code": "3d2da2c98cf5", "kind": "item", "text": "fe008f001fbf"},
+
 "bodies/sun": {"code": "24a806eb1c96", "kind": "item", "text": "eae6620d81bb"},
+
 "bodies/sun.size": {"kind": "value", "text": "59e19706d51d"},
+
 "bodies/test:moon": {"kind": "test", "result": "pass", "text": "abce28574394", "via": "run"},
+
 "bodies/test:motion": {"kind": "test", "result": "pass", "text": "ea960ccde0ba"},
+
 "bodies/test:planets": {"kind": "test", "result": "pass", "text": "664b4e9aa36c", "via": "run"},
+
 "bodies/test:start-places": {"kind": "test", "result": "pass", "text": "aa615bcd2076"},
+
 "bodies/test:sun": {"kind": "test", "result": "pass", "text": "3b1a17c68180", "via": "run"},
+
 "bodies/~f2f7fc": {"kind": "item", "text": "d9532daa72c6"},
+
 "calm": {"kind": "item", "refs": {"screen/scene/names": "e284c9bbde4c", "screen/scene/sky": "854033ab7381", "screen/view/fit": "31a2ff0d1bc7"}, "text": "af0a100dc6bb"},
+
 "clock": {"kind": "part", "text": "62ea1ab16ea9"},
+
 "clock/pause": {"code": "d64098c9a1f5", "kind": "item", "text": "ab197c47b44a"},
+
 "clock/real-time": {"code": "9bdba545a0eb", "kind": "item", "text": "8e39a93bb501"},
+
 "clock/real-time.cap": {"kind": "value", "text": "cb6ba721ae1e"},
+
 "clock/slider": {"code": "4670917c1eeb", "kind": "item", "text": "774d5f6e647d"},
+
 "clock/slider.max": {"kind": "value", "text": "ad5736686512"},
+
 "clock/slider.min": {"kind": "value", "text": "5feceb66ffc8"},
+
 "clock/slider.start": {"kind": "value", "text": "d59eced1ded0"},
+
 "clock/speed": {"code": "0b39eb650502", "kind": "item", "text": "85b478140653"},
+
 "clock/start": {"code": "d64098c9a1f5", "kind": "item", "text": "ba4b7cf6290b"},
+
 "clock/start.day": {"kind": "value", "text": "5feceb66ffc8"},
+
 "clock/test:pause": {"kind": "test", "result": "pass", "text": "d4d4aa5a15db"},
+
 "clock/test:real-time": {"kind": "test", "result": "manual", "text": "eceac6d5fe30"},
+
 "clock/test:slider": {"kind": "test", "result": "pass", "text": "dcfb435e3175", "via": "run"},
+
 "clock/test:speed": {"kind": "test", "refs": {"year.days": "73130243bfd0"}, "result": "pass", "text": "ede80909e462"},
+
 "clock/test:start": {"kind": "test", "refs": {"clock/start.day": "5feceb66ffc8"}, "result": "pass", "text": "1069605e4344"},
+
 "delivery": {"kind": "item", "text": "0fac5878f30a"},
+
 "design": {"kind": "part", "text": "036f695bdd9c"},
+
 "design/assets": {"kind": "item", "text": "04b3ba108aa2"},
+
 "design/assets/earth": {"code": "00a6afa3ab92", "kind": "row", "text": "90a28f574fab"},
+
 "design/assets/earth.file": {"kind": "value", "text": "e6e0be294de3"},
+
 "design/assets/jupiter": {"code": "67bd2417a494", "kind": "row", "text": "a4d191d835e3"},
+
 "design/assets/jupiter.file": {"kind": "value", "text": "55f48f577c81"},
+
 "design/assets/mars": {"code": "95ad363994b7", "kind": "row", "text": "315852eeaf47"},
+
 "design/assets/mars.file": {"kind": "value", "text": "fe7da06153fb"},
+
 "design/assets/mercury": {"code": "7edde8a32439", "kind": "row", "text": "cf66b3144589"},
+
 "design/assets/mercury.file": {"kind": "value", "text": "b33663a7b26f"},
+
 "design/assets/moon": {"code": "13c7936e6f53", "kind": "row", "text": "02244501588a"},
+
 "design/assets/moon.file": {"kind": "value", "text": "3f295ddf0ccc"},
+
 "design/assets/neptune": {"code": "14865ceb1640", "kind": "row", "text": "2492a0b491a8"},
+
 "design/assets/neptune.file": {"kind": "value", "text": "fc5869f354c7"},
+
 "design/assets/saturn": {"code": "5769b7ffd039", "kind": "row", "text": "bd7c3093b265"},
+
 "design/assets/saturn.file": {"kind": "value", "text": "2822dd03ceec"},
+
 "design/assets/sun": {"code": "0344ea9d66e0", "kind": "row", "text": "1b669c1b8446"},
+
 "design/assets/sun.file": {"kind": "value", "text": "85107f730020"},
+
 "design/assets/uranus": {"code": "3fa3d5163f74", "kind": "row", "text": "8be042ff7245"},
+
 "design/assets/uranus.file": {"kind": "value", "text": "5d0595312b23"},
+
 "design/assets/venus": {"code": "59eeaaf4c919", "kind": "row", "text": "836eeef1bd02"},
+
 "design/assets/venus.file": {"kind": "value", "text": "54a56cbbdbda"},
+
 "design/body": {"kind": "item", "text": "d1e4254f7e50"},
+
 "design/body/moon": {"code": "67ef3c9fa5bf", "kind": "row", "text": "c80282d473ad"},
+
 "design/body/moon.value": {"kind": "value", "text": "f2f3ae25d3da"},
+
 "design/body/sun": {"code": "4e818107eae2", "kind": "row", "text": "9765f549a9e5"},
+
 "design/body/sun-core": {"code": "527d7f5cc0f7", "kind": "row", "text": "761607ddf51d"},
+
 "design/body/sun-core.value": {"kind": "value", "text": "d91581f9f2dc"},
+
 "design/body/sun-glow": {"code": "c249a6241fbb", "kind": "row", "text": "7d128faf7999"},
+
 "design/body/sun-glow.value": {"kind": "value", "text": "11f9aaca5cb0"},
+
 "design/body/sun.value": {"kind": "value", "text": "eb27cda8ba4b"},
+
 "design/comet": {"kind": "item", "text": "dbde28d757d2"},
+
 "design/comet/head": {"code": "2407fd440913", "kind": "row", "text": "1794f8c10763"},
+
 "design/comet/head.value": {"kind": "value", "text": "69b005b22352"},
+
 "design/comet/tail": {"code": "943e5890e078", "kind": "row", "text": "20e638577166"},
+
 "design/comet/tail.value": {"kind": "value", "text": "b65b8b0e77e5"},
+
 "design/planet": {"kind": "item", "text": "6bf57a32a3c1"},
+
 "design/planet/earth": {"code": "a3c8ab5b86c2", "kind": "row", "text": "dcc1efa32709"},
+
 "design/planet/earth.value": {"kind": "value", "text": "001c0ed63cac"},
+
 "design/planet/jupiter": {"code": "91b565a30063", "kind": "row", "text": "f08400053422"},
+
 "design/planet/jupiter.value": {"kind": "value", "text": "461d7f3f8033"},
+
 "design/planet/mars": {"code": "7e4e3cd4e347", "kind": "row", "text": "714d3773e81b"},
+
 "design/planet/mars.value": {"kind": "value", "text": "e314e1e341a1"},
+
 "design/planet/mercury": {"code": "03f5508db856", "kind": "row", "text": "d5e7a328f321"},
+
 "design/planet/mercury.value": {"kind": "value", "text": "7fca428ff998"},
+
 "design/planet/neptune": {"code": "a7a1d0f3c622", "kind": "row", "text": "1d3ad6ee0b33"},
+
 "design/planet/neptune.value": {"kind": "value", "text": "be5cc131d721"},
+
 "design/planet/saturn": {"code": "c6cd1aefced2", "kind": "row", "text": "aab80cb3b94e"},
+
 "design/planet/saturn.value": {"kind": "value", "text": "1330dd04ef9b"},
+
 "design/planet/uranus": {"code": "35da8ea4d75d", "kind": "row", "text": "746f97186cbd"},
+
 "design/planet/uranus.value": {"kind": "value", "text": "3e3949a71e0e"},
+
 "design/planet/venus": {"code": "c84e6a5b3997", "kind": "row", "text": "8fb93a7bfefc"},
+
 "design/planet/venus.value": {"kind": "value", "text": "eef997574b50"},
+
 "design/saturn": {"kind": "item", "text": "962d0b42a705"},
+
 "design/saturn/ring": {"code": "7d4eda02a088", "kind": "row", "text": "060106a314ee"},
+
 "design/saturn/ring.value": {"kind": "value", "text": "2dc0341f9b9f"},
+
 "design/sky": {"kind": "item", "text": "69e0e9490661"},
+
 "design/sky/background": {"code": "c046ecfda6a9", "kind": "row", "text": "3cf0632f09ea"},
+
 "design/sky/background.value": {"kind": "value", "text": "c3cca925caf5"},
+
 "design/sky/star": {"code": "0b835dfe2494", "kind": "row", "text": "6f11c0f2008b"},
+
 "design/sky/star.value": {"kind": "value", "text": "07ee686b3ce2"},
+
 "design/ui": {"kind": "item", "text": "1f55c90ac24f"},
+
 "design/ui/controls-text": {"code": "e049cfe95d07", "kind": "row", "text": "c8b5620b32de"},
+
 "design/ui/controls-text.value": {"kind": "value", "text": "733aebd796f4"},
+
 "design/ui/label": {"code": "ed611090c9bf", "kind": "row", "text": "05f4998b833e"},
+
 "design/ui/label.value": {"kind": "value", "text": "22bf0833cbc4"},
+
 "design/ui/orbit": {"code": "019ee6c89710", "kind": "row", "text": "a6316d201099"},
+
 "design/ui/orbit.value": {"kind": "value", "text": "7438b82a1d76"},
+
 "design/ui/panel-bg": {"code": "6a1a75bd3aab", "kind": "row", "text": "b533540918d7"},
+
 "design/ui/panel-bg.value": {"kind": "value", "text": "0c084a337289"},
+
 "design/ui/panel-text": {"code": "bbd94b49ab4c", "kind": "row", "text": "cbf3ee4a6bfb"},
+
 "design/ui/panel-text.value": {"kind": "value", "text": "6947f821e227"},
+
 "design/ui/selection": {"code": "e4f8c61f86ba", "kind": "row", "text": "4bd676a530e6"},
+
 "design/ui/selection.value": {"kind": "value", "text": "07ee686b3ce2"},
+
 "design/ui/time": {"code": "3b65a5a4d847", "kind": "row", "text": "fecde01367fb"},
+
 "design/ui/time.value": {"kind": "value", "text": "ab99af86f08b"},
+
 "devices": {"code": "be714d82cfdd", "kind": "item", "text": "f9bc805b77c0"},
+
 "from-design": {"code": "37b8684cd0a5", "kind": "item", "refs": {"design": "036f695bdd9c", "looks/colors": "e7f3ae642fb8", "screen/scene/sky": "854033ab7381", "screen/select/panel": "a077b1cc70d6", "screen/ui-colors": "d49a015217c9"}, "text": "c1a8e7a82c55"},
+
 "glue:out/index.html": {"code": "13c7d8922e31", "kind": "glue"},
+
 "looks": {"kind": "part", "text": "aafbc1539b3a"},
+
 "looks/colors": {"code": "0aac78b9fee4", "kind": "item", "refs": {"design/body": "d1e4254f7e50", "design/planet": "6bf57a32a3c1", "design/saturn": "962d0b42a705"}, "text": "e7f3ae642fb8"},
+
 "looks/fun-facts": {"code": "bf9694770d79", "kind": "item", "text": "1d511e0fb19f"},
+
 "looks/fun-facts.sentences": {"kind": "value", "text": "6b86b273ff34"},
+
 "looks/light": {"code": "e38ab1f3955c", "kind": "item", "text": "0bfa293ee270"},
+
 "looks/ring": {"code": "e38ab1f3955c", "kind": "item", "text": "81203cbdb1fd"},
+
 "looks/test:colors": {"kind": "test", "refs": {"design/body/sun.value": "eb27cda8ba4b", "design/planet/earth.value": "001c0ed63cac", "design/planet/mars.value": "e314e1e341a1"}, "result": "pass", "text": "f8b656e3bdbb", "via": "run"},
+
 "looks/test:colors-outer": {"kind": "test", "refs": {"design/body/moon.value": "f2f3ae25d3da", "design/planet/neptune.value": "be5cc131d721", "looks/colors": "e7f3ae642fb8"}, "result": "pass", "text": "4ec475e73b5e", "via": "run"},
+
 "looks/test:fun-facts": {"kind": "test", "refs": {"looks/fun-facts.sentences": "6b86b273ff34"}, "result": "pass", "text": "9555517936de", "via": "run"},
+
 "looks/test:light": {"kind": "test", "result": "manual", "text": "152bde8cc4a7"},
+
 "looks/test:ring": {"kind": "test", "result": "pass", "text": "03a8478823b9", "via": "run"},
+
 "no-errors": {"kind": "item", "text": "c5c6c867be16"},
+
 "out-of-scope": {"kind": "item", "text": "9573822533e5"},
+
 "parts": {"kind": "item", "refs": {"bodies": "c3a539e2b22c", "clock": "62ea1ab16ea9", "looks": "aafbc1539b3a", "screen": "9a4813a229ba"}, "text": "25401fd1ff9a"},
+
 "quality": {"kind": "item", "text": "4d2602755bc1"},
+
 "quality.lines": {"kind": "value", "text": "f39dda09980e"},
+
 "quality.rules": {"kind": "value", "text": "883caeb7ca11"},
+
 "screen": {"kind": "part", "text": "9a4813a229ba"},
+
 "screen/draw-order": {"code": "eaa6dad5bafd", "kind": "item", "text": "64c6d3c9c129"},
+
 "screen/hud": {"kind": "part", "text": "76cc17bef3ff"},
+
 "screen/hud/controls": {"code": "9c5695a922fa", "kind": "item", "text": "d9fab79445de"},
+
 "screen/hud/reset": {"code": "50c7173e6a1f", "kind": "item", "text": "7f9439c371ec"},
+
 "screen/hud/space": {"code": "d64098c9a1f5", "kind": "item", "text": "f0b00c7450b9"},
+
 "screen/hud/test:controls": {"kind": "test", "refs": {"screen/scene/names.size": "7769e817028f", "screen/scene/orbits.width": "93e20626bf9c"}, "result": "pass", "text": "e99fbb6b7265", "via": "run"},
+
 "screen/hud/test:reset": {"kind": "test", "refs": {"screen/view/zoom.start": "a048e6409080"}, "result": "pass", "text": "b0407d5ad463"},
+
 "screen/hud/test:space": {"kind": "test", "result": "pass", "text": "d7f8f33bb623"},
+
 "screen/hud/test:time": {"kind": "test", "result": "pass", "text": "71ee196e68ec", "via": "run"},
+
 "screen/hud/time": {"code": "f643fde68718", "kind": "item", "text": "95a05167e677"},
+
 "screen/parts": {"kind": "item", "refs": {"screen/hud": "76cc17bef3ff", "screen/scene": "343664cabb9c", "screen/select": "12c983b61142", "screen/view": "ae72655596ef"}, "text": "0de66699b4fa"},
+
 "screen/scene": {"kind": "part", "text": "343664cabb9c"},
+
 "screen/scene/comet": {"code": "ef767b476499", "kind": "item", "text": "ebedd205c1dd"},
+
 "screen/scene/comet.every": {"kind": "value", "text": "aa324e320b46"},
+
 "screen/scene/names": {"code": "1fe7b86ade79", "kind": "item", "text": "e284c9bbde4c"},
+
 "screen/scene/names.moon": {"kind": "value", "text": "95a8d358f5a7"},
+
 "screen/scene/names.size": {"kind": "value", "text": "7769e817028f"},
+
 "screen/scene/orbits": {"code": "547304d7761b", "kind": "item", "text": "fca81a8c6774"},
+
 "screen/scene/orbits.width": {"kind": "value", "text": "93e20626bf9c"},
+
 "screen/scene/sky": {"code": "f42b3c1578e2", "kind": "item", "refs": {"design/sky/background": "3cf0632f09ea"}, "text": "854033ab7381"},
+
 "screen/scene/sky.stars": {"kind": "value", "text": "983bd614bb5a"},
+
 "screen/scene/test:comet": {"kind": "test", "result": "pass", "text": "486f78b30f3c", "via": "run"},
+
 "screen/scene/test:names": {"kind": "test", "result": "pass", "text": "fa95792f99ed", "via": "run"},
+
 "screen/scene/test:names-off": {"kind": "test", "refs": {"screen/scene/names": "e284c9bbde4c"}, "result": "pass", "text": "62c4e307c436", "via": "run"},
+
 "screen/scene/test:orbits": {"kind": "test", "refs": {"screen/scene/orbits.width": "93e20626bf9c"}, "result": "pass", "text": "310721438799", "via": "run"},
+
 "screen/scene/test:sky": {"kind": "test", "refs": {"design/sky/background.value": "c3cca925caf5", "screen/scene/sky.stars": "983bd614bb5a"}, "result": "pass", "text": "05d5cb677ca0", "via": "run"},
+
 "screen/select": {"kind": "part", "text": "12c983b61142"},
+
 "screen/select/click": {"code": "9f54157abaca", "kind": "item", "text": "e7577e757ada"},
+
 "screen/select/click.min": {"kind": "value", "text": "38cb6b4a22ff"},
+
 "screen/select/miss": {"code": "80c0f6cc250e", "kind": "item", "text": "05837c644fab"},
+
 "screen/select/panel": {"code": "a397606d66b8", "kind": "item", "refs": {"design/assets": "04b3ba108aa2"}, "text": "a077b1cc70d6"},
+
 "screen/select/ring": {"code": "885f839287a5", "kind": "item", "text": "494ea76baf9b"},
+
 "screen/select/ring.gap": {"kind": "value", "text": "356601538da0"},
+
 "screen/select/ring.width": {"kind": "value", "text": "747614001f01"},
+
 "screen/select/test:click": {"kind": "test", "result": "pass", "text": "2e7da52163e9", "via": "run"},
+
 "screen/select/test:click-far": {"kind": "test", "refs": {"screen/select/click": "e7577e757ada"}, "result": "pass", "text": "4cbe4c6f35c2", "via": "run"},
+
 "screen/select/test:click-near": {"kind": "test", "refs": {"screen/select/click": "e7577e757ada"}, "result": "pass", "text": "94081bcdc29f", "via": "run"},
+
 "screen/select/test:miss": {"kind": "test", "result": "pass", "text": "bd5b982971fc", "via": "run"},
+
 "screen/select/test:panel": {"kind": "test", "result": "pass", "text": "c61af3defb19", "via": "run"},
+
 "screen/test:ui-colors": {"kind": "test", "refs": {"design/ui/label.value": "22bf0833cbc4", "design/ui/orbit.value": "7438b82a1d76", "design/ui/time.value": "ab99af86f08b"}, "result": "pass", "text": "34f7314c2ea7", "via": "run"},
+
 "screen/test:ui-colors-comet": {"kind": "test", "refs": {"design/comet/head.value": "69b005b22352", "design/ui/controls-text.value": "733aebd796f4", "screen/ui-colors": "d49a015217c9"}, "result": "pass", "text": "27efbedeeca4", "via": "run"},
+
 "screen/test:ui-colors-select": {"kind": "test", "refs": {"design/ui/panel-bg.value": "0c084a337289", "design/ui/selection.value": "07ee686b3ce2", "screen/ui-colors": "d49a015217c9"}, "result": "pass", "text": "85c01cd18d54", "via": "run"},
+
 "screen/ui-colors": {"code": "693ceaf2f449", "kind": "item", "refs": {"design/comet": "dbde28d757d2", "design/ui": "1f55c90ac24f"}, "text": "d49a015217c9"},
+
 "screen/view": {"kind": "part", "text": "ae72655596ef"},
+
 "screen/view/drag": {"code": "4ce2e01a8820", "kind": "item", "text": "332adafd1665"},
+
 "screen/view/drag.click": {"kind": "value", "text": "356601538da0"},
+
 "screen/view/fit": {"code": "30d66dfd39b6", "kind": "item", "text": "31a2ff0d1bc7"},
+
 "screen/view/fit.bar": {"kind": "value", "text": "7d2476403f46"},
+
 "screen/view/fit.most": {"kind": "value", "text": "93e20626bf9c"},
+
 "screen/view/fit.room": {"kind": "value", "text": "c80bfee312dc"},
+
 "screen/view/test:drag": {"kind": "test", "result": "pass", "text": "c44934d64066", "via": "run"},
+
 "screen/view/test:drag-click": {"kind": "test", "refs": {"screen/view/drag": "332adafd1665"}, "result": "pass", "text": "953a5c15f512", "via": "run"},
+
 "screen/view/test:fit": {"kind": "test", "refs": {"screen/view/fit.bar": "7d2476403f46"}, "result": "pass", "text": "13dbb2a1485c", "via": "run"},
+
 "screen/view/test:fit-orbit": {"kind": "test", "refs": {"screen/view/fit": "31a2ff0d1bc7", "screen/view/fit.bar": "7d2476403f46", "screen/view/fit.room": "c80bfee312dc"}, "result": "pass", "text": "71ad20537f30", "via": "run"},
+
 "screen/view/test:units": {"kind": "test", "refs": {"screen/select/ring.width": "747614001f01"}, "result": "pass", "text": "0bd4f6a3f2bd", "via": "run"},
+
 "screen/view/test:zoom": {"kind": "test", "refs": {"screen/view/zoom.max": "fd402e47cf2d", "screen/view/zoom.min": "da057655b232"}, "result": "pass", "text": "c53ee899f6a5", "via": "run"},
+
 "screen/view/test:zoom-pinch": {"kind": "test", "refs": {"screen/view/zoom-step": "407ec40f6cfe", "screen/view/zoom-step.factor": "53cf8f1ecb0b"}, "result": "pass", "text": "6819578defa0", "via": "run"},
+
 "screen/view/test:zoom-step": {"kind": "test", "refs": {"screen/view/zoom-step.factor": "53cf8f1ecb0b"}, "result": "pass", "text": "7730a65db94d", "via": "run"},
+
 "screen/view/units": {"code": "dfdfc0483ba4", "kind": "item", "text": "fef0afa1da90"},
+
 "screen/view/zoom": {"code": "83c0a8aa3a63", "kind": "item", "text": "11fd72d7ef58"},
+
 "screen/view/zoom-step": {"code": "cf4bd964e304", "kind": "item", "text": "407ec40f6cfe"},
+
 "screen/view/zoom-step.factor": {"kind": "value", "text": "53cf8f1ecb0b"},
+
 "screen/view/zoom.max": {"kind": "value", "text": "fd402e47cf2d"},
+
 "screen/view/zoom.min": {"kind": "value", "text": "da057655b232"},
+
 "screen/view/zoom.start": {"kind": "value", "text": "a048e6409080"},
+
 "screen/~44e402": {"kind": "item", "text": "cb5c74b5e549"},
+
 "screen/~5914df": {"kind": "item", "text": "d980a5aa43f4"},
+
 "targets/web": {"kind": "part", "text": "a1c47bba865e"},
+
 "targets/web/actions": {"kind": "item", "text": "9f33fd064464"},
+
 "targets/web/layout": {"kind": "item", "text": "f4923d96d370"},
+
 "targets/web/meanings": {"code": "ff0357242f7d", "kind": "item", "text": "c1ae11289c68"},
+
 "targets/web/paint": {"kind": "item", "text": "5eb1cea4d354"},
+
 "targets/web/path": {"kind": "item", "text": "040a7574ec48"},
+
 "targets/web/path.path": {"kind": "value", "text": "32dd929682bd"},
+
 "targets/web/probes": {"code": "ff0357242f7d", "kind": "item", "text": "16d2c3409d75"},
+
 "targets/web/test-run": {"kind": "item", "text": "20bb7c6bc09a"},
+
 "targets/web/test:actions": {"kind": "test", "result": "pass", "text": "b26760c7f6d8", "via": "run"},
+
 "targets/web/test:layout": {"kind": "test", "result": "pass", "text": "c7f59cb87219", "via": "run"},
+
 "targets/web/test:meanings": {"kind": "test", "result": "pass", "text": "83f9179396ab", "via": "run"},
+
 "targets/web/test:paint": {"kind": "test", "refs": {"design/body/sun.value": "eb27cda8ba4b"}, "result": "pass", "text": "08724968295a", "via": "run"},
+
 "targets/web/test:path": {"kind": "test", "result": "pass", "text": "d2cf79927d68", "via": "run"},
+
 "targets/web/test:probes": {"kind": "test", "refs": {"year.days": "73130243bfd0"}, "result": "pass", "text": "6f15684db63b", "via": "run"},
+
 "test:delivery": {"kind": "test", "result": "checked", "text": "d0962dba85b6"},
+
 "test:devices": {"kind": "test", "result": "manual", "text": "21712a88a097"},
+
 "test:no-errors": {"kind": "test", "result": "pass", "text": "1538585cd048", "via": "run"},
+
 "test:quality": {"kind": "test", "refs": {"quality.lines": "f39dda09980e", "quality.rules": "883caeb7ca11"}, "result": "pass", "text": "437ad3d1634d", "via": "run"},
+
 "test:year": {"kind": "test", "refs": {"year.days": "73130243bfd0"}, "result": "pass", "text": "da1757d917bc", "via": "run"},
+
 "year": {"code": "ccc48117f4a2", "kind": "item", "text": "72ed2f7681f4"},
+
 "year.days": {"kind": "value", "text": "73130243bfd0"},
+
 "~4fd99b": {"kind": "item", "text": "d9d31fced4b3"},
+
 "~6b979f": {"kind": "item", "text": "c376501e6256"},
+
 "~a75cba": {"kind": "item", "text": "8605f03b593f"},
+
 "~b21375": {"kind": "item", "text": "bab0ac1f8e9f"}
 }

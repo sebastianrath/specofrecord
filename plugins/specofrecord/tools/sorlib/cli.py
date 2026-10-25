@@ -48,8 +48,26 @@ def load(args):
     return project, Scan(project)
 
 
+class ResultsError(Exception):
+    """The file given to --results cannot be used."""
+
+
+def read_results(path):
+    """The {test: result} a --results file holds. A file that is missing, no JSON or not a mapping is said so, not a traceback."""
+    try:
+        with open(path, encoding='utf8') as fh:
+            data = json.load(fh)
+    except OSError as e:
+        raise ResultsError(f'cannot read {path} ({e.strerror or e})') from None
+    except ValueError as e:
+        raise ResultsError(f'{path} is not JSON ({e}); it holds {{"part/test:name": "pass"}}, as `sor test --out` writes it') from None
+    if not isinstance(data, dict):
+        raise ResultsError(f'{path} holds {{"part/test:name": "pass"}}, as `sor test --out` writes it')
+    return data
+
+
 def problems(project, scan):
-    return project.check() + scan.problems + lockfile.line_collisions(project, scan)
+    return project.check() + scan.problems + lockfile.line_collisions(project, scan) + lockfile.file_problems(project)
 
 
 def home(project, ident):
@@ -170,10 +188,13 @@ def cmd_status(args):
             print()
         held = claims.active(project)
         if held:
-            print(f'claims ({len(held)}) — who is working on what (advisory; a claim ends after an idle time or with its session)')
-            for c in held:
-                print('  ' + claims.describe(c))
+            print(f'claims ({len(held)}) — who is working on what (advisory; a claim is held while its holder is at work, and frees itself when nothing is left to protect)')
+            for c, d in claims.states(project, held, scan):
+                print('  ' + claims.explain(c, d).replace('\n', '\n  '))
             print()
+        st = claims.store(project)
+        if held or st.kind != 'folder':
+            print(f'claims are shared by {st.shared}\n')
         languages = {}
         if pending and project.targeted():   # a test with test code in several languages is given a result for each
             now = lockfile.snapshot(project, scan)
@@ -298,8 +319,9 @@ def with_holder(project, me, problem):
 
 
 def cmd_rehash(args, project, scan):
-    """`sor lock --rehash`: the one-time rewrite SPEC §11 describes when the rule for hashing code changes. Only the code hash of an
-    entry whose code is unchanged under the old rule is replaced; text, refs and results stay as they are, and nothing is accepted."""
+    """`sor lock --rehash`: the one-time rewrite SPEC §11 describes when the rule for hashing code changes, or the form of the file does (its format
+    number, the blank lines between the entries). Only the code hash of an entry whose code is unchanged under the old rule is replaced; text, refs and
+    results stay as they are, and nothing is accepted."""
     if args.ids or args.all or args.run_tests or args.results or args.confirm or args.allow_incomplete:
         print('lock refused:\n  --rehash takes nothing else: it rewrites hashes and accepts no change')
         return 2
@@ -307,16 +329,21 @@ def cmd_rehash(args, project, scan):
         with claims.lock_mutex(project):
             current = lockfile.read(project)
             stale = lockfile.old_rule_keys(current, scan)
-            if stale:
-                lockfile.write(project, lockfile.upgrade(current, scan))
+            form = current and not lockfile.in_current_form(project)
+            if stale or form:
+                lockfile.write(project, lockfile.upgrade(current, scan) if stale else current)
     except (claims.ClaimError, lockfile.LockWriteError) as e:
         print(f'lock: {e}', file=sys.stderr)
         return 2
-    if not stale:
-        print('nothing to rewrite: ' + ('every code hash in the lock follows the rule of its file type' if current
+    where = os.path.relpath(project.lock_path, project.root)
+    if not stale and not form:
+        print('nothing to rewrite: ' + ('every code hash in the lock follows the rule of its file type, and the file is in the form this tool writes' if current
                                         else f'there is no {project.lock_file} yet'))
         return 0
-    print(f'rewrote {len(stale)} code hash(es) in {os.path.relpath(project.lock_path, project.root)}; text, refs and results are as they were')
+    if stale:
+        print(f'rewrote {len(stale)} code hash(es) in {where}; text, refs and results are as they were')
+    if form:
+        print(f'rewrote {where} in lock format {lockfile.FORMAT} (a blank line between the entries); every entry is as it was')
     return 0
 
 
@@ -348,7 +375,7 @@ def cmd_lock(args):
     stamps = file_stamps(project)   # before anything is read: a file that changes after this is seen when the lock is about to be written
     scan = Scan(project)
     if args.agent:
-        claims.touch(project, claims.current_session(), args.agent)   # a person at a terminal who names themselves is at work too
+        claims.touch(project, claims.current_session(), args.agent, name=args.agent)   # a person at a terminal who names themselves is at work too, and so is a subagent that names itself: its claims, not its parent's
     old = lockfile.read(project)
     seen = json.loads(json.dumps(old))   # the lock as it was when this one began, to tell whether another lock landed since
     try:
@@ -393,6 +420,12 @@ def cmd_lock(args):
             if kids:
                 print('locking the parts under them too: ' + ', '.join(kids))
                 ids += kids
+    elif ids and me:   # named clauses: a claim this agent lost on them is no longer held, and the clause may be changed since: claim again first (the fence)
+        mine_now = sorted({a for c in claims.active(project) if claims.same_agent(c, me, claims.current_session()) for a in c['asked']})
+        gone = [c for c in claims.lost(project, me, mine_now) if any(claims.covers(i, a) or claims.covers(a, i) for i in ids for a in c['asked'])]
+        if gone:
+            print(f'lock refused:\n  your {claims.lapse_text(gone)}, so {", ".join(ids)} may have changed since: {claims.claim_again()}, and read the clause again.')
+            return 2
     wanted = [lang for lang in (claims.line_id(project, i) for i in ids) if lang]   # (clause, language): one language of a clause (SPEC §16)
     ids = [i for i in ids if not claims.line_id(project, i)]
     every = findings   # `findings` goes on to hold only those of the clauses in scope
@@ -498,8 +531,7 @@ def cmd_lock(args):
         sources = {k: 'command' if r.get('target') else 'run' for k, r in ran.items() if r['status'] in ('pass', 'fail')}   # a row of a target has its name
         external = {k for k, r in ran.items() if r['status'] == 'external'}
         if args.results:   # the project's own results, for the tests `sor test` shows as EXTERNAL and for those only
-            with open(args.results, encoding='utf8') as fh:
-                given = json.load(fh)
+            given = read_results(args.results)
             taken = {k: v for k, v in given.items() if k.partition('@')[0] in external and v in ('pass', 'fail')}
             results.update(taken)
             sources.update({k: 'file' for k in taken})
@@ -507,8 +539,7 @@ def cmd_lock(args):
             if ignored:
                 print(f'--results: ignored {", ".join(ignored)} (only tests shown as EXTERNAL take a result from the file)')
     elif args.results:
-        with open(args.results, encoding='utf8') as fh:
-            results = json.load(fh)
+        results = read_results(args.results)
         sources = {k: 'file' for k in results}
     entries, more = lockfile.accept(project, scan, results, args.allow_incomplete, findings, old, confirm, scope, allow_behind, () if wanted and not ids else already_fits, sources, ahead)
     lines, glue = {}, {}
@@ -581,6 +612,11 @@ def cmd_lock(args):
     except (claims.ClaimError, lockfile.LockWriteError) as e:
         print(f'lock: {e}', file=sys.stderr)
         return 2
+    if me:   # the work is accepted: a working folder swept away later does not take the claim with it, the work waits for its merge
+        try:
+            claims.note_locked(project, me, claims.current_session(), set(scope) if scope is not None else set(entries))
+        except (claims.ClaimError, OSError):
+            pass
     newly = sorted(k for k, e in entries.items() if e.get('kind') == 'test' and e.get('result') == 'deferred'
                    and old.get(k, {}).get('result') != 'deferred' and (scope is None or k in scope))
     if newly:   # a line in the spec is all it takes to leave a test to CI: say which tests that is
@@ -640,7 +676,7 @@ def cmd_claim(args):
     agent = claims.agent_name(args.agent)
     try:
         ttl = claims.parse_ttl(args.ttl) if args.ttl else claims.project_idle(project)   # --ttl, else `Claims:` in the root file, else 30 min
-        ok, res = claims.claim(project, scan, set(lockfile.snapshot(project, scan)), args.ids, agent, ttl)
+        ok, res = claims.claim(project, scan, set(lockfile.snapshot(project, scan)), args.ids, agent, ttl, take_over=args.take_over)
     except claims.ClaimError as e:
         print(f'claim: {e}', file=sys.stderr)
         return 2
@@ -648,7 +684,10 @@ def cmd_claim(args):
         blocked = res.get('blocked') or list(args.ids)
         print(f'REFUSED {", ".join(blocked)}: held by')
         for c in res['holders']:
-            print('  ' + claims.describe(c))
+            state = res.get('states', {}).get(c.get('grant'))
+            print('  ' + (claims.explain(c, state) if state else claims.describe(c)))
+        if args.take_over:
+            print('  --take-over takes over a parked claim only: one whose holder is gone and left unfinished work in another folder')
         free = [i for i in args.ids if i not in blocked]
         if free:   # a claim takes all its ids or none: say so, or the free ones look like they are held
             print(f'  nothing was claimed: {", ".join(free)} {"is" if len(free) == 1 else "are"} free, but a claim takes all its '
@@ -659,6 +698,52 @@ def cmd_claim(args):
     if res['shared']:
         print('  its code regions are shared with ' + ', '.join(res['shared'])
               + ': nobody else can claim those regions meanwhile')
+    for c, d in res.get('freed', ()):
+        print(f'  freed the claim of {c["agent"]} on {", ".join(c["asked"])}: {d.why}')
+    for c, d in res.get('took_over', ()):
+        place = d.folder + (f' (branch {d.label})' if d.label else '')
+        print(f'  took over the claim of {c["agent"]} on {", ".join(c["asked"])}: it left {d.changes} unfinished change{"s" if d.changes != 1 else ""} in {place}. '
+              'Continue the work there: those changes are an agent\'s unfinished work, not a person\'s change to keep. If that folder is the main checkout of a session '
+              'isolated in a worktree, it cannot be edited from here: hand the work to a session that can, or wait for the parked window')
+    return 0
+
+
+def cmd_claims(args):
+    """`sor claims [--json]`: every claim in force, and for each what stands in the way of the next claim of it. The documented way to read claims, for a tool
+    that is not sor (a merge gate, an editor): nothing is written."""
+    project, scan = load(args)
+    held = claims.active(project)
+    rows = []
+    for c, d in claims.states(project, held, scan):
+        w = c.get('where') or {}
+        rows.append({'holder': c['agent'], 'ids': c['asked'], 'keys': c['keys'], 'session': c.get('session', ''), 'folder': w.get('path', ''), 'branch': w.get('label', ''),
+                     'host': w.get('host', ''), 'since': c['since'], 'last': c.get('last', c['since']), 'until': c['until'], 'state': d.kind, 'why': d.why,
+                     'changes': d.changes, 'ended': (c.get('ended') or {}).get('reason'), 'locked': bool(c.get('locked')), 'queued': c.get('queued'),
+                     'grant': c.get('grant'), 'rev': c.get('rev', 1)})
+    st = claims.store(project)
+    if args.json:
+        print(json.dumps({'store': {'kind': st.kind, 'shared': st.shared}, 'claims': rows}, indent=2, ensure_ascii=False))
+        return 0
+    print(f'claims are shared by {st.shared}')
+    if not held:
+        print('no claims')
+    for c, d in claims.states(project, held, scan):
+        print('  ' + claims.explain(c, d).replace('\n', '\n  '))
+    return 0
+
+
+def cmd_queued(args):
+    """`sor queued HOLDER --by NAME`: says that the work of a holder is queued for its merge. A notice for people, nothing else (SPEC §16)."""
+    project = Project(args.root)
+    try:
+        n = claims.queue(project, args.holder, args.by)
+    except claims.ClaimError as e:
+        print(f'queued: {e}', file=sys.stderr)
+        return 2
+    if not n:
+        print(f'queued: {args.holder} holds no claim', file=sys.stderr)
+        return 2
+    print(f'queued {n} claim{"s" if n != 1 else ""} of {args.holder}, by {args.by}')
     return 0
 
 
@@ -700,7 +785,7 @@ def cmd_release(args):
         if c not in ran_out:
             print('released ' + ', '.join(c['asked']))
     for c in refused:
-        print('NOT released (held by someone else; --force overrides): ' + claims.describe(c))
+        print('NOT released (held by someone else; a person can force it from a terminal with --force): ' + claims.describe(c))
     open_lines = unlocked_languages(project, [a for c in gone for a in c['asked']])
     if open_lines:   # the claim kept the language to its holder: letting go of it with work in it leaves that work to whoever comes next
         print(f'note: {", ".join(open_lines)} {"has" if len(open_lines) == 1 else "have"} code that is not locked yet: lock '
@@ -1169,7 +1254,15 @@ def build_parser():
     s.add_argument('ids', nargs='+', help='clauses, rows or parts; to add a clause, claim its part')
     s.add_argument('--as', dest='agent', help='who you are (or set SOR_AGENT)')
     s.add_argument('--ttl', default=None, help='how long it holds without activity: 90s, 30m, 2h or never (default: `Claims: idle …` in the root file, else 30m)')
+    s.add_argument('--take-over', dest='take_over', action='store_true', help='continue the work of a parked claim: its holder is gone and left unfinished work in another folder')
     s.set_defaults(fn=cmd_claim)
+    s = sub.add_parser('claims', help='every claim in force, with what stands in the way of the next claim of it (--json for tools)')
+    s.add_argument('--json', action='store_true')
+    s.set_defaults(fn=cmd_claims)
+    s = sub.add_parser('queued', help='say that the work of a holder is queued for its merge (a notice; whoever merges says it)')
+    s.add_argument('holder', help='the name the holder claimed under')
+    s.add_argument('--by', required=True, help='who queued it: a merge queue, an orchestrator, a CI job, a person')
+    s.set_defaults(fn=cmd_queued)
     s = sub.add_parser('release', help='give up claims')
     s.add_argument('ids', nargs='*')
     s.add_argument('--all', action='store_true', help='all of your claims')
@@ -1207,7 +1300,7 @@ def build_parser():
                    help='machine-readable; without a target: every item, reference and region')
     s.set_defaults(fn=cmd_markers)
     s = sub.add_parser('hook', help='Claude Code hooks; reads the hook JSON on stdin')
-    s.add_argument('which', choices=['pre-edit', 'post-read', 'session-start', 'pre-bash', 'post-bash', 'session-end'])
+    s.add_argument('which', choices=['pre-edit', 'post-read', 'session-start', 'pre-bash', 'post-bash', 'session-end', 'stop', 'subagent-start', 'subagent-stop'])
     s.set_defaults(fn=lambda a: hook.run(a.which))
     s = sub.add_parser('show')
     s.add_argument('target', help='a part id (camera, render/culling, ROOT for the root) or an item id')
@@ -1239,12 +1332,15 @@ def main(argv=None):
     if extra:   # what parse_args says, and for --as, which commands take it
         ap.error('unrecognized arguments: ' + ' '.join(extra) + as_hint(ap, args.cmd, extra))
     if args.cmd != 'hook' and claims.current_session():   # a command run from a Claude Code session is a sign of life of its claims
-        claims.touch(claims.at(args.root), claims.current_session())
+        claims.touch(claims.at(args.root), claims.current_session(), name=getattr(args, 'agent', None))
     try:
         return args.fn(args)
     except BrokenPipeError:
         raise
-    except lockfile.LockFormatError as e:   # a lock in a format this copy does not read: say to update, change nothing
+    except lockfile.LockFormatError as e:   # a lock in a format this copy does not read, with conflict markers or damaged: say so, change nothing
+        print(f'sor: {e}', file=sys.stderr)
+        return 2
+    except ResultsError as e:
         print(f'sor: {e}', file=sys.stderr)
         return 2
     except OSError as e:   # a file that cannot be read or written: say which, not a traceback

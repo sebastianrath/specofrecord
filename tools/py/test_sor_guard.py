@@ -274,7 +274,9 @@ class TestWhatTheHookAnswers(unittest.TestCase):
         self.assertEqual((done.returncode, done.stdout), (0, ''))
         done = subprocess.run([sys.executable, base.SOR, 'hook', 'pre-bash'], input='this is not json', cwd=REPO,
                               capture_output=True, text=True, env=env)
-        self.assertEqual((done.returncode, done.stdout), (1, ''))      # exit 1 does not block the tool call
+        self.assertEqual(done.returncode, 0)      # a hook that fails lets the call through and says so; it never blocks on its own failure
+        self.assertIn('did not check this', json.loads(done.stdout)['hookSpecificOutput']['additionalContext'])
+        self.assertNotIn('permissionDecision', done.stdout)
         self.assertIn('sor hook pre-bash failed', done.stderr)
 
 

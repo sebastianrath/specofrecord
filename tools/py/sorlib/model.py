@@ -994,7 +994,7 @@ class Project:
         return names[0] if len(names) == 1 else None
 
     def claims_problems(self):
-        """Problems with a `Claims:` line (SPEC §16): it is read in the root file only, and says `idle 30m`, `idle 2h` or `idle never`."""
+        """Problems with a `Claims:` line (SPEC §16): it is read in the root file only, and says `idle 30m`, `idle 2h` or `idle never`, and `parked 24h`."""
         from .claims import idle_setting   # claims imports this module, so it is loaded only when needed
         out = []
         for p in self.parts.values():
@@ -1004,7 +1004,7 @@ class Project:
             if p.id:
                 out.append(Problem('claims', p.rel, '`Claims:` is read in the root file only (SPECOFRECORD.md)'))
             elif not idle_setting(text)[0]:
-                out.append(Problem('claims', p.rel, f'`Claims: {text}` is not understood: write `idle 30m`, `idle 2h` or `idle never`'))
+                out.append(Problem('claims', p.rel, f'`Claims: {text}` is not understood: write `idle 30m`, `idle 2h` or `idle never`, and `parked 24h`, joined by commas'))
         return out
 
     def target_problems(self):

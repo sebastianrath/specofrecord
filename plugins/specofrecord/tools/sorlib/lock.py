@@ -24,9 +24,11 @@ import glob
 import hashlib
 import json
 import os
+import re
 import shutil
 import time
 
+from .invoke import CMD
 from .model import LEGACY_ROOT_KEY, ROOT, Item, Problem, Row, listed, test_keyword
 
 
@@ -35,7 +37,8 @@ from .model import LEGACY_ROOT_KEY, ROOT, Item, Problem, Row, listed, test_keywo
 # a person looks at it (manual, checked), or it is left to the CI jobs that provide its environment (deferred).
 SETTLED = ('pass', 'manual', 'checked', 'deferred')
 
-FORMAT = 3                # the newest lock format this tool reads and writes
+FORMAT = 4                # the newest lock format this tool reads and writes
+BLANK_LINES = 4           # from this format on a blank line separates the entries, so that git merges neighbouring entries that two branches changed
 LINE_FIELDS = ('code', 'built')   # what a format 2 line holds; a line with more is format 3
 LINE_KIND = 'code'        # the kind of a per-target line in the file
 FORMAT_KEY = '*format'    # the marker of a format above 1: a scalar, so that a tool older than this one fails on it instead of dropping it
@@ -43,6 +46,14 @@ FORMAT_KEY = '*format'    # the marker of a format above 1: a scalar, so that a 
 
 class LockFormatError(Exception):
     """The lock file is in a format this tool does not read."""
+
+
+class LockConflict(LockFormatError):
+    """The lock file has merge conflict markers in it: a merge left both versions."""
+
+
+class LockDamaged(LockFormatError):
+    """The lock file is not the JSON this tool writes: not JSON at all, or a key written twice (a merge that kept both sides)."""
 
 
 def h(s):
@@ -230,19 +241,71 @@ def format_problem(project, path, number):
     return None
 
 
+CONFLICT_MARK = re.compile(r'^(<{7}|={7}|>{7})(?: |$)', re.M)
+
+
+class _Twice(ValueError):
+    """A key that the lock file holds twice."""
+
+
+def _once(pairs):
+    seen = {}
+    for key, value in pairs:
+        if key in seen:
+            raise _Twice(key)
+        seen[key] = value
+    return seen
+
+
 def load(project):
     """(path, entries) of the lock there is, without its format marker. Raises LockFormatError for a format this tool does not
-    read, so that nothing reads, and nothing rewrites, a lock it would misread."""
+    read, so that nothing reads, and nothing rewrites, a lock it would misread. A lock that a merge left with conflict markers is a
+    LockConflict, one that is no JSON or holds a key twice is a LockDamaged: both are named, with what to do, not a traceback."""
     path = existing_path(project)
     if not path:
         return None, {}
+    rel = os.path.relpath(path, project.root).replace(os.sep, '/')
     with open(path, encoding='utf8') as fh:
-        data = json.load(fh)
+        text = fh.read()
+    mark = CONFLICT_MARK.search(text)
+    if mark:
+        line = text.count('\n', 0, mark.start()) + 1
+        raise LockConflict(f'{rel} has merge conflict markers (line {line}): a merge left both versions of the lock in it. Restore either side\'s version of '
+                           f'the file, then run `{CMD} lock <ids>` for the clauses the other side changed (`{CMD} status` lists them). Nothing was changed.')
+    try:
+        data = json.loads(text, object_pairs_hook=_once)
+    except _Twice as e:
+        raise LockDamaged(f'{rel} has the key {e.args[0]} twice (a merge that kept both sides, or a union merge). Restore one side\'s version of the file, '
+                          f'then run `{CMD} lock <ids>` for the clauses the other side changed. Nothing was changed.') from None
+    except ValueError as e:
+        raise LockDamaged(f'{rel} is not the JSON that `{CMD} lock` writes ({e}). The file may be damaged: restore it from your version control, then '
+                          f'run `{CMD} lock <ids>`. Nothing was changed.') from None
     if isinstance(data, dict) and FORMAT_KEY in data:
         problem = format_problem(project, path, data.pop(FORMAT_KEY))
         if problem:
             raise LockFormatError(problem)
     return path, data
+
+
+def file_problems(project):
+    """The lock file as problems for `sor check`: a conflict or a damaged file, named once. A lock in a newer format is not one: it is refused when it is used."""
+    try:
+        load(project)
+    except (LockConflict, LockDamaged) as e:
+        path = existing_path(project)
+        return [Problem('lock', os.path.relpath(path, project.root).replace(os.sep, '/'), str(e).rsplit(' Nothing was changed.', 1)[0])]
+    except (OSError, LockFormatError):
+        pass
+    return []
+
+
+def in_current_form(project):
+    """Is the lock file exactly what this tool would write for its entries (the format number, the blank lines, the file name)? True without a lock file."""
+    path = existing_path(project)
+    if not path:
+        return True
+    with open(path, encoding='utf8', newline='') as fh:
+        return path == project.lock_path and fh.read() == render(read(project))
 
 
 def read(project):
@@ -331,14 +394,15 @@ def check_writable(project):
 
 
 def render(entries, fmt=None):
-    """The text of a lock file: a format above 1 opens with its marker, then one entry per line, sorted. The format follows the
-    entries: 3 when a line of a language holds more than `code` and `built` (it was confirmed to fit), 2 when a clause has code per
-    target, else 1. A caller cannot name a lower one than the entries need."""
+    """The text of a lock file: a format above 1 opens with its marker, then one entry per line, sorted. The format is the newest this tool writes
+    (FORMAT) unless a caller names another; it cannot be lower than the entries need: 3 when a line of a language holds more than `code` and `built`
+    (it was confirmed to fit), 2 when a clause has code per target, else 1. From format 4 on a blank line separates the entries: git then merges two
+    branches that changed neighbouring entries, which it reports as a conflict when their lines touch. A tool older than 4 refuses the marker."""
     needed = 1
     for e in entries.values():
         if isinstance(e, dict) and e.get('targets'):
             needed = max(needed, 3 if any(set(line) - set(LINE_FIELDS) for line in e['targets'].values()) else 2)
-    fmt = needed if fmt is None else fmt
+    fmt = FORMAT if fmt is None else fmt
     if fmt > FORMAT:
         raise ValueError(f'lock format {fmt} is newer than this tool ({FORMAT})')
     if fmt < needed:
@@ -349,7 +413,7 @@ def render(entries, fmt=None):
              for k in sorted(entries)]
     if fmt > 1:
         lines.insert(0, json.dumps(FORMAT_KEY) + ': ' + str(fmt))
-    return '{\n' + ',\n'.join(lines) + '\n}\n'
+    return '{\n' + (',\n\n' if fmt >= BLANK_LINES else ',\n').join(lines) + '\n}\n'
 
 
 def write(project, entries, fmt=None):
@@ -360,8 +424,8 @@ def write(project, entries, fmt=None):
     check_writable(project)
     try:
         load(project)
-    except (OSError, ValueError):
-        pass   # a lock that cannot be read is replaced, as it always was; only a newer format stops the write
+    except (OSError, ValueError, LockDamaged):
+        pass   # a lock that cannot be read is replaced, as it always was; only a newer format, or a conflict nobody has resolved, stops the write
     for old in glob.glob(project.lock_path + '.*.tmp'):   # left behind by a write that crashed
         try:
             if time.time() - os.path.getmtime(old) > 300:

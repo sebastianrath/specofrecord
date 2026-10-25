@@ -16,6 +16,7 @@ and file locking, and the tool run as root (chmod does not stop root, so those t
 import glob
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -59,6 +60,9 @@ def accepted(root):
             entry['result'] = 'pass'
     lockfile.write(project, entries)
     return project
+
+
+LOCK_HEAD = b'{\n"*format": 4,\n\n'      # how the lock opens: its marker, then a blank line
 
 
 def lock_bytes(root):
@@ -115,12 +119,15 @@ class Flow(base.Case):
         scan = Scan(project)
         return claims.claim(project, scan, set(lockfile.snapshot(project, scan)), ids, agent, ttl, session)
 
-    def expire(self, when=None):
-        """Moves every claim to the past (or to `when`), as if the time had gone by."""
+    def expire(self, when=None, freed=False):
+        """Moves every claim to the past (or to `when`), as if the time had gone by: the holders are quiet. `freed`: and somebody found nothing left to
+        protect in them and freed them, so they are what a holder is told about."""
         path = os.path.join(self.spec, '.sor-claims.json')
         data = json.loads(read(path))
         for c in data['claims']:
             c['until'] = time.time() - 5 if when is None else when
+            if freed:
+                c['freed'] = {'by': 'someone', 'at': c['until'], 'why': 'quiet'}
         write(self.dir, 'sor/.sor-claims.json', json.dumps(data))
 
     def claims_file(self):
@@ -244,7 +251,7 @@ class TestPreEditHook(Flow):
             said = reason(result)
             self.assertTrue(any(p in said for p in listed), said[:90])
         lock = os.path.join(self.spec, 'sor-lock.json')   # and a lock this copy of the tool cannot read
-        write(self.dir, 'sor/sor-lock.json', read(lock).replace('{\n', '{\n"*format": 99,\n', 1))
+        write(self.dir, 'sor/sor-lock.json', re.sub(r'"\*format": \d+', '"*format": 99', read(lock), 1))
         said = reason(hook.pre_edit(edit(self.app, '"Hello"', '"Hi"')))
         self.assertTrue(any(p in said for p in listed), said[:90])
 
@@ -256,8 +263,9 @@ class TestPreEditHook(Flow):
         self.assertEqual((code, out), (0, ''))
         done = subprocess.run([sys.executable, base.SOR, 'hook', 'pre-edit'], input='this is not json', cwd=REPO,
                               capture_output=True, text=True, env=dict(os.environ, PYTHONDONTWRITEBYTECODE='1'))
-        self.assertEqual(done.returncode, 1)
-        self.assertEqual(done.stdout, '')
+        self.assertEqual(done.returncode, 0)      # exit 1 would let the edit through as a noisy error; 0 says the same to the agent in words
+        self.assertIn('did not check this', json.loads(done.stdout)['hookSpecificOutput']['additionalContext'])
+        self.assertNotIn('permissionDecision', done.stdout)
         self.assertIn('sor hook pre-edit failed', done.stderr)
 
 
@@ -752,16 +760,45 @@ class TestClaimCommands(Flow):
         self.assertEqual([c['agent'] for c in self.claims_file() if c['until'] > time.time()], ['bob'])   # alice's stays as a tombstone
         self.assertNotIn('alice', self.sor('status')[1])
 
-    def test_a_busy_claims_file_is_a_message_not_a_hang_and_a_dead_holders_mutex_is_broken(self):
-        mutex = write(self.dir, 'sor/.sor-claims.lock', '1')
-        with mock.patch.object(claims, 'WAIT_LOCK', 0.2):
-            code, _, err = self.sor('claim', 'greet', '--as', 'alice')
+    @unittest.skipUnless(claims.fcntl, 'needs fcntl')
+    def test_a_busy_claims_file_is_a_message_not_a_hang(self):
+        fd = os.open(claims.store(Project(self.dir)).mutex, os.O_RDWR | os.O_CREAT)
+        claims.fcntl.flock(fd, claims.fcntl.LOCK_EX)      # somebody holds the mutex
+        try:
+            with mock.patch.object(claims, 'WAIT_LOCK', 0.2):
+                code, _, err = self.sor('claim', 'greet', '--as', 'alice')
+        finally:
+            os.close(fd)
         self.assertEqual(code, 2)
         self.assertIn('busy', err)
-        old = time.time() - 60
-        os.utime(mutex, (old, old))
-        self.assertEqual(self.sor('claim', 'greet', '--as', 'alice')[0], 0)
-        self.assertFalse(os.path.exists(mutex))
+        self.assertEqual(self.sor('claim', 'greet', '--as', 'alice')[0], 0)      # let go: it is free at once
+
+    @unittest.skipUnless(claims.fcntl, 'needs fcntl')
+    def test_a_holder_that_dies_leaves_no_mutex_to_break(self):
+        mutex = claims.store(Project(self.dir)).mutex
+        holder = subprocess.Popen([sys.executable, '-c', 'import fcntl, os, sys, time\n'
+                                   'fd = os.open(sys.argv[1], os.O_RDWR | os.O_CREAT)\nfcntl.flock(fd, fcntl.LOCK_EX)\nprint("held", flush=True)\ntime.sleep(60)', mutex],
+                                  stdout=subprocess.PIPE, text=True)
+        self.addCleanup(holder.stdout.close)
+        self.addCleanup(holder.kill)
+        self.assertEqual(holder.stdout.readline().strip(), 'held')
+        with mock.patch.object(claims, 'WAIT_LOCK', 0.2):
+            self.assertEqual(self.sor('claim', 'greet', '--as', 'alice')[0], 2)      # while it lives, the claims file is busy
+        holder.kill()
+        holder.wait()
+        self.assertEqual(self.sor('claim', 'greet', '--as', 'alice')[0], 0)         # killed: the OS let go of the lock, nothing is left to break
+
+    def test_where_no_os_lock_exists_a_leftover_mutex_is_waited_for_and_broken_when_old(self):
+        with mock.patch.object(claims, 'fcntl', None), mock.patch.object(claims, 'msvcrt', None):
+            mutex = write(self.dir, 'sor/.sor-claims.lock', '1')
+            with mock.patch.object(claims, 'WAIT_LOCK', 0.2):
+                code, _, err = self.sor('claim', 'greet', '--as', 'alice')
+            self.assertEqual(code, 2)
+            self.assertIn('busy', err)
+            old = time.time() - 60
+            os.utime(mutex, (old, old))
+            self.assertEqual(self.sor('claim', 'greet', '--as', 'alice')[0], 0)
+            self.assertFalse(os.path.exists(mutex))
 
     def test_a_claim_is_released_by_its_holder_and_nothing_is_left_behind(self):
         self.sor('claim', 'greet/hello', '--as', 'alice')
@@ -869,7 +906,7 @@ class TestLockCommand(Flow):
         first = lock_bytes(self.dir)
         self.sor('lock', '--all', '--allow-incomplete')
         self.assertEqual(lock_bytes(self.dir), first)
-        keys = [line.split('": ')[0] for line in first.decode().splitlines()[1:-1]]
+        keys = [line.split('": ')[0] for line in first.decode().splitlines()[1:-1] if line]      # a blank line between the entries
         self.assertEqual(keys, sorted(keys))
 
     def test_results_from_a_file_are_recorded(self):
@@ -1060,11 +1097,16 @@ class TestLockCommand(Flow):
         self.assertEqual(stat.S_IMODE(os.stat(path).st_mode), 0o640)
         self.assertEqual(glob.glob(path + '.*.tmp'), [])
 
+    @unittest.skipUnless(claims.fcntl, 'needs fcntl')
     def test_the_lock_waits_for_a_busy_mutex_and_refuses_with_a_message(self):
         self.sor('claim', 'greet/hello', '--as', 'alice')
-        write(self.dir, 'sor/.sor-lock.mutex', '1')
-        with mock.patch.object(claims, 'WAIT_LOCK', 0.2):
-            code, _, err = self.sor('lock', '--as', 'alice', '--allow-incomplete')
+        fd = os.open(os.path.join(self.spec, '.sor-lock.mutex'), os.O_RDWR | os.O_CREAT)
+        claims.fcntl.flock(fd, claims.fcntl.LOCK_EX)
+        try:
+            with mock.patch.object(claims, 'WAIT_LOCK', 0.2):
+                code, _, err = self.sor('lock', '--as', 'alice', '--allow-incomplete')
+        finally:
+            os.close(fd)
         self.assertEqual(code, 2)
         self.assertIn('busy', err)
         self.assertFalse(os.path.exists(os.path.join(self.spec, 'sor-lock.json')))

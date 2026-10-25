@@ -6,7 +6,10 @@
     sor hook session-start   SessionStart: a note saying this project has a spec, when it has, a short index of its parts, and what is pending
     sor hook pre-bash    PreToolUse on Bash: asks the user before a `sor lock` or `sor test` runs with an option that is theirs to decide (GUARDED), and notes which files the command could change
     sor hook post-bash   PostToolUse and PostToolUseFailure on Bash: says what the guard would have refused if the command changed code or the lock (shellguard.py)
-    sor hook session-end   SessionEnd: frees the claims the ending session made
+    sor hook session-end   SessionEnd: records on the claims of the ending session that it ended
+    sor hook stop            Stop: records whether the session works in the background (a long build), which keeps its claims from falling quiet
+    sor hook subagent-start  SubagentStart: tells a subagent to name itself (--as) when it claims; clears "stopped" for a subagent that was resumed
+    sor hook subagent-stop   SubagentStop: records on the claims of that subagent that it stopped
 
 They read the hook's JSON on stdin. Files outside a project, or outside its code, pass.
 """
@@ -17,6 +20,7 @@ import shlex
 import shutil
 import sys
 import tempfile
+import time
 from collections import Counter
 
 from . import claims
@@ -28,6 +32,7 @@ from .markers import Scan
 from .model import LEGACY_LOCK_FILE, LOCK_FILE, PART_FILE_NAME, SPEC_DIR, Project, has_spec
 
 PENDING = ('new', 'changed', 'stale', 'removed', 'behind')
+GONE_LOOKED_AT = 5   # the claims of holders that are gone that the note a session starts with looks at (about half a second each in a project of hundreds of parts)
 MAX_CONTEXT = 6000
 INDEX_MAX = 1200   # characters of the parts index at session start (SPEC §15)
 PENDING_MAX = 900  # characters of the line about pending changes at session start, its end included
@@ -118,7 +123,7 @@ def spec_keys_touched(project, path, new_text):
     tmp = tempfile.mkdtemp(prefix='sor-guard-')
     try:
         shutil.copytree(project.spec_dir, os.path.join(tmp, project.spec_name),
-                        ignore=shutil.ignore_patterns('.sor-claims.*', '.sor-lock.mutex', '.claims.*', '.lock.mutex'))
+                        ignore=shutil.ignore_patterns('.sor-claims.*', '.sor-bindings.*', '.sor-lock.mutex', '.claims.*', '.lock.mutex'))
         target = os.path.join(tmp, project.spec_name, os.path.relpath(path, project.spec_dir))
         with open(target, 'w', encoding='utf8', newline='') as fh:
             fh.write(new_text)
@@ -139,7 +144,7 @@ def claim_refusal(project, payload, keys, regions=(), text=True):
     sid = (payload.get('session_id') or '').strip()
     if not sid:
         return None   # cannot tell who is editing
-    held = claims.others_for_session(project, sid, keys, regions, text=text)
+    held = claims.others_for_agent(project, sid, payload.get('agent_id') or '', keys, regions, text=text)
     if not held:
         return None
     lines = [f'- {claims.describe(c)}' for c in held]
@@ -167,11 +172,17 @@ def is_skeleton(root, rel, path):
     return data == views.skeleton('' if name == PART_FILE_NAME else name, root, None if why == views.WHY else why).encode('utf8')
 
 
-def renew_quietly(project, session):
+def renew_quietly(project, session, agent_id=''):
     """A hook call is a sign of life of the claims of its session (`claims.touch`), and whatever goes wrong while recording it costs the hook
-    nothing: the edit keeps its check and the read its note."""
+    nothing: the edit keeps its check and the read its note. Inside a subagent (`agent_id`) it is a sign of life of the claims under the name that subagent is
+    bound to and of nobody else's: a subagent that has bound no name holds nothing, and the parent working on does not keep a finished subagent's claims alive."""
     try:
-        claims.touch(project, session)
+        if agent_id:
+            name = claims.bound_name(project, session, agent_id)
+            if name:
+                claims.touch(project, session, name=name)
+        else:
+            claims.touch(project, session)
     except Exception:  # noqa: BLE001  a hook must not fail for this
         pass
 
@@ -179,8 +190,8 @@ def renew_quietly(project, session):
 def renew_claims(root, payload):
     """An edit by a session renews its claims. It reads the claims file and nothing else, so the project is not parsed for it."""
     session = payload.get('session_id') or ''
-    if session and os.path.isfile(os.path.join(root, SPEC_DIR, CLAIMS_FILE)):
-        renew_quietly(claims.at(root), session)
+    if session and os.path.isfile(claims.path(claims.at(root))):
+        renew_quietly(claims.at(root), session, payload.get('agent_id') or '')
 
 
 def pre_edit(payload):
@@ -219,6 +230,8 @@ def pre_edit(payload):
         return None
     try:
         lock = lockfile.read(project)
+    except (lockfile.LockConflict, lockfile.LockDamaged) as e:   # a merge is being resolved: the edits that resolve it must go through
+        return context('PreToolUse', f'Spec of Record: {e} Edits to code are not checked against the lock until it is restored.')
     except lockfile.LockFormatError as e:   # the guard cannot tell what drifted from a lock it cannot read
         return deny(f'{e} Until then this copy cannot tell which edits the clauses allow, so edits to code are refused.')
     if not lock:
@@ -435,13 +448,109 @@ def guarded_calls(command, depth=0):
     return found
 
 
+def command_segments(command, depth=0):
+    """The simple commands of a shell command line as lists of words, split the way `guarded_calls` splits them: at `&&`, `||`, `;`, `|` and new lines, past
+    here-documents whose lines are data, and into what a quoted argument of a shell holds (`bash -c "..."`). A line that cannot be read gives none."""
+    out, body_ends = [], None
+    for line in command.split('\n'):
+        if body_ends is not None:
+            if line.strip() == body_ends:
+                body_ends = None
+            continue
+        try:
+            lexer = shlex.shlex(line, posix=True, punctuation_chars=True)
+            lexer.whitespace_split = True
+            words = list(lexer)
+        except ValueError:
+            continue
+        segments, current = [], []
+        for n, w in enumerate(words):
+            if w == '<<' and n + 1 < len(words) and body_ends is None:
+                i = program_index(current)
+                if not (i < len(current) and os.path.basename(current[i]) in SHELLS):
+                    body_ends = words[n + 1].lstrip('-')
+            if SHELL_OPERATOR.match(w):
+                segments, current = segments + ([current] if current else []), []
+            else:
+                current.append(w)
+        for segment in segments + ([current] if current else []):
+            out.append(segment)
+            if depth < 3:
+                i = program_index(segment)
+                if i < len(segment) and os.path.basename(segment[i]) in SHELLS:
+                    for w in segment[i + 1:]:
+                        if ' ' in w:
+                            out += command_segments(w, depth + 1)
+    return out
+
+
+def sor_calls(command):
+    """[(subcommand, words after it)] for every `sor <subcommand> ...` a shell command line runs."""
+    out = []
+    for words in command_segments(command):
+        i = program_index(words)
+        if i >= len(words) or os.path.basename(words[i]) not in ('sor', 'sor.py'):
+            continue
+        k = i + 1
+        while k < len(words) and words[k].startswith('-'):   # the options before the command: `-C folder`
+            k += 2 if words[k] == '-C' else 1
+        if k < len(words):
+            out.append((words[k], words[k + 1:]))
+    return out
+
+
+def option_value(args, name):
+    """The value of `--name value` or `--name=value` among the words of a command, '' when it is not there."""
+    for n, a in enumerate(args):
+        if a == name:
+            return args[n + 1] if n + 1 < len(args) and not args[n + 1].startswith('-') else ''
+        if a.startswith(name + '='):
+            return a[len(name) + 1:]
+    return ''
+
+
+def has_option(args, name):
+    return any(a == name or a.startswith(name + '=') for a in args)
+
+
+def agent_rules(payload):
+    """What an agent's shell command may not do, as a refusal, or None. A person at a terminal runs no hook, so nothing here takes anything from a person.
+    `sor release --force` frees another holder's claim, with nobody asked: an agent that wants a claim another holds says so (`sor claim`, which frees what holds
+    nothing back and takes over what a gone holder left unfinished) and does not force. A subagent names itself on every claim, lock and release (--as), and the
+    name binds it: its edits are attributed to the name, so the guard can tell it from its siblings and its parent."""
+    command = (payload.get('tool_input') or {}).get('command') or ''
+    calls = sor_calls(command)
+    if not calls:
+        return None
+    agent_id, session = payload.get('agent_id') or '', (payload.get('session_id') or '').strip()
+    root = None
+    for sub, args in calls:
+        if sub == 'release' and has_option(args, '--force'):
+            return deny('`sor release --force` frees a claim somebody else holds without asking them, so an agent does not run it. Claim the clause instead: `' + CMD +
+                        ' claim <id>` frees a claim that holds nothing back, and says why when one still stands; `--take-over` continues the work of a gone '
+                        'holder that left it unfinished. A person can force a release from a terminal.')
+        if agent_id and session and sub in ('claim', 'lock', 'release'):
+            name = option_value(args, '--as')
+            if not name:
+                return deny(f'You are a subagent, so a claim, lock or release needs a name of your own: pass `--as <name>` on every call (for example `--as {agent_id[:8]}`). '
+                            'The name is how the claims you make are told from your parent\'s and your siblings\'.')
+            root = root or find_root(os.path.join(payload.get('cwd') or os.getcwd(), 'x'))
+            if root:
+                ok, other = claims.bind(claims.at(root), session, agent_id, name)
+                if not ok:
+                    return deny(f'The name `{name}` is already used by another subagent of this session ({other[:8]}). Pass a name of your own with `--as`, '
+                                f'for example `--as {agent_id[:8]}`.')
+    return None
+
+
 def session_end(payload):
-    """Frees the claims made in the session that is ending, so a closed chat does not hold clauses until its idle window runs out. A crash skips
-    this hook, and the idle window covers that. It looks for the project from the folder the session ends in, so a session started above its
-    project (a monorepo root with the project in a subfolder) keeps its claims until the idle window runs out."""
+    """Records that the session is ending on its claims (`claims.mark_ended`), and frees nothing: what the claims of an ended session mean is decided
+    when somebody asks for the clause. It has 1.5 seconds, so it reads the claims file and nothing else, not the project. It looks for the project from
+    the folder the session ends in, so a session started above its project (a monorepo root with the project in a subfolder) records nothing; its
+    claims fall quiet when their idle window passes."""
     root = find_root(os.path.join(payload.get('cwd') or os.getcwd(), 'x'))
     if root:
-        claims.release_session(Project(root), payload.get('session_id') or '')
+        claims.mark_ended(claims.at(root), payload.get('session_id') or '', payload.get('reason') or 'other')
     return None
 
 
@@ -458,6 +567,9 @@ def pre_bash(payload):
         shellguard.before(payload)
     except (Exception, SystemExit):
         pass   # a note about the command that follows is not worth stopping it
+    refusal = agent_rules(payload)
+    if refusal:
+        return refusal
     calls = guarded_calls((payload.get('tool_input') or {}).get('command') or '')
     if not calls:
         return None
@@ -482,6 +594,14 @@ def post_bash(payload):
     return shellguard.after(payload)
 
 
+def context(event, text):
+    """Words for the agent, with no decision: what a hook says when it lets something through or cannot do its job."""
+    return {'hookSpecificOutput': {'hookEventName': event, 'additionalContext': text}}
+
+
+EVENT = {'pre-edit': 'PreToolUse', 'pre-bash': 'PreToolUse', 'post-read': 'PostToolUse', 'post-bash': 'PostToolUse', 'session-start': 'SessionStart', 'subagent-start': 'SubagentStart'}
+
+
 def deny(reason):
     return {'hookSpecificOutput': {'hookEventName': 'PreToolUse', 'permissionDecision': 'deny',
                                    'permissionDecisionReason': reason}}
@@ -494,7 +614,7 @@ def post_read(payload):
     if not root:
         return None
     project = Project(root)
-    renew_quietly(project, payload.get('session_id') or '')
+    renew_quietly(project, payload.get('session_id') or '', payload.get('agent_id') or '')
     scan = Scan(project)
     SPEC_DIR = project.spec_name
     rel = scan.rel(path)
@@ -570,7 +690,35 @@ def pending_line(project):
     return line(shown)
 
 
-def pending_note(project):
+def claims_lines(project, session='', source=''):
+    """Lines about claims for the note a session starts with: on resume or compaction the claims this session holds (an agent forgets them after a compaction, and
+    a resumed session shows its signs of life, which clears the fact that it ended), each claim that stands because its holder is gone and left something (parked,
+    or waiting for its merge) with how long that has been so, and with whom the claims are shared. Empty when there are no claims and the store is the
+    project's own folder."""
+    held = claims.active(project)
+    st = claims.store(project)
+    lines = []
+    if session and source in ('resume', 'compact') and any(c.get('session') == session for c in held):
+        claims.touch(claims.at(project.root), session)
+        lines.append('Claims you hold in this session: ' + '; '.join(claims.describe(c) for c in claims.active(project) if c.get('session') == session) + '.')
+    now = time.time()
+    others = [c for c in held if not session or c.get('session') != session]
+    window = claims.project_parked(project)
+    gone = [c for c in others if claims.is_gone(c, now, window)]
+    looked = gone[:GONE_LOOKED_AT]      # each one gone is read in its own folder, and a session start has 10 seconds
+    for c, d in claims.states(project, looked):
+        if d.kind in ('parked', 'waiting'):
+            seconds = max(0, int(now - claims.gone_since(c, now)))
+            first = claims.explain(c, d).replace('\n    ', ' — ', 1)
+            lines.append(f"{d.kind.capitalize()} for {seconds // 3600} h: {first}" if seconds >= 3600 else f"{d.kind.capitalize()} for {seconds // 60} min: {first}")
+    if len(gone) > len(looked):
+        lines.append(f'{len(gone) - len(looked)} more claims of holders that are gone were not looked at: `{CMD} claims` lists them all.')
+    if held or st.kind != 'folder':
+        lines.append(f'Claims are shared by {st.shared}.')
+    return lines
+
+
+def pending_note(project, session='', source=''):
     """Lines of plain status a session finds when it starts: what is pending since the last lock (`pending_line`), and the claims in force, which exist
     with or without a lock. Nobody can say which session left a change, so it says "since the last lock". A pending line that cannot be worked
     out (a lock this copy cannot read, a broken part) is left out, never an error."""
@@ -585,6 +733,10 @@ def pending_note(project):
     if held:
         shown = [claims.describe(c) for c in held[:3]]
         lines.append('Claims in force: ' + '; '.join(shown) + (f'; ... and {len(held) - 3} more' if len(held) > 3 else '') + '.')
+    try:
+        lines += claims_lines(project, session, source)
+    except (Exception, SystemExit):
+        pass   # a note about the claims is not worth failing the start of a session
     return '\n'.join(lines)
 
 
@@ -622,7 +774,7 @@ def session_start(payload):
     except (Exception, SystemExit):
         pass   # the note above is enough
     try:
-        pending = pending_note(Project(root))
+        pending = pending_note(Project(root), (payload.get('session_id') or '').strip(), payload.get('source') or '')
         if pending:
             ctx += '\n' + pending
     except (Exception, SystemExit):
@@ -630,7 +782,39 @@ def session_start(payload):
     return {'hookSpecificOutput': {'hookEventName': 'SessionStart', 'additionalContext': ctx}}
 
 
-HOOKS = {'pre-edit': pre_edit, 'post-read': post_read, 'session-start': session_start, 'pre-bash': pre_bash, 'post-bash': post_bash, 'session-end': session_end}
+def project_root(payload):
+    return find_root(os.path.join(payload.get('cwd') or os.getcwd(), 'x'))
+
+
+def stop(payload):
+    """Records what the `Stop` of the session said about its background work (`claims.mark_busy`): with work in flight (a long build, a subagent), its claims are
+    not quiet for a while; without, that is forgotten. It frees nothing and decides nothing: it is idle only in the sense of waiting for the user."""
+    root = project_root(payload)
+    if root:
+        claims.mark_busy(claims.at(root), (payload.get('session_id') or '').strip(), bool(payload.get('background_tasks')))
+    return None
+
+
+def subagent_start(payload):
+    """A subagent starts, or is resumed: its claims are no longer stopped, and it is told to name itself when it claims."""
+    root = project_root(payload)
+    if not root:
+        return None
+    claims.mark_stopped(claims.at(root), (payload.get('session_id') or '').strip(), payload.get('agent_id') or '', False)
+    return context('SubagentStart', f'This project keeps its specification as clauses in {SPEC_DIR}/ (Spec of Record). If you claim, lock or release clauses, pass `--as <a name '
+                   'of your own>` on every `' + CMD + ' claim`, `lock` and `release`: your claims are held under it, apart from your parent\'s and your siblings\'.')
+
+
+def subagent_stop(payload):
+    """A subagent stopped: its claims say so, which makes the holder gone (a subagent can be resumed, and `subagent_start` clears it)."""
+    root = project_root(payload)
+    if root:
+        claims.mark_stopped(claims.at(root), (payload.get('session_id') or '').strip(), payload.get('agent_id') or '', True)
+    return None
+
+
+HOOKS = {'pre-edit': pre_edit, 'post-read': post_read, 'session-start': session_start, 'pre-bash': pre_bash, 'post-bash': post_bash, 'session-end': session_end,
+         'stop': stop, 'subagent-start': subagent_start, 'subagent-stop': subagent_stop}
 
 
 def run(which):
@@ -639,7 +823,11 @@ def run(which):
         out = HOOKS[which](payload)
     except (Exception, SystemExit) as e:  # never block the agent because the tool itself failed (a refused project too)
         print(f'sor hook {which} failed: {type(e).__name__}: {e}', file=sys.stderr)
-        return 1
+        # Claude Code treats exit 1 as a non-blocking error and prints noise; exit 0 with a note says the same to the agent and keeps the transcript clean
+        if which in EVENT:
+            sys.stdout.write(json.dumps(context(EVENT[which], f'Spec of Record: the {which} hook failed ({type(e).__name__}: {e}), so it did not check this.'),
+                                        ensure_ascii=False))
+        return 0
     if out:
         sys.stdout.write(json.dumps(out, ensure_ascii=False))
     return 0

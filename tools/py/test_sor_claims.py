@@ -46,20 +46,22 @@ class Session(Flow):
 
     def live(self):
         """The agents whose claims are in force, from the file."""
-        return sorted(c['agent'] for c in self.claims_file() if c['until'] > time.time())
+        return sorted(c['agent'] for c in self.claims_file() if not c.get('freed'))
 
     def expired_at(self, agent):
         """The clock time one agent's claim ran out, as the commands print it."""
-        (c,) = [c for c in self.claims_file() if c['agent'] == agent and c['until'] <= time.time()]
+        (c,) = [c for c in self.claims_file() if c['agent'] == agent and c.get('freed')]
         return claims.when(c['until'])
 
     def lapse(self, agent, ago=5):
-        """Moves the claims of one agent to the past, the others' stay."""
+        """The state a claim is in after it ran out and somebody found nothing left to protect in it: freed `ago` seconds ago, as `sor claim` leaves it. (A claim
+        that has only run out is quiet, and stays until somebody asks for the clause: TestQuietClaims in test_sor_claimrules.py.)"""
         path = os.path.join(self.spec, '.sor-claims.json')
         data = json.loads(read(path))
         for c in data['claims']:
             if c['agent'] == agent:
                 c['until'] = time.time() - ago
+                c['freed'] = {'by': 'someone', 'at': c['until'], 'why': 'quiet'}
         write(self.dir, 'sor/.sor-claims.json', json.dumps(data))
 
 
@@ -80,7 +82,7 @@ class TestReleaseByAName(Session):
     def test_release_by_id_as_a_name_does_not_drop_a_siblings_claim(self):
         code, out, _ = self.run_sor('release', 'greet/hello', '--as', 'a2')
         self.assertEqual(code, 3)
-        self.assertIn('NOT released (held by someone else; --force overrides): a1: greet/hello', out)
+        self.assertIn('NOT released (held by someone else; a person can force it from a terminal with --force): a1: greet/hello', out)
         self.assertNotIn('released greet/hello', out.replace('NOT released', ''))
         self.assertEqual(self.live(), ['a1', 'a2'])
 
@@ -140,7 +142,7 @@ class TestExpiredClaims(Session):
         self.assertEqual(code, 2)
         self.assertTrue(out.startswith('lock refused:\n'), out)
         self.assertIn(f'your claims on greet/bye, greet/hello expired at {self.expired_at("a1")}', out)
-        self.assertIn('claims end after 30 min idle by default: claim again, `--ttl 2h` for a longer window', out)
+        self.assertIn('claim again (a holder is quiet after 30 min idle by default; `--ttl 2h` for a longer window)', out)
         self.assertNotIn('locking what you claimed', out)
 
     def test_the_note_names_each_time_when_claims_ran_out_at_different_minutes(self):
@@ -150,10 +152,11 @@ class TestExpiredClaims(Session):
         data = json.loads(read(path))
         for c, ago in zip(data['claims'], (600, 5)):
             c['until'] = time.time() - ago
+            c['freed'] = {'by': 'someone', 'at': c['until'], 'why': 'quiet'}
         write(self.dir, 'sor/.sor-claims.json', json.dumps(data))
         out = self.run_sor('lock', '--as', 'a1')[1]
         first, second = (claims.when(c['until']) for c in data['claims'])
-        self.assertIn(f'your claims on greet/hello expired at {first}, on greet/bye at {second}; claims end after', out)
+        self.assertIn(f'your claims on greet/hello expired at {first}, on greet/bye at {second}; claim again (a holder is quiet after', out)
 
     def test_an_agent_is_told_only_about_its_own_expired_claims(self):
         self.run_sor('claim', 'greet/hello', '--as', 'a1')
@@ -215,7 +218,7 @@ class TestExpiredClaims(Session):
         code, out, _ = self.run_sor('release', '--all', '--as', 'a1')
         self.assertEqual(code, 0)
         self.assertEqual(out.strip(), f'nothing to release: your claims on greet/hello expired at {expired} '
-                         '(claims end after 30 min idle by default: claim again, `--ttl 2h` for a longer window)')
+                         '(claim again (a holder is quiet after 30 min idle by default; `--ttl 2h` for a longer window))')
         self.assertEqual(self.claims_file(), [])   # nothing is left in the project
         self.assertEqual(self.run_sor('release', '--all', '--as', 'a1')[1].strip(), 'nothing to release')
 

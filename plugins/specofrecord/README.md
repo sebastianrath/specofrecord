@@ -67,10 +67,11 @@ placeholders that `sor check` reports until they are filled in. Or create the fi
   repository's own `.claude/settings.json` has it). See "After a shell command" in SPEC §15. It guards Claude Code only: your own terminal, other agents and a script that Claude writes and runs are not covered, and how Claude
   Code's bypass-permissions mode treats an `ask` is not verified. The same flag is the way out of `sor lock` refusing a language
   that is behind or has no code, so the answer to the question is yours.
-- **A claim ends with its session or when it is idle.** It is renewed by every `sor` command and every edit or read that carries the session id, and a
-  `SessionEnd` hook frees the claims of the chat that ends. A chat that crashed skips the hook, and its claims end after 30 minutes without activity.
-  `--ttl 2h` sets that window for one claim, `--ttl never` removes it, and `Claims: idle 2h` (or `idle never`) in `SPECOFRECORD.md` sets it for the
-  project (a change to that line shows as a change of the root file). The editor extension has no session id, so its refreshes keep nothing alive.
+- **A claim ends when nothing is left to protect, not when a clock says so.** It is renewed by every `sor` command and every edit or read that carries the session id (a subagent renews its own claims, a
+  parent does not renew a subagent's), and the `SessionEnd`, `Stop`, `SubagentStart` and `SubagentStop` hooks record on the claims that a session ended, that it works in the background, or that a subagent stopped.
+  They free nothing: when another agent asks for a clause, `sor claim` looks at what the holder left behind and frees the claim, or says that it is parked (unfinished work in another folder: `--take-over`) or waiting for
+  the merge. After 30 minutes without activity a holder is only quiet. `--ttl 2h` sets that window for one claim, `--ttl never` removes it, and `Claims: idle 2h, parked 12h` in `SPECOFRECORD.md` sets the window
+  and how long unfinished work is held for the project (a change to that line shows as a change of the root file). The editor extension has no session id, so its refreshes keep nothing alive.
 - **Claims.** `sor claim` records who works on which clauses and `sor lock` respects it. The edit hook also
   refuses edits to a clause someone else holds (it says who and until when, and the agent decides what to do).
   An agent that never claims is not stopped. This relies on the session id a hook receives being the one
@@ -123,15 +124,16 @@ budget 8 ms.`
 The tools do not depend on how your project is run or built, and they never commit, merge, fetch or open files
 for edit. The one exception is an optional lookup of who last changed drifted lines (git today; without git it is
 simply left out). What your project handles itself:
-- Keep `sor/.sor-claims.json`, `sor/.sor-claims.lock`, `sor/.sor-lock.mutex`, `sor/*.tmp` and the page copies `.sor-test-*`
-  that a crashed `sor test` can leave next to the web page out of version control, with whatever ignore mechanism you use.
-  The claims file is removed when no claim, and no claim that merely expired, is left. An expired claim stays in it for 2
+- In a git repository the claims live in the common git directory (`sor-claims/` in it), which git never tracks, so there is nothing to ignore. Elsewhere they live in the project's own folder: keep
+  `sor/.sor-claims.json`, `sor/.sor-claims.lock`, `sor/.sor-bindings.json`, `sor/.sor-lock.mutex`, `sor/*.tmp` and the page copies `.sor-test-*`
+  that a crashed `sor test` can leave next to the web page out of version control, with whatever ignore mechanism you use. A folder named by `SOR_CLAIMS_DIR` is outside the project.
+  The claims file is removed when no claim, and no freed claim, is left. A freed claim stays in it for 2
   hours (so its holder can be told) and is dropped by the first claim or release after that; reading does not touch the file.
 - If your environment keeps files read-only until they are opened for edit, open `sor/sor-lock.json` and the
   files an agent will change first. `sor lock` refuses, and changes nothing, when the lock file is read-only.
 - Line endings do not matter: an LF and a CRLF checkout of the same files give the same lock.
-- Claims live in one workspace. Agents in separate workspaces (git worktrees, Perforce clients, Lore instances) or
-  on separate machines do not see each other's claims; a shared place for them is not built.
+- Claims are shared by every working folder of a project: in a git repository by its worktrees (they share the git directory), and by any folders whose users set the same `SOR_CLAIMS_DIR` (clones, Perforce
+  workspaces, Lore instances, a shared drive). `sor status` and `sor claims` say what a store is shared with. A second clone of a git repository has claims of its own unless both set `SOR_CLAIMS_DIR`.
 
 ## For maintainers
 `tools/` in the repository is the one place to edit. After a change, run `sh plugins/sync-tools.sh` to copy

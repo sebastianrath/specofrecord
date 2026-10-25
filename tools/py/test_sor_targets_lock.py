@@ -82,7 +82,8 @@ class TestTheLockLines(Targeted):
             line = raw[f'greet/hello@{t}']
             self.assertEqual((line['kind'], line['of'], line['target'], line['built']), ('code', 'greet/hello', t, text))
             self.assertEqual(len(line['code']), 12)
-        self.assertTrue(flows.lock_bytes(self.dir).startswith(b'{\n"*format": 2,\n'))
+        self.assertTrue(flows.lock_bytes(self.dir).startswith(flows.LOCK_HEAD))
+        self.assertIn(b'"kind": "code"', flows.lock_bytes(self.dir))      # lines per target
 
     def test_the_lock_reads_back_the_same_and_a_second_lock_changes_nothing(self):
         self.lock_all()
@@ -106,7 +107,8 @@ class TestTheLockLines(Targeted):
         self.build(targets=None)
         self.lock_all()
         raw = self.raw()
-        self.assertNotIn(b'*format', flows.lock_bytes(self.dir))
+        self.assertTrue(flows.lock_bytes(self.dir).startswith(flows.LOCK_HEAD))
+        self.assertNotIn(b'"kind": "code"', flows.lock_bytes(self.dir))      # no line per target
         self.assertFalse([k for k in raw if '@' in k])
         self.assertIn('code', raw['greet/hello'])
 
@@ -126,12 +128,15 @@ class TestAddingTargetsToAnOldLock(Targeted):
         found = self.findings()
         self.assertEqual({f['status'] for f in found}, {'changed'}, found)   # the root file, which now says its targets
         self.assertEqual([f['key'] for f in found], ['ROOT'])
-        self.assertNotIn(b'*format', flows.lock_bytes(self.dir))
+        self.assertTrue(flows.lock_bytes(self.dir).startswith(flows.LOCK_HEAD))
+        self.assertNotIn(b'"kind": "code"', flows.lock_bytes(self.dir))      # no line per target
         code, out, _ = self.sor('lock', 'ROOT')
         self.assertEqual(code, 0, out)
-        self.assertNotIn(b'*format', flows.lock_bytes(self.dir))     # the root has no code, so no line yet
+        self.assertTrue(flows.lock_bytes(self.dir).startswith(flows.LOCK_HEAD))
+        self.assertNotIn(b'"kind": "code"', flows.lock_bytes(self.dir))     # the root has no code, so no line yet
         self.assertEqual(self.sor('lock', 'greet/hello')[0], 0)
-        self.assertTrue(flows.lock_bytes(self.dir).startswith(b'{\n"*format": 2,\n'))
+        self.assertTrue(flows.lock_bytes(self.dir).startswith(flows.LOCK_HEAD))
+        self.assertIn(b'"kind": "code"', flows.lock_bytes(self.dir))      # lines per target
         raw = self.raw()
         self.assertIn('greet/hello@py', raw)
         self.assertNotIn('greet/bye@py', raw)    # a clause without code has no lines
@@ -175,7 +180,8 @@ class TestAddingTargetsToAnOldLock(Targeted):
         found = self.findings()
         self.assertEqual([(f['status'], f['key']) for f in found], [('changed', 'ROOT')])     # only the root, which lost the line
         self.assertEqual(self.sor('lock', '--all')[0], 0)
-        self.assertNotIn(b'*format', flows.lock_bytes(self.dir))
+        self.assertTrue(flows.lock_bytes(self.dir).startswith(flows.LOCK_HEAD))
+        self.assertNotIn(b'"kind": "code"', flows.lock_bytes(self.dir))      # no line per target
         self.assertFalse([k for k in self.raw() if '@' in k])
         self.assertIn('code', self.raw()['greet/hello'])
 
