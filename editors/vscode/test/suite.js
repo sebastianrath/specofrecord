@@ -248,7 +248,7 @@ exports.run = async function run() {
   }
   // the ticks of inline code hide as soon as the code is closed (preview/code-closes)
   const scratch = path.join(project.root, 'sor', 'scratch-ticks.md');
-  fs.writeFileSync(scratch, '# Scratch\nWhy: s.\n\n## Rules\nabc `test` ok\na `` b\n');
+  fs.writeFileSync(scratch, '# Scratch\nWhy: s.\n\n## Rules\nabc `test` ok\na `` b\nx `hello(test)` y\n');
   await sleep(800);
   const sd = await vscode.workspace.openTextDocument(scratch);
   const sed = await vscode.window.showTextDocument(sd);
@@ -263,6 +263,10 @@ exports.run = async function run() {
   ts = api.state.preview.get(skey);
   assert(hasRange(ts.hide, 4, ta, ta + 1) && hasRange(ts.hide, 4, tb, tb + 1), 'with the cursor inside the code the ticks stay hidden');
   assert(hasRange(ts.code, 4, ta + 1, tb), 'the box frames the word');
+  // one box for `hello(test)`: the top and bottom lines run along all of it, the left and right lines are on its ends only (preview/code-box)
+  const hl = sd.lineAt(6).text, ha = hl.indexOf('`'), hb = hl.lastIndexOf('`');
+  assert(hasRange(ts.code, 6, ha + 1, hb) && hasRange(ts.codeL, 6, ha + 1, ha + 2) && hasRange(ts.codeR, 6, hb - 1, hb)
+    && ts.codeL.filter(([l]) => l === 6).length === 1 && ts.codeR.filter(([l]) => l === 6).length === 1, 'hello(test) is one box, not one per piece');
   // what VS Code leaves after typing one tick: a pair with the cursor between (preview/code-open)
   const pl = sd.lineAt(5).text, pa = pl.indexOf('`');
   sed.selection = new vscode.Selection(5, pa + 1, 5, pa + 1);

@@ -5,9 +5,9 @@ instead of a wall of `**`, braces and backticks.
 ## Rules
 - **marks-hidden** — in a spec file the formatting marks disappear and their text is shown styled:
   `**name**` bold, `` `code` `` as inline code, `## Heading` as a heading, `{reference}` as a link.
-- **code-box** — like Slack, inline code sits in a small box: a thin border, rounded corners, a
-  light background and code-coloured text. A fenced code block (lines between ```) is one shaded
-  block, its ``` lines faint.
+- **code-box** — like Slack, inline code sits in one small box: a thin border, rounded corners, a
+  light background and code-coloured text. It stays one box when VS Code colours part of it differently
+  (`hello(test)` is not four boxes). A fenced code block (lines between ```) is one shaded block, its ``` lines faint.
 - **values** — in `{name: value}` the braces disappear and the name goes faint, so the value
   stands out; hovering it still says what it is.
 - **code-lines** — in a `code: path#name` line the word `code:` goes faint and the path looks
@@ -48,7 +48,9 @@ instead of a wall of `**`, braces and backticks.
 - **toggle** — turning live preview off removes every hidden mark, on brings them back
   (test/suite.js).
 - **values** — a `{name: value}` shows the value, the name faint, the braces gone (test/suite.js).
-- **code-box** — inline code shows as a framed box, and a fenced block as one shaded block.
+- **code-box** — inline code shows as a framed box, and a fenced block as one shaded block. For `hello(test)` the
+  whole word has the top and bottom lines, the left line is on `h` only and the right line on the last `)` only
+  (test/suite.js); drawn, it is one box with no frame inside it.
   manual: by eye
 - **display-only** — the file on disk is the same with live preview on and off.
   manual: by eye

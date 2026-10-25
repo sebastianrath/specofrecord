@@ -732,11 +732,19 @@ function activate(context) {
     // are painted in a layer of their own at the columns the text had before the backticks were hidden, which put
     // the box one character to the right of its text. The tint comes from the editor's text color, so it shows on any
     // theme (the theme's own code background is nearly transparent). light/dark variants do not take this CSS.
+    // VS Code cuts a line into pieces wherever its colouring changes (each bracket of `hello(test)` has a colour of its own), and a
+    // border on the text is drawn on every piece: several small boxes. So `code` has only the top and bottom lines, which run on
+    // through all pieces, and the left and right lines with the rounded corners sit on the first and last character (preview/code-box).
     code: deco({
       color: new vscode.ThemeColor('textPreformat.foreground'),
       textDecoration: 'none; background-color: color-mix(in srgb, var(--vscode-editor-foreground) 14%, transparent);'
-        + ' border: 1px solid color-mix(in srgb, var(--vscode-editor-foreground) 26%, transparent); border-radius: 4px;',
+        + ' border-top: 1px solid color-mix(in srgb, var(--vscode-editor-foreground) 26%, transparent);'
+        + ' border-bottom: 1px solid color-mix(in srgb, var(--vscode-editor-foreground) 26%, transparent);',
     }),
+    codeL: deco({ textDecoration: 'none; border-left: 1px solid color-mix(in srgb, var(--vscode-editor-foreground) 26%, transparent);'
+      + ' border-top-left-radius: 4px; border-bottom-left-radius: 4px;' }),
+    codeR: deco({ textDecoration: 'none; border-right: 1px solid color-mix(in srgb, var(--vscode-editor-foreground) 26%, transparent);'
+      + ' border-top-right-radius: 4px; border-bottom-right-radius: 4px;' }),
     // An empty pair of ticks with the cursor between: each tick is shrunk to nothing, like every hidden mark, and drawn as one half of a
     // small box (a fixed-size block, because text of no size gives a box neither width nor height). The cursor sits between the
     // two ticks, so it sits in the middle of the box (preview/code-open).
@@ -778,6 +786,7 @@ function activate(context) {
         continue;
       }
       const add = (k, a, b) => { if (b > a) out[k].push([l, a, b]); };
+      const addCode = (a, b) => { add('code', a, b); add('codeL', a, a + 1); add('codeR', b - 1, b); };   // one box (preview/code-box)
       const h = /^(#{1,6}\s+)(.*\S)\s*$/.exec(t);
       if (h) { if (!inside(l, 0, t.length)) add('hide', 0, h[1].length); add('heading', h[1].length, t.length); continue; }
       if (/^\s*\|[\s:|-]+\|\s*$/.test(t)) { add('faint', 0, t.length); continue; }
@@ -791,13 +800,13 @@ function activate(context) {
       const free = (a, b) => !taken.some(([x, y]) => a < y && b > x);
       for (const m of t.matchAll(/`([^`\n]*)`/g)) {
         const a = m.index, b = m.index + m[0].length;
-        if (b - a > 2) { add('hide', a, a + 1); add('code', a + 1, b - 1); add('hide', b - 1, b); }   // the ticks are hidden wherever the cursor is (preview/code-closes)
+        if (b - a > 2) { add('hide', a, a + 1); addCode(a + 1, b - 1); add('hide', b - 1, b); }   // the ticks are hidden wherever the cursor is (preview/code-closes)
         else if (within(l, a, b)) { add('pairL', a, a + 1); add('pairR', a + 1, b); }   // an empty pair with the cursor between: a small box, the ticks invisible (preview/code-open)
         taken.push([a, b]);   // an empty pair stays as typed once the cursor leaves
       }
       // a backtick still waiting for its partner: the rest of the line is already code while you type (like Slack)
       const lone = [...t.matchAll(/`/g)].map((m) => m.index).filter((i) => free(i, i + 1)).pop();
-      if (lone !== undefined && lone + 1 < t.length) { add('code', lone + 1, t.length); taken.push([lone, t.length]); }
+      if (lone !== undefined && lone + 1 < t.length) { addCode(lone + 1, t.length); taken.push([lone, t.length]); }
       for (const m of t.matchAll(/\*\*([^*\n]+?)\*\*/g)) {
         if (!free(m.index, m.index + m[0].length)) continue;
         add('hide', m.index, m.index + 2); add('bold', m.index + 2, m.index + m[0].length - 2);
