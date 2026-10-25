@@ -455,6 +455,15 @@ exports.run = async function run() {
     assert(stMarks && stMarks.recompile.length > 0 && stMarks.drift.length === 0, 'the code file has a recompile mark and no drift mark: ' + JSON.stringify(stMarks));
     const stScene = api.state.marks.get(path.normalize(file('sor', 'screen', 'scene.md').fsPath).toLowerCase());
     assert(stScene && stScene.review.length > 0, 'a clause item that needs review has a review mark in scene.md: ' + JSON.stringify(stScene));
+    // hovering that marked line of the spec says what the mark means (state/gutter); a line without a mark says nothing
+    const mkDoc = await vscode.workspace.openTextDocument(file('sor', 'screen', 'scene.md'));
+    const mkHover = async (line) => (await vscode.commands.executeCommand('vscode.executeHoverProvider', mkDoc.uri, new vscode.Position(line - 1, 2)))
+      .flatMap((h) => h.contents.map((c) => c.value)).join('\n');
+    const mkText = await mkHover(stScene.review[0]);
+    assert(/to review/.test(mkText) && /changed: check that it still holds/.test(mkText) && /\*\*[^*]+\*\*/.test(mkText), 'the review mark of scene.md explains itself on hover: ' + mkText);
+    const mkMarked = new Set([...stScene.review, ...stScene.recompile, ...stScene.drift]);
+    const mkFree = [...Array(mkDoc.lineCount).keys()].map((n) => n + 1).find((n) => !mkMarked.has(n));
+    assert(mkFree === undefined || (await mkHover(mkFree)) === '', 'a line of scene.md without a mark has no mark hover');
   } finally {
     fs.writeFileSync(sbFile, sbOriginal);
   }

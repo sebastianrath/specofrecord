@@ -652,8 +652,24 @@ function activate(context) {
   }
   // @clause end
 
-  // @clause state references/unresolved state/blame
+  // @clause state references/unresolved state/blame state/gutter
   // ---------------------------------------------------------------- hover
+  // VS Code gives an extension no tooltip on a gutter icon, so a marked line of a spec file says what its mark means when its text is hovered
+  const MEANS = {
+    drift: 'the code was edited and no longer matches what was last locked',
+    review: 'this clause, or one it depends on, changed: check that it still holds',
+    recompile: 'new, changed or removed since the last lock: its code has to be built from it',
+  };
+  function markHover(project, doc, line) {
+    const k = norm(doc.uri.fsPath);
+    const m = state.marks.get(k);
+    const cls = m && ['drift', 'review', 'recompile'].find((c) => m[c].includes(line));
+    if (!cls) return null;
+    const item = project.index.items.filter((it) => norm(it.path) === k && it.line <= line && line <= (it.endLine || it.line))
+      .sort((a, b) => (b.line - a.line) || ((a.endLine || a.line) - (b.endLine || b.line)))[0];
+    return new vscode.Hover(new vscode.MarkdownString(`${item ? `**${item.id}** · ` : ''}${WORD[cls]}\n\n${MEANS[cls]}`));
+  }
+
   const hoverProvider = {
     async provideHover(doc, pos) {
       const project = docProject(doc);
@@ -661,7 +677,7 @@ function activate(context) {
       if (isSpecDoc(project, doc.uri.fsPath)) {
         const ref = refAt(project, doc, pos);
         if (ref && !ref.to) return new vscode.Hover(new vscode.MarkdownString(`\`{${ref.text}}\` names no item or value`));
-        return null;
+        return markHover(project, doc, pos.line + 1);
       }
       const line = pos.line + 1;
       const regs = regionsOfFile(project, doc.uri.fsPath).filter((r) => r.ids.length && r.kind !== 'glue' && line >= r.start && line <= r.end);

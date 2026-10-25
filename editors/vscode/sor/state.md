@@ -12,7 +12,9 @@ up to date.
   one it depends on changed), recompile (new, changed or removed since the lock), drift (the code
   was edited and no longer matches the lock).
 - **gutter** — red for drift, amber for review, blue for recompile, on the lines of each code
-  region and of each item; in sync shows no mark.
+  region and of each item; in sync shows no mark. VS Code gives an extension no tooltip on the icon
+  itself, so a marked line of a spec file explains its mark when its text is hovered: the item, the
+  state word and what that state means.
 - **worst-wins** — when several states apply, the worst wins: drift, then review, then recompile.
 - **status-bar** — the status bar counts "N drift · N review · N recompile" over all projects.
 
@@ -30,7 +32,8 @@ up to date.
   (test/suite.js).
 - **states** — a line whose clause changed shows "to recompile" (test/suite.js).
 - **gutter** — after a refresh `index.html` has marks in each state the tool reports, and a clause
-  item that needs review has an amber mark (test/suite.js).
+  item that needs review has an amber mark (test/suite.js); hovering that marked item names it, says
+  "to review" and what that means (test/suite.js).
 - **words** — each status the tool reports has one word: behind is recompile, stale and shared are
   review, and a status the extension does not know counts as in sync (test/regions.js).
 - **no-hover** — a line outside any region, and a file outside any project, show nothing.
