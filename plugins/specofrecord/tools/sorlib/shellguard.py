@@ -32,6 +32,7 @@ import tempfile
 import time
 
 from . import claims
+from .invoke import command_lines
 from . import lock as lockfile
 from .hook import clause_first_reasons, enforcing, find_root, program_index
 from .invoke import CMD
@@ -58,7 +59,7 @@ def parts_of(command):
     """([the words of each command of the line], readable): the commands joined by `&&`, `||`, `;`, `|`, `&`, parentheses or a new line, with the
     redirections among their words. `readable` is False when a line cannot be read (an open quote)."""
     parts, readable = [], True
-    for line in command.split('\n'):
+    for line in command_lines(command):
         try:
             lexer = shlex.shlex(line, posix=True, punctuation_chars=True)
             lexer.whitespace_split = True

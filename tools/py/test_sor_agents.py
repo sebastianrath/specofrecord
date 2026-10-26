@@ -232,6 +232,12 @@ class TestAgentsMayNotForceARelease(Agents):
         for flag in ('--all', '--as main', '--fr', '--fo2'):
             self.assertIsNone(self.bash(f'sor release greet/hello {flag}'), flag)
 
+    def test_a_release_continued_on_the_next_line_is_read_as_one_command(self):
+        for agent in ('', X):
+            said = flows.reason(self.bash('sor release greet/hello \\\n  --force', agent_id=agent))
+            self.assertIn('frees a claim somebody else holds', said, agent)
+        self.assertIn('needs a name of your own', flows.reason(self.bash('sor claim greet/hello \\\n  --ttl 2h', agent_id=X)))
+
     def test_a_release_without_force_and_talk_about_it_pass(self):
         self.assertIsNone(self.bash('sor release --all'))
         self.assertIsNone(self.bash('sor release greet/hello --as main'))

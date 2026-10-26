@@ -881,7 +881,8 @@ What the tool does about it:
   never removed. Where the file system gives no OS lock (some network shares) the old way is the fallback: an `O_EXCL` file, broken when older than 10 s, which two waiters
   can race for after a crash. Temp files older than 5 minutes are removed. `grant` numbers a record (it rises with the clock, so a record that comes back after the file
   was emptied is still a new one), `rev` counts the writes that changed it, `base` is the signature of the lock entries of its keys at the moment of the grant, `where`
-  the working folder, the machine and the branch it was made in. A claim that was freed stays for 2 hours as a tombstone (`freed`; `claims.TOMBSTONE`), only so that
+  the working folder, the machine and the branch it was made in (the machine as its host name and, on a Mac, whose host name follows the network, also its hardware id: a folder is
+  on this machine when the ids match, else when the host names do). `locked_keys` are the keys the holder's locks changed. A claim that was freed stays for 2 hours as a tombstone (`freed`; `claims.TOMBSTONE`), only so that
   its holder can be told (below). The file is deleted when no claim and no tombstone is left.
 - **How a claim ends.** A holder releases it, or `sor claim` finds that nothing is left to protect, or somebody takes it over. Events are recorded as facts on the
   claim and free nothing: the session ended (`SessionEnd`, with its reason, in the time the hook has: it reads the claims file and not the project), a subagent stopped
@@ -890,8 +891,8 @@ What the tool does about it:
   session ended, it stopped, or it is quiet and not busy in the background. `SIGKILL` sends no `SessionEnd`; such a holder becomes quiet. When somebody asks for a clause
   that a holder holds (`sor claim`, and the edit guard when the holder is gone), the claim stands or not by these rules, the first that fits: its working folder is
   gone (free, unless the holder locked work, which waits for its merge); the holder is not gone (held, even after it locked part of its work: five hours of a build is
-  not a reason to free it); its work has arrived in this copy, that is, its locked entries for its keys differ from `base` and the lock of this copy differs from `base`
-  too (free); it is gone and its folder is this one (free: what it left is in files that are shared, and shows as changes to finish, an agent's unfinished work and not a
+  not a reason to free it); its work has arrived in this copy, that is, its locked entries for its keys (those of the grant, and any it added under the ids it asked for) differ from `base`
+  and the lock of this copy differs from `base` for each of them too (free); it is gone and its folder is this one (free: what it left is in files that are shared, and shows as changes to finish, an agent's unfinished work and not a
   person's change to keep); it left unfinished work in another folder (*parked*; free when the parked window passes, `Claims: parked 12h`, default 24 hours); it left
   finished work that has not reached this copy (*waiting for the merge*: no takeover, no time limit, freed when the work arrives or a person releases it); it left
   nothing (free). A folder that cannot be read from here (another machine, no permission) leaves the idle window alone to decide. What stands is read in the holder's folder

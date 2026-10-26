@@ -329,7 +329,7 @@ class TestAnotherFolder(Scene):
     def test_a_folder_on_another_machine_leaves_the_idle_window_alone_to_decide(self):
         self.claim(self.second, A, 'greet/hello')
         self.unfinished(self.second)
-        self.rewrite(lambda c: c['where'].update(host='another-machine'))
+        self.rewrite(lambda c: c['where'].update(host='another-machine', machine='another-machine'))
         self.end(A)
         self.assertEqual(self.free()[0], 3)      # ended, but its folder cannot be read from here, and the idle window has not passed
         self.age(A, HOUR)

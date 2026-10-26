@@ -29,6 +29,8 @@ import json
 import os
 import re
 import socket
+import subprocess
+import sys
 import time
 from types import SimpleNamespace
 
@@ -259,10 +261,39 @@ def branch_label(root):
         d = parent
 
 
+_MACHINE = []
+
+
+def machine():
+    """An id of this computer that does not change with the network, '' where there is none to read. `socket.gethostname()` does change on a Mac that has no host name
+    set: it is what the network calls the Mac, which differs between the office and home, so a claim records this too and a folder is on this machine when the ids
+    match (`is_here`). Elsewhere the host name is stable and decides alone: a container image can give every container the same machine id, and its folders are not
+    each other's."""
+    if not _MACHINE:
+        found = ''
+        if sys.platform == 'darwin':
+            try:
+                out = subprocess.run(['ioreg', '-rd1', '-c', 'IOPlatformExpertDevice'], capture_output=True, text=True, timeout=2).stdout
+                found = (re.search(r'"IOPlatformUUID" = "([^"]+)"', out) or [None, ''])[1]
+            except (OSError, ValueError, subprocess.SubprocessError):
+                pass
+        _MACHINE.append(found)
+    return _MACHINE[0]
+
+
+def is_here(where):
+    """Is the working folder a claim names (`where`, as `where_here` made it) on this machine? A path on another machine says nothing about this one. Compared by
+    `machine` when the claim and this machine both have one, else by the host name; a claim with neither is taken to be from here."""
+    mine = machine()
+    if mine and where.get('machine'):
+        return where['machine'] == mine
+    return where.get('host') in (None, socket.gethostname())
+
+
 def where_here(project):
     """Where a claim is made: the working folder, the machine, and the branch as a label."""
     root = os.path.realpath(root_of(project))
-    return {'path': root, 'host': socket.gethostname(), 'label': branch_label(root)}
+    return dict({'path': root, 'host': socket.gethostname(), 'label': branch_label(root)}, **({'machine': machine()} if machine() else {}))
 
 
 def entry_sig(entry):
@@ -850,7 +881,7 @@ def folder_state(project, c, scan, lock, same_folder, cache):
         proj, sc, lk = project, scan, lock
         where = os.path.realpath(root_of(project))
     else:
-        if (c.get('where') or {}).get('host') not in (None, socket.gethostname()):
+        if not is_here(c.get('where') or {}):
             return None   # a path on another machine says nothing about this one
         where = c['where']['path']
         if cache is not None and where in cache:
@@ -874,16 +905,25 @@ def folder_state(project, c, scan, lock, same_folder, cache):
     return result
 
 
+def owns(c, key):
+    """Is `key` held by the claim: one of the keys it had at the grant, or one that is new under an id it asked for (an item, a value or a test its holder has added
+    since: such a key is in no `keys`, and a claim that looked only at those would find nothing of the holder's new work)?"""
+    key = key.split('@')[0]
+    return key in c.get('keys', ()) or any(covers(i, key) or key.startswith(i + '.') for i in c.get('asked', ()) if '@' not in i)
+
+
 def inspect(project, c, scan, lock, same_folder, cache=None):
     """What a holder has in its working folder: (unfinished keys, changed keys, worked, lock), or None when the folder cannot be read. `unfinished`: its keys that
     `sor status` lists as new, changed, removed, behind or drifting and that are not what they were when the claim was granted (`start`): what it did since, not what
     was there before it, so a project with no lock yet, or a person's edit made before the claim, does not park a claim that did nothing. A claim from before `start`
-    counts every such finding. `changed`: the keys it locked since the grant, the ones whose entry differs from the `base` the claim recorded."""
+    counts every such finding. `changed`: the keys it locked since the grant, the ones whose entry differs from the `base` the claim recorded (a key that is new
+    under an id it asked for has none, so any entry of it is a change). Its keys are those of the grant and what it added under its ids (`owns`)."""
     seen = folder_state(project, c, scan, lock, same_folder, cache)
     if seen is None:
         return None
     _, _, lk, findings, now = seen
     keys = {k for k in c.get('keys', []) if '@' not in k}
+    keys |= {k for k in list(lk) + [f.key.split('@')[0] for f in findings] if '@' not in k and k not in keys and owns(c, k)}   # what the holder added under its ids
     start = c.get('start')
     unfinished = sorted({f.key.split('@')[0] for f in findings if f.status in UNFINISHED and f.key.split('@')[0] in keys
                          and (start is None or f.key.split('@')[0] not in start or entry_sig(now.get(f.key.split('@')[0])) != start[f.key.split('@')[0]])})
@@ -902,13 +942,15 @@ def decide(project, c, scan=None, lock=None, now=None, window=None, cache=None):
     window = project_parked(project) if window is None else window
     where = c.get('where') or {}
     path, here = where.get('path'), os.path.realpath(root_of(project))
-    on_this_machine = where.get('host') in (None, socket.gethostname())
+    on_this_machine = is_here(where)
     if path and on_this_machine and not os.path.isdir(path):
         if not c.get('locked'):
             return Decision('free', 'its working folder is gone', folder=path, label=where.get('label', ''))
         lock = _lock_of(project) if lock is None else lock
         base = c.get('base') or {}
-        if lock is not None and base and any(entry_sig(lock.get(k)) != base.get(k, '') for k in c.get('keys', []) if '@' not in k):   # the folder cannot say, this copy can
+        done = [k for k in c.get('locked_keys') or [] if '@' not in k]   # what the holder locked, when the claim says (a claim from before it did not)
+        differ = [entry_sig(lock.get(k)) != base.get(k, '') for k in (done or c.get('keys', [])) if '@' not in k] if lock is not None else []
+        if base and differ and (all(differ) if done else any(differ)):   # the folder cannot say, this copy can
             return Decision('free', 'its working folder is gone, and its work has reached this copy', folder=path, label=where.get('label', ''))
         return Decision('waiting', 'its working folder is gone, and it locked work that waits for its merge', folder=path, label=where.get('label', ''))
     if not is_gone(c, now, window):
@@ -951,7 +993,7 @@ def standing(project, held, scan=None, now=None):
 
 def _folder_gone(c):
     where = c.get('where') or {}
-    return bool(where.get('path')) and where.get('host') in (None, socket.gethostname()) and not os.path.isdir(where['path'])
+    return bool(where.get('path')) and is_here(where) and not os.path.isdir(where['path'])
 
 
 def claim(project, scan, universe, ids, agent, ttl=DEFAULT_TTL, session=None, take_over=False):
@@ -1056,7 +1098,7 @@ def _claim(project, scan, universe, ids, agent, ttl, session, take_over=False):
             if mine:   # the agent claims what it already holds: the same claim goes on, with what it knows of its work (a new look at the files must not forget it)
                 before = mine[0]
                 record['grant'], record['since'] = before['grant'], before['since']
-                for fact in ('locked', 'queued', 'took_over'):
+                for fact in ('locked', 'locked_keys', 'queued', 'took_over'):
                     if before.get(fact) and fact not in record:
                         record[fact] = before[fact]
                 if before.get('took_over'):   # the unfinished work is still where the old holder left it
@@ -1239,21 +1281,29 @@ def mark_busy(project, session, working, now=None):
 
 
 def note_locked(project, agent, session, keys):
-    """Records on the claims of an agent that cover `keys` that it locked work (`sor lock`): a working folder that is swept away afterwards does not
-    take the claim with it, because that work waits for its merge."""
-    keys = set(keys)
+    """Records on the claims of an agent that cover `keys` that it locked work (`sor lock`), and which keys the lock changed for it: a working folder that is swept
+    away afterwards does not take the claim with it, because that work waits for its merge, and what arrived in the merge is told by those keys, new ones among them."""
+    keys = {k for k in keys if '@' not in k}
+    lk = _lock_of(project)
 
-    def covered(c):
-        return same_agent(c, agent, session) and not c.get('freed') and keys & set(c.get('keys', ())) and not c.get('locked')
+    def mine(c):
+        base = c.get('base')
+        if not same_agent(c, agent, session) or c.get('freed'):
+            return []
+        return [k for k in keys if owns(c, k) and (lk is None or not base or entry_sig(lk.get(k)) != base.get(k, ''))]
 
-    if not any(covered(c) for c in read(project)):
+    def news(c):
+        return bool(mine(c)) and (not c.get('locked') or not set(mine(c)) <= set(c.get('locked_keys', ())))
+
+    if not any(news(c) for c in read(project)):
         return 0
     with _Mutex(project):
         held = read(project)
         count = 0
         for c in held:
-            if covered(c):
+            if mine(c) and news(c):
                 c['locked'] = True
+                c['locked_keys'] = sorted(set(c.get('locked_keys', ())) | set(mine(c)))
                 count += 1
         if count:
             _write(project, held)

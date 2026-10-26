@@ -100,6 +100,15 @@ class TestWhichCommandsAreAskedAbout(unittest.TestCase):
                 (call,) = hook.guarded_calls(command)
                 self.assertEqual(set(call[2]), options)
 
+    def test_a_command_continued_on_the_next_line_is_one_command(self):
+        for command in ('sor lock a --run-tests \\\n  --already-fits ts', 'sor lock a \\\r\n --already-fits ts', 'sor lock \\\n a \\\n --already-fits ts',
+                        'cd w && sor lock a \\\n  --already-fits ts', 'bash -c "sor lock a \\\n --already-fits ts"'):
+            with self.subTest(command):
+                self.assertEqual(self.ids_and_languages(command), [(['a'], ['ts'])])
+                self.assertEqual(hook.pre_bash(bash(command))['hookSpecificOutput']['permissionDecision'], 'ask')
+        self.assertEqual(hook.guarded_calls('sor lock a \\\n  --run-tests'), [])        # a continued line with nothing guarded in it
+        self.assertEqual(hook.guarded_calls('echo sor lock a \\\n  > notes'), [])
+
     def test_a_command_that_only_mentions_it_is_not(self):
         for name, command in self.NOT_ASKED:
             with self.subTest(name):

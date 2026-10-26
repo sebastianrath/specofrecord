@@ -243,7 +243,7 @@ class Arranged:
             flows.accepted(w.main)      # somebody else changed hello again in the requester's copy and locked it
         self.live_up(late)
         if place == 'host':
-            w.rewrite(lambda c: c['where'].update(host='another-machine'))
+            w.rewrite(lambda c: c['where'].update(host='another-machine', machine='another-machine'))
         if place == 'gone':
             git(w.main, 'worktree', 'remove', '--force', w.second)
         compare(w.main, w.second)
@@ -296,10 +296,10 @@ MUTANTS = {
     'unfinished work does not keep arrived work from being arrived': [("seen.worked and not seen.unfinished and lock is not None", 'seen.worked and lock is not None')],
     'the background signal is ignored': [("return bool(at) and not c.get('ended') and (window is None or now - at < window)", 'return False')],
     'a folder that is gone frees the claim even if the holder locked work': [("        if not c.get('locked'):\n            return Decision('free', 'its working folder is gone'", "        if True:\n            return Decision('free', 'its working folder is gone'")],
-    'a folder that is gone is never read as arrived': [("if lock is not None and base and any(entry_sig(lock.get(k)) != base.get(k, '') for k in c.get('keys', []) if '@' not in k):", 'if False:')],
+    'a folder that is gone is never read as arrived': [("if base and differ and (all(differ) if done else any(differ)):", 'if False:')],
     'unfinished counts what was there before the grant': [("and (start is None or f.key.split('@')[0] not in start or entry_sig(now.get(f.key.split('@')[0])) != start[f.key.split('@')[0]])", 'and True')],
-    'a folder on another machine is read as if it were here': [("on_this_machine = where.get('host') in (None, socket.gethostname())", 'on_this_machine = True'),
-                                                              ("if (c.get('where') or {}).get('host') not in (None, socket.gethostname()):\n            return None", 'if False:\n            return None')],
+    'a folder on another machine is read as if it were here': [("on_this_machine = is_here(where)", 'on_this_machine = True'),
+                                                              ("if not is_here(c.get('where') or {}):\n            return None", 'if False:\n            return None')],
     'a holder that ended in this folder is parked like one in another': [('if same_folder and ended:', 'if False:')],
     'the parked window never passes': [('if window is not None and now - since >= window:', 'if False:')],
     'a subagent that stopped is not gone': [("return bool(c.get('ended') or c.get('stopped')) or is_quiet(c, now, window)", "return bool(c.get('ended')) or is_quiet(c, now, window)")],
