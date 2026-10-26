@@ -17,6 +17,8 @@ htmlcov/
 .sor-claims.json.*.tmp
 .sor-bindings.json
 .sor-bindings.json.*.tmp
+.sor-approved-targets.json
+.sor-approved-targets.json.*.tmp
 .sor-lock.mutex
 sor-lock.json.*.tmp
 .sor-test-*

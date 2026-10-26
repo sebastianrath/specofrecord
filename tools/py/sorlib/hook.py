@@ -23,7 +23,7 @@ import tempfile
 import time
 from collections import Counter
 
-from . import claims
+from . import approvals, claims
 from . import lock as lockfile
 from . import views
 from .claims import CLAIMS_FILE
@@ -123,7 +123,7 @@ def spec_keys_touched(project, path, new_text):
     tmp = tempfile.mkdtemp(prefix='sor-guard-')
     try:
         shutil.copytree(project.spec_dir, os.path.join(tmp, project.spec_name),
-                        ignore=shutil.ignore_patterns('.sor-claims.*', '.sor-bindings.*', '.sor-lock.mutex', '.claims.*', '.lock.mutex'))
+                        ignore=shutil.ignore_patterns('.sor-claims.*', '.sor-bindings.*', '.sor-approved-targets.*', '.sor-lock.mutex', '.claims.*', '.lock.mutex'))
         target = os.path.join(tmp, project.spec_name, os.path.relpath(path, project.spec_dir))
         with open(target, 'w', encoding='utf8', newline='') as fh:
             fh.write(new_text)
@@ -196,6 +196,9 @@ def renew_claims(root, payload):
 
 def pre_edit(payload):
     tool, inp = payload.get('tool_name', ''), payload.get('tool_input') or {}
+    refusal = approvals_refusal(payload)
+    if refusal:
+        return refusal
     path = inp.get('file_path') or ''
     root = path and find_root(path)
     if not root:
@@ -285,48 +288,190 @@ def pre_edit(payload):
 
 SHELL_OPERATOR = re.compile(r'^[();&|<>]+$')   # what shlex makes of `&&`, `||`, `;`, `|`, parentheses and redirections
 VALUE_FLAGS = {'lock': ('--as',), 'test': ('--out', '--provides')}   # options that take a value and are not guarded: the value is not an id
+AUTO_MODES = ('bypassPermissions', 'auto', 'dontAsk')   # permission modes in which a hook's question may be answered without the user
+
+
+def project_of(payload, root):
+    """The project at a root, read once per hook call: the cache is in the payload, which lives as long as the call does."""
+    cache = payload.setdefault('_projects', {})
+    if root not in cache:
+        cache[root] = Project(root)
+    return cache[root]
+
+
+def single_root(payload, folder=''):
+    """The project a call of `sor` runs in, found as `sor` finds it: the one that the folder of `-C` is in (relative to the cwd of the payload), else the one above the
+    cwd. Never a project below the cwd, which `project_roots` falls back to for other uses: `sor` itself does not run there."""
+    cwd = os.path.abspath(payload.get('cwd') or os.getcwd())
+    return find_root(os.path.join(os.path.abspath(os.path.join(cwd, os.path.expanduser(folder))), 'x'))
+
 
 def commands_in_words(payload, names):
-    """The test commands the spec of the project the session works in gives for these targets, in words, so that the user sees what would run
-    and not a target's name (the test command `python3 run_tests.py`). Without the project, or when a target gives none, the target is named."""
+    """The test commands the spec of the project the call runs in gives for these targets, in words, so that the user sees what would run on their computer and
+    not a target's name (`python3 run_tests.py` and `npm test`), and which of them is not the one they allowed before. The project is the one a `-C` names, else
+    the one the session works in. Without the project, or when a target gives none, the target's command is described instead."""
     try:
-        root = find_root(os.path.join(payload.get('cwd') or os.getcwd(), 'x'))
-        given = Project(root).target_commands() if root else {}
+        command = (payload.get('tool_input') or {}).get('command') or ''
+        folder = next((f for f, n in plain_target_calls(command) if n == names), '')
+        root = single_root(payload, folder)
+        project = project_of(payload, root) if root else None
+        given = project.target_commands() if project else {}
+        changed = approvals.state(project, names)[1] if project else []
     except (Exception, SystemExit):
-        given = {}
-    runs = [(n, given[n]['run']) for n in names if 'run' in given.get(n, {})]
-    if names and len(runs) == len(names):
-        return 'the test command ' + (f'`{runs[0][1]}`' if len(runs) == 1 else ', '.join(f'{n}: `{c}`' for n, c in runs))
-    return 'the test command the spec gives for ' + (' and '.join(names) or 'a target')
+        given, changed = {}, []
+    said = [(f'`{given[n]["run"]}`' if 'run' in given.get(n, {}) else f'the test command your spec gives for {n}') + (' (not the one you allowed before)' if n in changed else '')
+            for n in names]
+    return ' and '.join(said) if said else "the test commands your spec gives"
+
+
+CHANGES_FOLDER = ('cd', 'pushd', 'popd', 'chdir')
+
+
+def changes_folder(words):
+    """Whether a command changes the folder the commands after it run in (`cd`, `pushd`, `env -C`), so that they run in another project than the hook's cwd."""
+    i = program_index(words)
+    if any(os.path.basename(w) in CHANGES_FOLDER for w in words[:i + 1]):
+        return True
+    return 'env' in [os.path.basename(w) for w in words[:3]] and any(w in ('-C', '--chdir') or w.startswith('--chdir=') for w in words)
+
+
+def plain_target_calls(command):
+    """[(folder, targets)] for each `sor lock` or `sor test --targets ...` that a command line runs as plainly as the shell guard reads it: the program is `sor` or
+    `sor.py` itself, not a variable or a script that may run something else, and the `-C` folder it names is `folder` ('' for none). A call this does not give is
+    one the hook cannot tell the project of, so it is never taken as allowed."""
+    out = []
+    if any(changes_folder(words) for words in command_segments(command)):   # `cd ../worktree && sor test --targets py` runs in a folder the hook did not look at
+        return out
+    for sub, args, folder in sor_calls(command):
+        if sub in ('lock', 'test'):
+            call = guarded_call(['sor', sub] + args)
+            if call and call[2].get('targets'):
+                out.append((folder, call[2]['targets']))
+    return out
+
+
+def targets_allowed(payload, command, calls):
+    """Whether every call of a command line that names `--targets` runs only commands the user allowed before: it is read plainly (`plain_target_calls` finds as many
+    of them as `calls` has), the project it runs in is one, and the spec gives for each target the text that `approvals` has written down."""
+    try:
+        named = sum(1 for _, _, found in calls if found.get('targets'))
+        plain = plain_target_calls(command)
+        if not named or len(plain) != named:
+            return False
+        for folder, names in plain:
+            root = single_root(payload, folder)
+            if not root or not approvals.state(project_of(payload, root), names)[0]:
+                return False
+    except (Exception, SystemExit):
+        return False
+    return True
+
+
+def asked_note(payload):
+    from . import shellguard   # not at the top: it uses this module
+    return shellguard.tmp('asked-' + shellguard.call_id(payload))
+
+
+def note_shown(payload, command, asked):
+    """Keeps for the hook after the call what the question showed ([{'root', 'run': {target: text}}]), or, when the call is not asked about, removes what an earlier
+    note of this call held (an agent could have written one). `record_allowed_targets` writes down what the note holds and nothing else, so a command that changed
+    between the question and the run, or one the user was not shown, is never taken as allowed. No note is kept in a mode that answers the question itself."""
+    from . import shellguard
+    shown = []
+    try:
+        if asked and payload.get('permission_mode') not in AUTO_MODES:
+            for folder, names in plain_target_calls(command):
+                root = single_root(payload, folder)
+                given = approvals.commands(project_of(payload, root), names) if root else None
+                if given:
+                    shown.append({'root': root, 'run': given})
+    except (Exception, SystemExit):
+        shown = []   # no note: the call is asked about all the same, and nothing is written down for it
+    if shown:
+        shellguard.write_json(asked_note(payload), {'at': time.time(), 'shown': shown})
+    else:
+        try:
+            os.remove(asked_note(payload))
+        except OSError:
+            pass
+
+
+def record_allowed_targets(payload):
+    """After a call went through (a hook after a tool call does not run for one the user refused): writes down the test commands the question showed for it, which
+    `note_shown` kept, so that the same text is not asked about again."""
+    from . import shellguard
+    note = shellguard.read_json(asked_note(payload))
+    if not note:
+        return
+    try:
+        os.remove(asked_note(payload))
+    except OSError:
+        pass
+    for entry in note.get('shown') or []:
+        approvals.record(project_of(payload, entry['root']), entry['run'])
+
+
+READ_ONLY = ('grep', 'egrep', 'rg', 'ls', 'cat', 'head', 'tail', 'wc', 'less', 'more', 'stat', 'file', 'git', 'sor', 'sor.py', 'cd', 'echo', 'printf', 'diff')
+
+
+def approvals_write_refusal(payload):
+    """A refusal for a shell command that names the file of allowed test commands and could write it: a redirection to a file, a line that cannot be read, or a
+    program that is not read-only. Reading it (`grep`, `cat`) passes. The edit guard sees edits only, and an agent that writes the file allows its own commands."""
+    command = (payload.get('tool_input') or {}).get('command') or ''
+    if approvals.FILE not in command and approvals.OWN_FILE not in command:
+        return None
+    from . import shellguard
+    parts, readable = shellguard.parts_of(command)
+    if readable and not any(shellguard.redirects_to_a_file(p) for p in parts) and \
+            all(program_index(p) >= len(p) or os.path.basename(p[program_index(p)]) in READ_ONLY for p in parts):
+        return None
+    return deny(f'{approvals.FILE} holds the test commands the user has allowed, and is written only by the hook after a call that ran them went through. '
+                'A shell command that may write it is refused: when a test command is new or changed, the user is asked, and their yes writes it down.')
+
+
+def approvals_refusal(payload):
+    """A refusal when an edit would write the file of allowed test commands: it is the user's answer, written by the hook only."""
+    path = os.path.abspath(os.path.expanduser((payload.get('tool_input') or {}).get('file_path') or ''))
+    if os.path.basename(path) not in (approvals.FILE, approvals.OWN_FILE):
+        return None
+    try:
+        for root in project_roots(payload):
+            if os.path.realpath(approvals.file(Project(root))) == os.path.realpath(path):
+                return deny(f'{os.path.basename(path)} holds the test commands the user has allowed, and is written only by the hook after a call that ran them went through. '
+                            'Do not edit it: when a test command is new or changed, the user is asked, and their yes writes it down.')
+    except (Exception, SystemExit):
+        pass
+    return None
 
 
 # The options that need the user's yes, and everything the hook knows about each, so that a new one is a new row and nothing else. The user reads the
-# question in a permission dialog and may never have heard of the option, so it is put in plain words, with no option name in it: what Claude wants
-# to do, and what saying yes means trusting. The dialog shows the command itself.
+# question in a permission dialog and may never have heard of the option, so it is put in plain words, with no option name or clause id in it (only a test,
+# a language or a program that the call names): what Claude wants to do, and what saying yes means trusting. The dialog shows the command itself, and cuts a
+# long text off at the end, so the first sentence says the whole point, with what would run in it, and the last one, which says what to trust, stays short.
 #   option, least: the option and the shortest prefix of it that argparse takes     values: how many values follow it ('none', 'one', 'many')
 #   commands: the commands that have it                                             fallback: what stands for its value when the command gives none
-#   says: what Claude wants to do ({scope}: what it would save; {value}; {then}: and what follows)     trust: what saying yes trusts, finishing `Say yes only if`
+#   says: what Claude wants to do, finishing `Claude wants` ({value}; {then}: and what follows)     trust: what saying yes trusts, finishing `Allow only if`
 #   value: how to put the values in words (default: they are listed); it gets the payload and the values
 # The `--results` of `sor evidence` is a CI job's own file, so it is not here. The rows are in the order the user reads them.
 GUARDED = {
     'allow-behind': dict(option='--allow-behind', least=len('--allow-b'), values='one', commands=('lock',), fallback='one language',
-                         says='to save {scope} although the code for {value} is out of date with the changed spec, or missing',
+                         says='to save its work as finished, although the code for {value} is out of date with the new spec, or missing',
                          trust='you have already agreed that {value} can come later'),
     'already-fits': dict(option='--already-fits', least=len('--alr'), values='one', commands=('lock',), fallback='one language',
-                         says='to save {scope} and mark the code for {value} as already matching the changed spec, without changing it',
-                         trust='you have checked that the code still does what the changed spec says'),
+                         says='to save its work as finished, and to say that the code for {value} already matches the new spec without changing it',
+                         trust='you have checked that the code still does what the new spec says'),
     'allow-incomplete': dict(option='--allow-incomplete', least=len('--allow-i'), values='none', commands=('lock',), fallback='',
-                             says='to save {scope} even though some tests have not passed',
+                             says='to save its work as finished, although some tests have not passed',
                              trust='those tests were already failing before this change'),
     'confirm': dict(option='--confirm', least=len('--c'), values='many', commands=('lock',), fallback='a test',
-                    says='to write down that a person has checked {value} by hand',
-                    trust='you have looked at that behaviour yourself'),
+                    says='to record that a person has tried {value} by hand and it works',
+                    trust='you have tried that yourself'),
     'results': dict(option='--results', least=len('--res'), values='one', commands=('lock',), fallback='a file',
-                    says='to save {scope} using the test results in {value}, a file that nothing checks against a real test run',
+                    says='to save its work as finished using the test results in {value}, which nobody checks against a real test run',
                     trust="you saw the tests run, or are happy to take Claude's word that they passed"),
     'targets': dict(option='--targets', least=len('--t'), values='one', commands=('lock', 'test'), fallback='a target',
-                    says='to run {value}{then}',
-                    trust='you trust that command, which runs on your computer with your access and whose report counts as the test results',
+                    says='to run {value} on your computer{then}',
+                    trust='you trust what it runs, which has your access and whose report counts as the test results',
                     value=commands_in_words),
 }
 
@@ -355,6 +500,9 @@ def program_index(words):
             i += 1
         elif base in PREFIXES:
             i += 2 if base == 'timeout' else 1
+            if base == 'env':   # `env -C folder sor ...`, `env -i -u NAME sor ...`: its options, and the values of the ones that take one
+                while i < len(words) and words[i].startswith('-') and words[i] != '--':
+                    i += 2 if words[i] in ('-C', '-u', '-S', '--chdir', '--unset', '--split-string') else 1
         else:
             break
     if i < len(words) and re.match(r'^(python[0-9.]*|py)(\.exe)?$', os.path.basename(words[i])):
@@ -586,29 +734,44 @@ def pre_bash(payload):
         shellguard.before(payload)
     except (Exception, SystemExit):
         pass   # a note about the command that follows is not worth stopping it
-    refusal = agent_rules(payload)
+    try:
+        refusal = approvals_write_refusal(payload)
+    except (Exception, SystemExit):
+        refusal = None
+    refusal = refusal or agent_rules(payload)
     if refusal:
         return refusal
-    calls = guarded_calls((payload.get('tool_input') or {}).get('command') or '')
+    command_line = (payload.get('tool_input') or {}).get('command') or ''
+    calls = guarded_calls(command_line)
     if not calls:
         return None
+    allowed = {'targets'} if targets_allowed(payload, command_line, calls) else set()   # commands the user allowed before, and that are the same now
     parts, advice = [], []
-    for command, ids, found in calls:
-        scope = 'its work on ' + ', '.join(ids) if ids else 'its work'
-        then = f' and save {scope} with its results' if command == 'lock' else ''
+    for command, _, found in calls:
+        then = ', then save its work as finished with their results' if command == 'lock' else ''
         for name, row in GUARDED.items():
-            if name in found:
+            if name in found and name not in allowed:
                 value = row['value'](payload, found[name]) if 'value' in row else ', '.join(found[name]) or row['fallback']
-                parts.append(('Claude wants ' if not parts else 'It also wants ') + row['says'].format(scope=scope, value=value, then=then) + '.')
+                parts.append(row['says'].format(value=value, then=then))
                 advice.append(row['trust'].format(value=value))
-    reason = ' '.join(parts) + ' Say yes only if ' + ', and '.join(dict.fromkeys(advice)) + '.'
+    note_shown(payload, command_line, bool(parts))
+    if not parts:
+        return None
+    wants = [('Claude wants ' if n == 0 else 'It also wants ') + part + '.' for n, part in enumerate(dict.fromkeys(parts))]
+    reason = ' '.join(wants) + ' Allow only if ' + ', and '.join(dict.fromkeys(advice)) + '.'
     return {'hookSpecificOutput': {'hookEventName': 'PreToolUse', 'permissionDecision': 'ask', 'permissionDecisionReason': reason}}
 
 
 def post_bash(payload):
-    """After a shell command, also one that failed: what the edit guard would have refused had the command been an edit. Only says it (see shellguard.py)."""
+    """After a shell command: writes down the test commands a call with `--targets` ran, which the user was asked about (`record_allowed_targets`), and says what the edit guard would
+    have refused had the command been an edit (see shellguard.py), also for one that failed."""
     if payload.get('tool_name') not in (None, 'Bash'):
         return None
+    try:
+        if payload.get('hook_event_name') != 'PostToolUseFailure':   # a tool that failed may be one the user refused: only a call that went through says they allowed it
+            record_allowed_targets(payload)
+    except (Exception, SystemExit):
+        pass   # a note about what was allowed is not worth failing the command's own report
     from . import shellguard
     return shellguard.after(payload)
 

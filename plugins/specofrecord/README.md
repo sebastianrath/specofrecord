@@ -125,7 +125,7 @@ The tools do not depend on how your project is run or built, and they never comm
 for edit. The one exception is an optional lookup of who last changed drifted lines (git today; without git it is
 simply left out). What your project handles itself:
 - In a git repository the claims live in the common git directory (`sor-claims/` in it), which git never tracks, so there is nothing to ignore. Elsewhere they live in the project's own folder: keep
-  `sor/.sor-claims.json`, `sor/.sor-claims.lock`, `sor/.sor-bindings.json`, `sor/.sor-lock.mutex`, `sor/*.tmp` and the page copies `.sor-test-*`
+  `sor/.sor-claims.json`, `sor/.sor-claims.lock`, `sor/.sor-bindings.json`, `sor/.sor-approved-targets.json`, `sor/.sor-lock.mutex`, `sor/*.tmp` and the page copies `.sor-test-*`
   that a crashed `sor test` can leave next to the web page out of version control, with whatever ignore mechanism you use. A folder named by `SOR_CLAIMS_DIR` is outside the project.
   The claims file is removed when no claim, and no freed claim, is left. A freed claim stays in it for 2
   hours (so its holder can be told) and is dropped by the first claim or release after that; reading does not touch the file.

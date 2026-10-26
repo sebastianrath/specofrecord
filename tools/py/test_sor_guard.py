@@ -192,10 +192,10 @@ class TestTheOtherOptionsTheUserDecides(unittest.TestCase):
 
     def test_the_user_is_told_what_each_one_does(self):
         for command, said in (
-                ('sor lock a --allow-incomplete', 'Claude wants to save its work on a even though some tests have not passed'),
-                ('sor lock a --confirm t1 t2', 'Claude wants to write down that a person has checked t1, t2 by hand'),
-                ('sor lock a --results r.json', 'using the test results in r.json, a file that nothing checks against a real test run'),
-                ('sor test --targets py', 'Claude wants to run the test command the spec gives for py')):
+                ('sor lock a --allow-incomplete', 'Claude wants to save its work as finished, although some tests have not passed'),
+                ('sor lock a --confirm t1 t2', 'Claude wants to record that a person has tried t1, t2 by hand and it works'),
+                ('sor lock a --results r.json', 'using the test results in r.json, which nobody checks against a real test run'),
+                ('sor test --targets py', 'Claude wants to run the test command your spec gives for py on your computer.')):
             with self.subTest(command):
                 out = hook.pre_bash(bash(command))['hookSpecificOutput']
                 self.assertEqual(out['permissionDecision'], 'ask')
@@ -207,16 +207,16 @@ class TestTheOtherOptionsTheUserDecides(unittest.TestCase):
             with self.subTest(flag):
                 reason = hook.pre_bash(bash(f'sor lock greet/bye {flag}'))['hookSpecificOutput']['permissionDecisionReason']
                 self.assertTrue(reason.startswith('Claude wants to '), reason)
-                self.assertIn(' Say yes only if ', reason)
+                self.assertIn(' Allow only if ', reason)
                 for word in ('--', 'sor ', '{run:}', 'allow-', 'already-fits'):
                     self.assertNotIn(word, reason, word)
 
     def test_a_test_run_is_not_said_to_be_a_lock(self):
         reason = hook.pre_bash(bash('sor test --targets py'))['hookSpecificOutput']['permissionDecisionReason']
-        self.assertIn('Claude wants to run the test command', reason)
+        self.assertIn('Claude wants to run the test command your spec gives for py on your computer.', reason)
         self.assertNotIn('lock', reason)
         self.assertNotIn('save', reason)
-        self.assertIn('and save its work with its results', hook.pre_bash(bash('sor lock --run-tests --targets py'))['hookSpecificOutput']['permissionDecisionReason'])
+        self.assertIn(', then save its work as finished with their results', hook.pre_bash(bash('sor lock --run-tests --targets py'))['hookSpecificOutput']['permissionDecisionReason'])
 
 
 class TestTheTestCommandTheUserIsAskedAbout(base.Case):
@@ -238,43 +238,54 @@ class TestTheTestCommandTheUserIsAskedAbout(base.Case):
     def test_the_command_of_the_spec_is_named(self):
         self.targets(py='python3 tests/runner.py')
         said = self.reason('sor lock --run-tests --targets py')
-        self.assertIn('Claude wants to run the test command `python3 tests/runner.py` and save its work with its results.', said)
-        self.assertIn('you trust that command', said)
+        self.assertTrue(said.startswith('Claude wants to run `python3 tests/runner.py` on your computer, then save its work as finished with their results. '), said)   # what runs is in the first sentence, which the dialog does not cut
+        self.assertIn('Allow only if you trust what it runs', said)
         self.assertNotIn('--', said)
 
     def test_two_targets_are_named_with_their_commands(self):
         self.targets(py='python3 tests/runner.py', ts='npm test')
-        self.assertIn('the test command py: `python3 tests/runner.py`, ts: `npm test`', self.reason('sor test --targets py,ts'))
+        self.assertIn('`python3 tests/runner.py` and `npm test` on your computer', self.reason('sor test --targets py,ts'))
+
+    def test_two_calls_in_one_command_do_not_repeat_themselves(self):
+        self.targets(py='python3 tests/runner.py', ts='npm test')
+        said = self.reason('sor test --targets py && sor test --targets ts')
+        self.assertIn('Claude wants to run `python3 tests/runner.py` on your computer. It also wants to run `npm test` on your computer.', said)
+        self.assertEqual(self.reason('sor test --targets py && sor test --targets py').count('Claude wants'), 1)
+        self.assertEqual(said.count('Allow only if'), 1)
+
+    def test_a_line_that_cannot_be_read_still_makes_a_sentence(self):
+        self.targets(py='python3 tests/runner.py')
+        self.assertIn('Claude wants to run the test commands your spec gives on your computer', self.reason('sor lock a --targets "py'))
 
     def test_a_target_with_no_command_or_no_project_is_named_instead(self):
         self.targets(py='python3 tests/runner.py', ts='')
-        self.assertIn('the test command the spec gives for ts', self.reason('sor test --targets ts'))
-        self.assertIn('the test command the spec gives for py and ts', self.reason('sor test --targets py,ts'))
+        self.assertIn('the test command your spec gives for ts on your computer', self.reason('sor test --targets ts'))
+        self.assertIn('`python3 tests/runner.py` and the test command your spec gives for ts on your computer', self.reason('sor test --targets py,ts'))
         with tempfile.TemporaryDirectory() as elsewhere:   # a folder above which there is no project
             said = hook.pre_bash(dict(bash('sor test --targets py'), cwd=elsewhere))['hookSpecificOutput']['permissionDecisionReason']
-        self.assertIn('the test command the spec gives for py', said)
+        self.assertIn('the test command your spec gives for py on your computer', said)
 
 
 class TestWhatTheHookAnswers(unittest.TestCase):
-    def test_it_asks_and_says_which_clauses_and_languages(self):
+    def test_it_asks_and_says_which_language_and_no_clause(self):
         out = hook.pre_bash(bash('sor lock greet/bye greet/hello --allow-behind ts'))['hookSpecificOutput']
         self.assertEqual((out['hookEventName'], out['permissionDecision']), ('PreToolUse', 'ask'))
-        self.assertIn('its work on greet/bye, greet/hello', out['permissionDecisionReason'])
-        self.assertIn('the code for ts is out of date with the changed spec, or missing', out['permissionDecisionReason'])
-        self.assertIn('Say yes only if you have already agreed that ts can come later.', out['permissionDecisionReason'])
+        self.assertNotIn('greet/', out['permissionDecisionReason'])   # an id tells the user nothing; the dialog shows the command
+        self.assertIn('the code for ts is out of date with the new spec, or missing', out['permissionDecisionReason'])
+        self.assertIn('Allow only if you have already agreed that ts can come later.', out['permissionDecisionReason'])
 
     def test_it_says_what_each_option_does(self):
         out = hook.pre_bash(bash('sor lock a --already-fits ts'))['hookSpecificOutput']['permissionDecisionReason']
-        self.assertIn('mark the code for ts as already matching the changed spec, without changing it', out)
+        self.assertIn('say that the code for ts already matches the new spec without changing it', out)
         self.assertNotIn('out of date', out)
         both = hook.pre_bash(bash('sor lock a --allow-behind ts --already-fits py'))['hookSpecificOutput']['permissionDecisionReason']
         self.assertIn('the code for ts is out of date', both)
-        self.assertIn('It also wants to save its work on a and mark the code for py as already matching', both)
-        self.assertEqual(both.count('Say yes only if'), 1)    # one sentence for both, not one for each
-        self.assertIn('ts can come later, and you have checked that the code still does what the changed spec says.', both)
+        self.assertIn('It also wants to save its work as finished, and to say that the code for py already matches', both)
+        self.assertEqual(both.count('Allow only if'), 1)    # one sentence for both, not one for each
+        self.assertIn('ts can come later, and you have checked that the code still does what the new spec says.', both)
 
     def test_a_lock_of_what_was_claimed_says_so(self):
-        self.assertIn('Claude wants to save its work although', hook.pre_bash(bash('sor lock --allow-behind ts'))['hookSpecificOutput']['permissionDecisionReason'])
+        self.assertIn('Claude wants to save its work as finished, although', hook.pre_bash(bash('sor lock --allow-behind ts'))['hookSpecificOutput']['permissionDecisionReason'])
 
     def test_it_says_nothing_for_other_commands_and_other_tools(self):
         self.assertIsNone(hook.pre_bash(bash('sor lock greet/bye')))
