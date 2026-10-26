@@ -44,7 +44,7 @@
   },
   "scripts": {
     "test": "node test/grammar.js && node test/bundle.js && node test/regions.js && node test/run.js ../../examples/solar-system",
-    "package": "vsce package"
+    "package": "vsce package --baseContentUrl https://github.com/sebastianrath/specofrecord/blob/HEAD/editors/vscode --baseImagesUrl https://github.com/sebastianrath/specofrecord/raw/HEAD/editors/vscode"
   },
   "devDependencies": {
     "@vscode/test-electron": "^2.5.2",
