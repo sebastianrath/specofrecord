@@ -696,6 +696,16 @@ class TestReleasingALanguage(Locked):
         self.assertEqual(code, 0, out)
         self.assertNotIn('note:', out)
 
+    def test_releasing_one_language_of_a_claim_keeps_the_other(self):
+        self.assertTrue(self.claim(['greet/hello@py', 'greet/hello@ts'], 'bob', session='B')[0])
+        code, out, _ = self.release('greet/hello@ts')
+        self.assertEqual(code, 0, out)
+        self.assertIn('released greet/hello@ts', out)
+        self.assertIn('still holding: greet/hello@py', out)
+        (c,) = self.claims_file()
+        self.assertEqual(c['asked'], ['greet/hello@py'])
+        self.assertTrue(all(f.startswith('src_py') for f, _ in c['regions']), c['regions'])
+
     def test_two_languages_are_named_together(self):
         self.rebuild('py', more='EXTRA = 1\n')                              # py moved on after it was locked
         self.assertTrue(self.claim(['greet/hello@py', 'greet/hello@ts'], 'bob', session='B')[0])

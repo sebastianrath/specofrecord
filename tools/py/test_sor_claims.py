@@ -12,13 +12,14 @@ import os
 import sys
 import time
 import unittest
+from unittest import mock
 
 sys.dont_write_bytecode = True
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 import test_sor as base                            # noqa: E402  (its helpers only)
-from sorlib import claims                          # noqa: E402
+from sorlib import claims, markers                 # noqa: E402
 from sorlib.model import Project                   # noqa: E402
 from test_sor_flows import Flow, accepted, lock_bytes, replace_in   # noqa: E402  (not the Test classes: they would run twice)
 
@@ -115,6 +116,130 @@ class TestReleaseByAName(Session):
         code, out, _ = self.run_sor('claim', 'greet/hello', '--as', 'a2')
         self.assertEqual(code, 3)
         self.assertIn('a1: greet/hello', out)
+
+
+class TestReleaseKeepsWhatWasNotNamed(Session):
+    """A claim made in one call is one record, but releasing one of its ids gives up that id only."""
+
+    def setUp(self):
+        super().setUp()
+        self.project({'greet': GREET, 'audio': AUDIO})
+        accepted(self.dir)
+
+    def asked(self):
+        return sorted(a for c in self.claims_file() if not c.get('freed') for a in c['asked'])
+
+    def test_releasing_one_id_of_a_claim_made_in_one_call_keeps_the_others(self):
+        self.assertEqual(self.run_sor('claim', 'greet/hello', 'greet/bye', 'audio/volume', '--as', 'u18')[0], 0)
+        code, out, _ = self.run_sor('release', 'greet/hello', '--as', 'u18')
+        self.assertEqual(code, 0, out)
+        self.assertIn('released greet/hello\n', out)
+        self.assertIn('still holding: audio/volume, greet/bye', out)
+        self.assertEqual(self.asked(), ['audio/volume', 'greet/bye'])
+        code, out, _ = self.run_sor('claims')
+        self.assertIn('audio/volume', out)
+        self.assertNotIn('greet/hello', out)
+
+    def test_what_was_released_is_free_for_another_agent_and_the_rest_is_not(self):
+        self.assertEqual(self.run_sor('claim', 'greet/hello', 'greet/bye', '--as', 'u18')[0], 0)
+        self.assertEqual(self.run_sor('release', 'greet/hello', '--as', 'u18')[0], 0)
+        self.assertEqual(self.sor('claim', 'greet/hello', '--as', 'other', CLAUDE_CODE_SESSION_ID='another')[0], 0)
+        self.assertEqual(self.sor('claim', 'greet/bye', '--as', 'other2', CLAUDE_CODE_SESSION_ID='another')[0], 3)
+
+    def test_the_rest_of_the_record_is_the_same_claim_with_a_reach_of_its_own(self):
+        self.assertEqual(self.run_sor('claim', 'greet/hello', 'audio/volume', '--as', 'u18')[0], 0)
+        (before,) = self.claims_file()
+        self.assertEqual(self.run_sor('release', 'greet/hello', '--as', 'u18')[0], 0)
+        (after,) = self.claims_file()
+        self.assertEqual((after['grant'], after['since'], after['agent']), (before['grant'], before['since'], 'u18'))
+        self.assertEqual(after['asked'], ['audio/volume'])
+        self.assertTrue(after['keys'] and set(after['keys']) < set(before['keys']))
+        self.assertTrue(all(k.startswith('audio') for k in after['keys']), after['keys'])
+        self.assertTrue(all(k in after['keys'] for k in after.get('base', {})))
+        self.assertTrue(all(all(k.startswith('audio') for k in ks) for _, ks in after['regions']))
+
+    def test_claims_made_in_two_calls_are_released_one_by_one(self):
+        self.assertEqual(self.run_sor('claim', 'greet/hello', '--as', 'u18')[0], 0)
+        self.assertEqual(self.run_sor('claim', 'audio/volume', '--as', 'u18')[0], 0)
+        code, out, _ = self.run_sor('release', 'greet/hello', '--as', 'u18')
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.asked(), ['audio/volume'])
+
+    def test_naming_a_part_under_a_claimed_part_releases_nothing(self):
+        self.assertEqual(self.run_sor('claim', 'greet', '--as', 'u18')[0], 0)
+        code, out, _ = self.run_sor('release', 'greet/hello', '--as', 'u18')
+        self.assertEqual(code, 0, out)
+        self.assertIn('NOT released: greet/hello is part of your claim on greet; release greet to give it up', out)
+        self.assertNotIn('nothing to release', out)
+        self.assertEqual(self.asked(), ['greet'])
+
+    def test_naming_a_part_releases_what_is_claimed_under_it(self):
+        self.assertEqual(self.run_sor('claim', 'greet/hello', 'greet/bye', 'audio/volume', '--as', 'u18')[0], 0)
+        code, out, _ = self.run_sor('release', 'greet', '--as', 'u18')
+        self.assertEqual(code, 0, out)
+        self.assertIn('released greet/bye, greet/hello', out)
+        self.assertEqual(self.asked(), ['audio/volume'])
+
+    def test_naming_every_id_of_a_record_releases_it_whole(self):
+        self.assertEqual(self.run_sor('claim', 'greet/hello', 'greet/bye', '--as', 'u18')[0], 0)
+        code, out, _ = self.run_sor('release', 'greet/hello', 'greet/bye', '--as', 'u18')
+        self.assertEqual(code, 0, out)
+        self.assertNotIn('still holding', out)
+        self.assertEqual(self.claims_file(), [])
+
+    def test_a_part_claimed_and_a_clause_under_it_claimed_apart_is_not_called_unreleased(self):
+        self.assertEqual(self.run_sor('claim', 'greet', '--as', 'u18')[0], 0)
+        self.assertEqual(self.run_sor('claim', 'greet/hello', '--as', 'u18')[0], 0)
+        code, out, _ = self.run_sor('release', 'greet/hello', '--as', 'u18')
+        self.assertEqual(code, 0, out)
+        self.assertIn('released greet/hello', out)
+        self.assertNotIn('NOT released', out)
+        self.assertEqual(self.asked(), ['greet'])
+
+    def test_an_id_that_names_nothing_any_more_does_not_keep_the_released_one_blocked(self):
+        self.assertEqual(self.run_sor('claim', 'greet/hello', 'greet/bye', 'audio/volume', '--as', 'u18')[0], 0)
+        self.project({'greet': doc('Greet', 'Says hello.', rules=['- **hello** - The page says {text: Hello}.']), 'audio': AUDIO})
+        self.assertEqual(self.run_sor('release', 'greet/hello', '--as', 'u18')[0], 0)
+        self.assertEqual(self.asked(), ['audio/volume', 'greet/bye'])
+        self.assertEqual(self.sor('claim', 'greet/hello', '--as', 'other', CLAUDE_CODE_SESSION_ID='another')[0], 0)
+
+    def test_a_caller_with_no_name_releases_one_id_of_a_subagents_claim_only(self):
+        self.assertEqual(self.run_sor('claim', 'greet/hello', 'greet/bye', '--as', 'a1')[0], 0)
+        code, out, _ = self.run_sor('release', 'greet/hello')
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.asked(), ['greet/bye'])
+        self.assertEqual(self.live(), ['a1'])
+
+    def test_force_splits_another_agents_claim_too(self):
+        self.assertEqual(self.run_sor('claim', 'greet/hello', 'greet/bye', '--as', 'a1')[0], 0)
+        code, out, _ = self.run_sor('release', 'greet/hello', '--as', 'a2', '--force')
+        self.assertEqual((code, out.strip()), (0, 'released greet/hello'))
+        self.assertEqual((self.asked(), self.live()), (['greet/bye'], ['a1']))
+
+    def test_what_a_claim_knows_of_its_work_is_kept_for_what_stays_and_dropped_for_the_rest(self):
+        self.assertEqual(self.run_sor('claim', 'greet/hello', 'audio/volume', '--as', 'u18')[0], 0)
+        path = os.path.join(self.spec, '.sor-claims.json')
+        data = json.loads(read(path))
+        (c,) = data['claims']
+        c['locked'], c['locked_keys'] = True, sorted(k for k in c['keys'] if '@' not in k)
+        write(self.dir, 'sor/.sor-claims.json', json.dumps(data))
+        (before,) = self.claims_file()
+        self.assertTrue(any(k.startswith('greet') for k in before['base']) and any(k.startswith('greet') for k in before['start']))
+        self.assertEqual(self.run_sor('release', 'greet/hello', '--as', 'u18')[0], 0)
+        (after,) = self.claims_file()
+        self.assertTrue(after['locked'] and after['locked_keys'] and after['base'] and after['start'])
+        for fact in ('locked_keys', 'base', 'start'):
+            self.assertTrue(all(k.startswith('audio') for k in after[fact]), (fact, after[fact]))
+
+    def test_a_project_that_cannot_be_read_leaves_the_rest_of_the_claim_as_it_was(self):
+        self.assertEqual(self.run_sor('claim', 'greet/hello', 'audio/volume', '--as', 'u18')[0], 0)
+        (before,) = self.claims_file()
+        with mock.patch.object(markers, 'Scan', side_effect=OSError('unreadable')):
+            code, out, _ = self.run_sor('release', 'greet/hello', '--as', 'u18')
+        self.assertEqual(code, 0, out)
+        (after,) = self.claims_file()
+        self.assertEqual(after['asked'], ['audio/volume'])
+        self.assertEqual((after['keys'], after['regions']), (before['keys'], before['regions']))
 
 
 # --- a claim that ran out is not forgotten at once ----------------------------------------------------------

@@ -44,6 +44,7 @@ Subagents share your session, but Claude Code tells the hooks which subagent act
 - Do not claim what you delegate, because your claim would block your subagent's.
 - A subagent releases with its own name (`sor release --all --as <name>`): that frees only its claims, and another agent's
   claim named by id is left alone ("NOT released (held by someone else)", exit 3). Nobody runs `sor release --force`: the hook refuses it.
+  `sor release <id>` gives up that id only: the other ids you claimed in the same call stay held (`still holding: …`), and an id under a part you claimed is "NOT released" until you release the part.
 - A finished subagent's claims are not kept alive by you working on: only its own activity renews them, and it is gone once it stopped.
 - Your own final `sor release --all` has no `--as`, and `SOR_AGENT` is not set in your environment (it is a name too, and
   your subagents share that environment). A caller that gives no name frees every claim of the session, so it also clears

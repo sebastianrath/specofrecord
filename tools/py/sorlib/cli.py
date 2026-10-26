@@ -795,8 +795,15 @@ def cmd_release(args):
     if ran_out:
         print(('note: ' if len(ran_out) < len(gone) else 'nothing to release: ') + f'your {claims.lapse_text(ran_out)} '
               f'({claims.claim_again()})')
-    elif not gone and not refused:
+    held = [] if args.all or args.force else [c for c in claims.active(project) if claims.same_agent(c, agent, claims.current_session())]
+    inside = [(i, a) for i in args.ids for a in sorted({a for c in held for a in c['asked']}) if i.startswith(a + '/')
+              and not any(claims.covers(i, r) for g in gone for r in g['asked'])]
+    for i, a in inside:   # a claim is given up as it was asked for, not in pieces smaller than that
+        print(f'NOT released: {i} is part of your claim on {a}; release {a} to give it up')
+    if not gone and not refused and not inside and not ran_out:
         print('nothing to release')
+    if held and gone:
+        print('still holding: ' + ', '.join(sorted({a for c in held for a in c['asked']})))
     return 3 if refused else 0
 
 

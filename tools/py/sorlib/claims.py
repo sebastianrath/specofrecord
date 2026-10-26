@@ -1034,18 +1034,14 @@ def unknown_text(project, universe, unknown):
     return text + (f' (items of the root have no prefix: use {"; ".join(fixes)})' if fixes else '')
 
 
-def _claim(project, scan, universe, ids, agent, ttl, session, take_over=False):
-    """`claim` without `blocked`: a refusal carries the other agents' claims it was measured against, as `theirs`."""
-    if not agent:
-        raise ClaimError('say who you are: --as NAME, or set SOR_AGENT (a Claude Code session is recognised by itself)')
-    session = current_session() if session is None else session
+def _reach(project, scan, universe, ids):
+    """(keys, unknown, regions, pins, plain) of a set of ids: the lock keys they own, the ids that name nothing, the code regions they hold, the keys whose text a claim
+    of one language of a clause relies on, and the keys of the ids whose text is theirs (`plain`, which `shared` is measured against)."""
     keys, unknown, owned = set(), [], {}
     for ident in ids:
         owned[ident], bad = footprint(project, universe, [ident])
         keys |= owned[ident]
         unknown += bad
-    if unknown:
-        raise ClaimError(unknown_text(project, universe, unknown) + ' (to add a clause, claim the part that will hold it)')
     regions, pins, plain = set(), set(), {k for k in keys if '@' not in k}
     for ident in ids:   # a clause holds all its code, one language of it only that language's
         lang = line_id(project, ident)
@@ -1056,6 +1052,17 @@ def _claim(project, scan, universe, ids, agent, ttl, session, take_over=False):
             plain |= bases
         else:
             regions |= regions_of(scan, owned[ident])
+    return keys, unknown, regions, pins, plain
+
+
+def _claim(project, scan, universe, ids, agent, ttl, session, take_over=False):
+    """`claim` without `blocked`: a refusal carries the other agents' claims it was measured against, as `theirs`."""
+    if not agent:
+        raise ClaimError('say who you are: --as NAME, or set SOR_AGENT (a Claude Code session is recognised by itself)')
+    session = current_session() if session is None else session
+    keys, unknown, regions, pins, plain = _reach(project, scan, universe, ids)
+    if unknown:
+        raise ClaimError(unknown_text(project, universe, unknown) + ' (to add a clause, claim the part that will hold it)')
     shared = sorted({k for _, ids_ in regions for k in ids_} - plain)
     base, here, start = lock_base(project, keys), where_here(project), start_state(project, scan, keys)
     lock, window = _lock_of(project), project_parked(project)
@@ -1326,21 +1333,64 @@ def release(project, ids, agent, everything=False, force=False, session=None):
     caller that gives no name (a parent cleaning up after its subagents, which share its session) also
     releases every claim of its session; one that names itself releases only its own, so `release --all
     --as a5` leaves a5's siblings alone. Expired claims still in the file go the same way and come back
-    with the released ones (their `until` is in the past); they are never refused."""
+    with the released ones (their `until` is in the past); they are never refused.
+
+    A claim made in one call (`sor claim a b c`) is one record, but releasing `a` gives up `a` and what is under it, and `b` and `c` stay held: the record is
+    split, and what comes back for it is a copy that asks only for what was released. Naming a part under a claimed one releases nothing: a claim is not given up
+    in pieces smaller than what was asked for."""
     session = current_session() if session is None else session
     if not agent and not force and not session:
         raise ClaimError('say who you are: --as NAME, or set SOR_AGENT')
     cleaning_up = bool(session) and (not agent or agent == session_agent(session))   # no name given
+
+    def related(c):
+        return everything or any(covers(i, a) or i.startswith(a + '/') for i in ids for a in c['asked'])
+
+    def mine(c):
+        return same_agent(c, agent, session) or force or (cleaning_up and c.get('session') == session)
+
+    def divide(c):
+        """(released ids, ids that stay) of a record of the caller's that is in force: only what the ids cover is released."""
+        out = [a for a in c['asked'] if everything or any(covers(i, a) for i in ids)]
+        return out, [a for a in c['asked'] if a not in out]
+
+    # What the ids that stay reach is worked out before the mutex is taken, because it reads the project; a record that changed meanwhile keeps its old reach.
+    reach, pending = {}, []
+    for c in read(project):
+        if related(c) and mine(c) and not c.get('freed') and not has_expired(c):
+            released, rest = divide(c)
+            if released and rest:
+                pending.append(tuple(rest))
+    if pending:
+        try:
+            from .markers import Scan
+            scan = Scan(project)
+            universe = set(lockfile.snapshot(project, scan))
+            for rest in pending:
+                keys, unknown, regions, pins, _ = _reach(project, scan, universe, rest)
+                if unknown:   # an id that names nothing any more holds nothing: the others keep their reach
+                    keys, _, regions, pins, _ = _reach(project, scan, universe, [a for a in rest if a not in unknown])
+                reach[rest] = (keys, regions, pins)
+        except (OSError, ValueError, ClaimError, lockfile.LockFormatError):
+            reach = {}   # a project that cannot be read: the claim keeps all it held, which is more than it needs and never less
+
     with _Mutex(project):
         now = time.time()
         gone, refused, keep = [], [], []
         for c in read(project):
-            asked = everything or any(i == a or a.startswith(i + '/') or i.startswith(a + '/') or a.startswith(i + '@')
-                                      for i in ids for a in c['asked'])
-            if not asked:
+            if not related(c):
                 keep.append(c)
-            elif same_agent(c, agent, session) or force or (cleaning_up and c.get('session') == session):
-                gone.append(c)
+            elif mine(c):
+                released, rest = divide(c)
+                if c.get('freed') or has_expired(c):
+                    gone.append(c)   # nothing in force to keep: it goes whole, as it always did
+                elif not released:
+                    keep.append(c)   # a part under what it claimed: it holds all of that still
+                elif not rest:
+                    gone.append(c)
+                else:
+                    gone.append(dict(c, asked=released))
+                    keep.append(_remaining(c, rest, reach.get(tuple(rest))))
             elif not everything and not c.get('freed'):
                 refused.append(c)
                 keep.append(c)
@@ -1348,6 +1398,26 @@ def release(project, ids, agent, everything=False, force=False, session=None):
                 keep.append(c)
         _write(project, keep)
     return gone, refused
+
+
+def _remaining(c, rest, reach):
+    """The record `c` is after some of what it asked for was released: the same claim (its grant, its history) for `rest` only. `reach` is (keys, regions, pins) of
+    `rest` when they could be worked out; without it the record keeps what it held."""
+    out = dict(c, asked=sorted(rest))
+    if reach is None:
+        return out
+    keys, regions, pins = reach
+    out['keys'], out['regions'] = sorted(keys), [[f, list(ks)] for f, ks in sorted(regions)]
+    if pins:
+        out['pins'] = sorted(pins)
+    else:
+        out.pop('pins', None)
+    for fact in ('base', 'start'):   # measured per key: what no longer belongs to the claim is not measured
+        if fact in out:
+            out[fact] = {k: v for k, v in out[fact].items() if k in keys}
+    if 'locked_keys' in out:
+        out['locked_keys'] = [k for k in out['locked_keys'] if k in keys]
+    return out
 
 
 def others(project, agent, keys=None, regions=None, now=None, session=None, text=True, scan=None):
