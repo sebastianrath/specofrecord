@@ -39,7 +39,7 @@ jobs:
       artifact: ${{ steps.artifact.outputs.name }}
     steps:
       - uses: actions/checkout@v4.4.0
-      # The artifact is named after the version, like the zip inside it and the release tag: sor-plugin-v0.1.16. On a tag it is the tag's, which build-plugin.py has checked against plugin.json.
+      # The artifact is named after the version, like the zip inside it and the release tag: sor-plugin-v0.1.17. On a tag it is the tag's, which build-plugin.py has checked against plugin.json.
       - name: Name the artifact
         id: artifact
         run: |

@@ -56,7 +56,7 @@ jobs:
             echo "package.json says version $version but the tag is $GITHUB_REF_NAME: set the version in the repository to the tag's before tagging" >&2
             exit 1
           fi
-      # The artifact is named after the version, like the .vsix inside it and the release tag: sor-vscode-v0.1.16.
+      # The artifact is named after the version, like the .vsix inside it and the release tag: sor-vscode-v0.1.17.
       - name: Name the artifact
         id: artifact
         run: echo "name=sor-vscode-v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
@@ -75,7 +75,7 @@ jobs:
         run: node test/bundle.js
       # The extension has no runtime dependencies (it needs only `vscode` and Node's own modules), so vsce skips the
       # dependency scan: it is the step that breaks across npm versions. The file is named after the version, with the same
-      # `v` as the release tag: sor-vscode-v0.1.16.vsix.
+      # `v` as the release tag: sor-vscode-v0.1.17.vsix.
       - name: Package
         run: |
           mkdir -p dist
