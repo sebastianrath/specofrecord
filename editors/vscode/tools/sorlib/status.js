@@ -496,17 +496,16 @@ function rootTitle(specDir) {
   return '';
 }
 
-/** The folder name of a project in a store several projects share (`claims.project_key`). */
-function projectKey(project, top) {
-  let name;
+/** The folder name of a project in a store several projects share (`claims.project_key`); `titled` adds the root title for a folder SOR_CLAIMS_DIR names. */
+function projectKey(project, top, titled) {
+  let rel = '';
   if (top) {
-    const rel = path.relative(fs.realpathSync(top), fs.realpathSync(project.root)).split(path.sep).join('/');
-    name = rel === '' || rel === '.' ? '' : rel;
-  } else {
-    name = rootTitle(project.specDir);
+    rel = path.relative(fs.realpathSync(top), fs.realpathSync(project.root)).split(path.sep).join('/');
+    if (rel === '.') rel = '';
   }
-  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24) || 'project';
-  return `${slug}-${crypto.createHash('sha1').update(name, 'utf8').digest('hex').slice(0, 8)}`;
+  const title = titled || !top ? rootTitle(project.specDir) : '';
+  const slug = (rel || title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24) || 'project';
+  return `${slug}-${crypto.createHash('sha1').update(`${rel}\n${title}`, 'utf8').digest('hex').slice(0, 8)}`;
 }
 
 /** Where this project's claims are kept (`claims.store`): SOR_CLAIMS_DIR, else the common git directory, else the project's own folder. */
@@ -518,7 +517,7 @@ function claimsFile(project) {
     if (!path.isAbsolute(home)) {
       throw new Error(`SOR_CLAIMS_DIR=${env} is a relative path, which every process would read against its own folder (a hook follows the agent's \`cd\`) and so find a store of its own: write an absolute path`);
     }
-    return path.join(path.resolve(home), projectKey(project, git ? git[0] : null), STORE_FILE);
+    return path.join(path.resolve(home), projectKey(project, git ? git[0] : null, true), STORE_FILE);
   }
   if (git) return path.join(git[1], STORE_SUBDIR, projectKey(project, git[0]), STORE_FILE);
   return path.join(project.specDir, CLAIMS_FILE);

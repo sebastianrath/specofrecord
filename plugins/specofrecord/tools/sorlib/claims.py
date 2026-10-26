@@ -196,16 +196,18 @@ def root_title(spec_dir):
     return ''
 
 
-def project_key(project, top):
+def project_key(project, top, titled=False):
     """The name of a project's folder in a store several projects share (SOR_CLAIMS_DIR, a repository with more than one sor project): its path within
-    the repository, or, with no repository, the title of its root file. A readable start and a hash, so two projects never share one."""
+    the repository, or, with no repository, the title of its root file. A folder that SOR_CLAIMS_DIR names serves every project of the machine, so there the
+    title is part of the key too (`titled`): two unrelated projects at the root of their repositories do not share one. In the common git directory it is
+    not, since that store is the repository's own and a branch may rename the title. A readable start and a hash."""
+    rel = ''
     if top:
-        name = os.path.relpath(os.path.realpath(root_of(project)), os.path.realpath(top)).replace(os.sep, '/')
-        name = '' if name == '.' else name
-    else:
-        name = root_title(project.spec_dir)
-    slug = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')[:24] or 'project'
-    return f'{slug}-{hashlib.sha1(name.encode("utf8")).hexdigest()[:8]}'
+        rel = os.path.relpath(os.path.realpath(root_of(project)), os.path.realpath(top)).replace(os.sep, '/')
+        rel = '' if rel == '.' else rel
+    title = root_title(project.spec_dir) if (titled or not top) else ''
+    slug = re.sub(r'[^a-z0-9]+', '-', (rel or title).lower()).strip('-')[:24] or 'project'
+    return f'{slug}-{hashlib.sha1((rel + chr(10) + title).encode("utf8")).hexdigest()[:8]}'
 
 
 def store(project):
@@ -218,7 +220,7 @@ def store(project):
         raise ClaimError(f'SOR_CLAIMS_DIR={env} is a relative path, which every process would read against its own folder (a hook follows the agent\'s `cd`) and so find a store of its own: '
                          'write an absolute path')
     if env:
-        folder = os.path.join(os.path.abspath(os.path.expanduser(env)), project_key(project, git[0] if git else None))
+        folder = os.path.join(os.path.abspath(os.path.expanduser(env)), project_key(project, git[0] if git else None, titled=True))
         kind, shared = 'dir', f'every working folder that sets SOR_CLAIMS_DIR to {os.path.abspath(os.path.expanduser(env))}'
     elif git:
         folder = os.path.join(git[1], STORE_SUBDIR, project_key(project, git[0]))
