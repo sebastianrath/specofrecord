@@ -756,7 +756,7 @@ function activate(context) {
   };
   // @clause end
 
-  // @clause references
+  // @clause references references/whole-link
   // ---------------------------------------------------------------- references
   function refAt(project, doc, pos) {
     if (!project.index) return null;
@@ -771,7 +771,10 @@ function activate(context) {
       if (!project || !isSpecDoc(project, doc.uri.fsPath)) return undefined;
       const ref = refAt(project, doc, pos);
       if (!ref || !ref.to) return undefined;
-      return new vscode.Location(vscode.Uri.file(ref.to.path), new vscode.Position(Math.max(0, ref.to.line - 1), ref.to.col || 0));
+      const there = new vscode.Position(Math.max(0, ref.to.line - 1), ref.to.col || 0);
+      // a link, not a bare location: the whole `{reference}` is what ctrl underlines, not the one word between its `/` and `-` (references/whole-link)
+      return [{ originSelectionRange: new vscode.Range(pos.line, ref.col - 1, pos.line, ref.end + 1),
+        targetUri: vscode.Uri.file(ref.to.path), targetRange: new vscode.Range(there, there) }];
     },
   };
   // @clause end
@@ -949,7 +952,7 @@ function activate(context) {
   };
   // @clause end
 
-  // @clause references/code-jump
+  // @clause references/code-jump references/whole-link
   /** Go to Definition on a `code: path#name` line jumps to the region the index made for it. */
   const codeJumpProvider = {
     provideDefinition(doc, pos) {
@@ -963,7 +966,9 @@ function activate(context) {
       const r = project.index.regions.find((x) => x.kind === 'anchor' && x.target === m[1]
         && (!item || x.keys.includes(item.id)));
       if (!r) return undefined;
-      return new vscode.Location(vscode.Uri.file(r.path), new vscode.Position(r.start - 1, 0));
+      const text = doc.lineAt(pos.line).text, from = text.indexOf(m[1], text.indexOf('code:') + 5), there = new vscode.Position(r.start - 1, 0);
+      return [{ originSelectionRange: new vscode.Range(pos.line, from, pos.line, from + m[1].length),   // the whole path is the link (references/whole-link)
+        targetUri: vscode.Uri.file(r.path), targetRange: new vscode.Range(there, there) }];
     },
   };
   // @clause end

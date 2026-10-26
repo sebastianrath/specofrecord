@@ -225,6 +225,13 @@ exports.run = async function run() {
     ok(`value reference {${withVal.text}} -> line ${(d[0].targetRange || d[0].range).start.line + 1}`);
   }
   void refs;
+  // the link starts from the whole reference, not from one word of it: with `/` and `-` in the name a word is not the reference (references/whole-link)
+  const slashed = project.index.refs.find((x) => x.to && /[\/-]/.test(x.text));
+  assert(slashed, 'a reference with a / or a - in it');
+  const slashedDoc = await vscode.workspace.openTextDocument(vscode.Uri.file(slashed.path));
+  const slashedDefs = await vscode.commands.executeCommand('vscode.executeDefinitionProvider', slashedDoc.uri, new vscode.Position(slashed.line - 1, slashed.col + 1));
+  const slashedFrom = slashedDefs[0] && slashedDefs[0].originSelectionRange;
+  assert(slashedFrom && slashedDoc.getText(slashedFrom) === '{' + slashed.text + '}', 'the link covers the whole {' + slashed.text + '}: ' + (slashedFrom && JSON.stringify(slashedDoc.getText(slashedFrom))));
 
   // 5. code: lines jump to their code
   const bodiesDoc = await vscode.workspace.openTextDocument(file('sor', 'bodies.md'));
@@ -237,6 +244,9 @@ exports.run = async function run() {
   const codeLanded = codeTarget.lineAt((codeDefs[0].targetRange || codeDefs[0].range).start.line).text;
   assert(codeUri.fsPath.endsWith('index.html') && /function positions\b/.test(codeLanded), 'lands on positions: ' + codeLanded.trim());
   ok(`code: out/index.html#positions -> ${codeLanded.trim()}`);
+  const codeFrom = codeDefs[0].originSelectionRange;
+  assert(codeFrom && bodiesDoc.getText(codeFrom) === 'out/index.html#positions', 'the link covers the whole path of the code: line: ' + (codeFrom && JSON.stringify(bodiesDoc.getText(codeFrom))));
+  ok('whole links: a {reference} with / and - in it, and the path of a code: line');
 
   // 6. live preview of spec files
   const pvDoc = await vscode.workspace.openTextDocument(file('sor', 'bodies.md'));

@@ -279,11 +279,11 @@
 
 "project/wake": {"code": "d264e7192c94", "kind": "item", "text": "4a268b7a6b18"},
 
-"references": {"code": "f6ccbccd3818", "kind": "part", "text": "935ca813e5ee"},
+"references": {"code": "8c7e9db152cf", "kind": "part", "text": "935ca813e5ee"},
 
 "references/ambiguity": {"kind": "item", "text": "37b59d9672f8"},
 
-"references/code-jump": {"code": "c0782b53aff2", "kind": "item", "text": "9e2867600ccb"},
+"references/code-jump": {"code": "f464f69d60be", "kind": "item", "text": "9e2867600ccb"},
 
 "references/complete": {"code": "aad8383eeb77", "kind": "item", "text": "ca6610fbacce"},
 
@@ -297,23 +297,27 @@
 
 "references/scope": {"kind": "item", "text": "fc8dc75e2498"},
 
-"references/test:code-jump": {"kind": "test", "result": "pass", "text": "9010fbc7dc30"},
+"references/test:code-jump": {"kind": "test", "result": "pass", "text": "9010fbc7dc30", "via": "file"},
 
-"references/test:complete": {"kind": "test", "result": "pass", "text": "d7b712ae45e7"},
+"references/test:complete": {"kind": "test", "result": "pass", "text": "d7b712ae45e7", "via": "file"},
 
-"references/test:cursor": {"kind": "test", "result": "pass", "text": "7782b8853b88"},
+"references/test:cursor": {"kind": "test", "result": "pass", "text": "7782b8853b88", "via": "file"},
 
-"references/test:jump": {"kind": "test", "result": "pass", "text": "d3f536d44945"},
+"references/test:jump": {"kind": "test", "result": "pass", "text": "d3f536d44945", "via": "file"},
 
 "references/test:scope": {"kind": "test", "result": "manual", "text": "c55804146966"},
 
-"references/test:tool-resolves": {"kind": "test", "result": "pass", "text": "5d0c475e2848"},
+"references/test:tool-resolves": {"kind": "test", "result": "pass", "text": "5d0c475e2848", "via": "file"},
 
 "references/test:unresolved": {"kind": "test", "result": "manual", "text": "528a6b0a5a43"},
+
+"references/test:whole-link": {"kind": "test", "result": "pass", "text": "f5c484d55c2d", "via": "file"},
 
 "references/tool-resolves": {"kind": "item", "text": "c2ff4750c6eb"},
 
 "references/unresolved": {"code": "04d9ebcf4115", "kind": "item", "text": "114bc0c81052"},
+
+"references/whole-link": {"code": "9066eb359490", "kind": "item", "text": "61b35635cefb"},
 
 "show-only": {"kind": "item", "text": "f921f02f60d2"},
 

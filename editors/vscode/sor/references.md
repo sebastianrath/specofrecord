@@ -5,6 +5,8 @@ Why: ctrl+click on a {reference} in a spec file jumps to the thing it names, and
 - **jump** — Go to Definition on a reference in a file under `sor/` jumps to the item, row or
   value it names, wherever it lives: `{item}`, `{part/item}`, `{item.value}`, `{name: = other}`.
 - **cursor** — anywhere from the first to the last character of a reference counts as on it.
+- **whole-link** — with ctrl held, the whole reference is underlined as one link (`{core/vm/load-module}`,
+  not one word of it between its `/` and `-`), and so is the whole path of a `code:` line.
 - **code-jump** — Go to Definition on a `code: path#name` line under a clause jumps to that code,
   where the project index places the anchor; an anchor the tool cannot find has no jump.
 - **tool-resolves** — it never resolves a name itself; it jumps where the project index says.
@@ -33,6 +35,8 @@ Why: ctrl+click on a {reference} in a spec file jumps to the thing it names, and
 - **jump** — a reference in SPECOFRECORD.md, and an `{item.value}` reference, each give the one place the
   index names (test/suite.js).
 - **cursor** — the cursor anywhere on a reference counts as on it (test/suite.js).
+- **whole-link** — Go to Definition on a reference with `/` and `-` in it names the whole `{...}` as the
+  place the link starts from, and on a `code:` line the whole path (test/suite.js).
 - **code-jump** — Go to Definition on `code: out/index.html#positions` in the example's
   bodies.md lands on the `positions` function in `index.html` (test/suite.js).
 - **unresolved** — a reference to nothing or to two things gives no jump, and its hover says so.
