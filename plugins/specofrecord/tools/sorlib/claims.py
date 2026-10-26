@@ -281,13 +281,24 @@ def machine():
     return _MACHINE[0]
 
 
-def is_here(where):
+def in_this_repository(project, path):
+    """Is the folder `path` there, and a working folder of the repository this project is in (the same common git directory)?"""
+    there = git_dirs(path) if path and os.path.isdir(path) else None
+    here = git_dirs(root_of(project))
+    return bool(here and there and os.path.realpath(here[1]) == os.path.realpath(there[1]))
+
+
+def is_here(where, project=None):
     """Is the working folder a claim names (`where`, as `where_here` made it) on this machine? A path on another machine says nothing about this one. Compared by
-    `machine` when the claim and this machine both have one, else by the host name; a claim with neither is taken to be from here."""
+    `machine` when the claim and this machine both have one, else by the host name; a claim with neither is taken to be from here. A claim from before the machine
+    was recorded (it has no `machine`) whose host name differs is still here when its folder is a working folder of this project's own repository, which another
+    machine cannot have been given: the host name of a Mac changed with the network, and the claims it made under the old names are not another computer's."""
     mine = machine()
     if mine and where.get('machine'):
         return where['machine'] == mine
-    return where.get('host') in (None, socket.gethostname())
+    if where.get('host') in (None, socket.gethostname()):
+        return True
+    return bool(project) and not where.get('machine') and in_this_repository(project, where.get('path'))
 
 
 def where_here(project):
@@ -714,7 +725,7 @@ def states(project, held, scan=None, now=None, limit=None, first=False):
     window = project_parked(project)
     out, lock, cache, looked = [], None, {}, 0
     for c in held:
-        if not is_gone(c, now, window) and not _folder_gone(c):
+        if not is_gone(c, now, window) and not _folder_gone(c, project):
             out.append((c, Decision('held', 'its holder is at work or has reserved it', folder=(c.get('where') or {}).get('path', ''),
                                     label=(c.get('where') or {}).get('label', ''))))
         elif limit is not None and looked >= limit:
@@ -881,7 +892,7 @@ def folder_state(project, c, scan, lock, same_folder, cache):
         proj, sc, lk = project, scan, lock
         where = os.path.realpath(root_of(project))
     else:
-        if not is_here(c.get('where') or {}):
+        if not is_here(c.get('where') or {}, project):
             return None   # a path on another machine says nothing about this one
         where = c['where']['path']
         if cache is not None and where in cache:
@@ -942,7 +953,7 @@ def decide(project, c, scan=None, lock=None, now=None, window=None, cache=None):
     window = project_parked(project) if window is None else window
     where = c.get('where') or {}
     path, here = where.get('path'), os.path.realpath(root_of(project))
-    on_this_machine = is_here(where)
+    on_this_machine = is_here(where, project)
     if path and on_this_machine and not os.path.isdir(path):
         if not c.get('locked'):
             return Decision('free', 'its working folder is gone', folder=path, label=where.get('label', ''))
@@ -991,9 +1002,9 @@ def standing(project, held, scan=None, now=None):
     return [(c, d) for c, d in states(project, held, scan, now, limit=GUARD_LOOKS, first=True) if d.kind != 'free']
 
 
-def _folder_gone(c):
+def _folder_gone(c, project=None):
     where = c.get('where') or {}
-    return bool(where.get('path')) and is_here(where) and not os.path.isdir(where['path'])
+    return bool(where.get('path')) and is_here(where, project) and not os.path.isdir(where['path'])
 
 
 def claim(project, scan, universe, ids, agent, ttl=DEFAULT_TTL, session=None, take_over=False):
