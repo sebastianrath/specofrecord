@@ -290,15 +290,15 @@ def in_this_repository(project, path):
 
 def is_here(where, project=None):
     """Is the working folder a claim names (`where`, as `where_here` made it) on this machine? A path on another machine says nothing about this one. Compared by
-    `machine` when the claim and this machine both have one, else by the host name; a claim with neither is taken to be from here. A claim from before the machine
-    was recorded (it has no `machine`) whose host name differs is still here when its folder is a working folder of this project's own repository, which another
-    machine cannot have been given: the host name of a Mac changed with the network, and the claims it made under the old names are not another computer's."""
-    mine = machine()
-    if mine and where.get('machine'):
-        return where['machine'] == mine
+    `machine` when the claim and this machine both have one, else by the host name; a claim with neither is taken to be from here. One more case, a Mac (the only
+    place `machine` is read) in a repository's own claims store: a claim from before the machine was recorded, whose host name differs, is still here when its folder
+    is a working folder of this project's repository. The host name of a Mac changes with the network, and that store is in the repository's git directory, which
+    a folder of another machine does not write to. Nowhere else: containers, and hosts that share a SOR_CLAIMS_DIR, can each have a folder at that very path."""
+    if where.get('machine') and machine():
+        return where['machine'] == machine()
     if where.get('host') in (None, socket.gethostname()):
         return True
-    return bool(project) and not where.get('machine') and in_this_repository(project, where.get('path'))
+    return bool(project) and not where.get('machine') and bool(machine()) and store(project).kind == 'git' and in_this_repository(project, where.get('path'))
 
 
 def where_here(project):

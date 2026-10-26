@@ -166,24 +166,49 @@ class TestWhichMachineAClaimWasMadeOn(unittest.TestCase):
             d = claims.decide(project, c, Scan(project), lockfile.read(project), time.time(), None)
             self.assertEqual((d.kind, d.why), ('held', 'its folder cannot be read from here'))
 
-    def test_a_claim_from_before_the_machine_was_recorded_is_here_when_its_folder_is_one_of_this_repository(self):
+    def old_claim(self):
+        """A stopped holder's claim in the second folder, as a tool from before the machine was recorded and a network that renamed the Mac left it."""
         w = self.w
         self.assertEqual(w.run(w.second, A, 'claim', 'greet/hello', '--as', 'a')[0], 0)
         w.edit(w.second, 'hello', 'Hello', 'Hi')
         self.assertEqual(w.run(w.second, A, 'lock', 'greet/hello', '--as', 'a')[0], 0)
         w.rewrite(lambda c: c.update(stopped=time.time()))
-        w.rewrite(lambda c: (c['where'].pop('machine', None), c['where'].update(host='Mac-4.lan')))       # what a claim of an older tool says after the network renamed the Mac
-        project = Project(w.main)
+        w.rewrite(lambda c: (c['where'].pop('machine', None), c['where'].update(host='Mac-4.lan')))
         (c,) = w.records('a')
-        self.assertTrue(claims.is_here(c['where'], project))
-        self.assertFalse(claims.is_here(c['where']))                                    # nothing to compare the folder with
-        d = claims.decide(project, c, Scan(project), lockfile.read(project), time.time(), None)
-        self.assertEqual(d.kind, 'waiting')
-        elsewhere = os.path.join(w.tmp, 'other-repository')                               # a folder that is not of this repository says nothing about this one
-        os.makedirs(elsewhere)
-        self.assertFalse(claims.is_here({'host': 'Mac-4.lan', 'path': elsewhere}, project))
-        self.assertFalse(claims.is_here({'host': 'Mac-4.lan', 'path': os.path.join(w.tmp, 'gone')}, project))
-        self.assertFalse(claims.is_here({'host': 'Mac-4.lan', 'machine': 'm2', 'path': w.second}, project))
+        return Project(w.main), c
+
+    def test_on_a_mac_a_claim_from_before_the_machine_was_recorded_is_here_when_its_folder_is_one_of_this_repository(self):
+        w = self.w
+        with mock.patch.object(claims, 'machine', return_value='m1'):
+            project, c = self.old_claim()
+            self.assertTrue(claims.is_here(c['where'], project))
+            self.assertFalse(claims.is_here(c['where']))                                    # nothing to compare the folder with
+            d = claims.decide(project, c, Scan(project), lockfile.read(project), time.time(), None)
+            self.assertEqual(d.kind, 'waiting')
+            elsewhere = os.path.join(w.tmp, 'other-repository')                               # a folder that is not of this repository says nothing about this one
+            os.makedirs(elsewhere)
+            self.assertFalse(claims.is_here({'host': 'Mac-4.lan', 'path': elsewhere}, project))
+            self.assertFalse(claims.is_here({'host': 'Mac-4.lan', 'path': os.path.join(w.tmp, 'gone')}, project))
+            self.assertFalse(claims.is_here({'host': 'Mac-4.lan', 'machine': 'm2', 'path': w.second}, project))
+
+    def test_nowhere_else_is_the_host_name_overruled_by_a_folder_that_exists_here(self):
+        w = self.w
+        with mock.patch.object(claims, 'machine', return_value='m1'):
+            project, c = self.old_claim()
+            with mock.patch.dict(os.environ, {'SOR_CLAIMS_DIR': os.path.join(w.tmp, 'shared-store')}):        # hosts that share a store each have a folder at that path
+                self.assertEqual(claims.store(project).kind, 'dir')
+                self.assertFalse(claims.is_here(c['where'], project))
+        with mock.patch.object(claims, 'machine', return_value=''):                          # containers, Linux, Windows: the host name is stable and decides
+            self.assertEqual(claims.store(project).kind, 'git')
+            self.assertFalse(claims.is_here(c['where'], project))
+            d = claims.decide(project, c, Scan(project), lockfile.read(project), time.time(), None)
+            self.assertEqual((d.kind, d.why), ('held', 'its folder cannot be read from here'))
+
+    def test_a_record_that_has_no_machine_id_is_compared_without_asking_for_this_one(self):
+        with mock.patch.object(claims, 'machine', side_effect=AssertionError('the id is read for nothing')):
+            self.assertTrue(claims.is_here({'host': claims.socket.gethostname()}))
+            self.assertTrue(claims.is_here({}))
+            self.assertFalse(claims.is_here({'host': 'elsewhere'}))
 
 
 if __name__ == '__main__':

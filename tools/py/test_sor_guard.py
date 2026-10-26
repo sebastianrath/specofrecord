@@ -109,6 +109,21 @@ class TestWhichCommandsAreAskedAbout(unittest.TestCase):
         self.assertEqual(hook.guarded_calls('sor lock a \\\n  --run-tests'), [])        # a continued line with nothing guarded in it
         self.assertEqual(hook.guarded_calls('echo sor lock a \\\n  > notes'), [])
 
+    def test_a_backslash_that_is_escaped_or_inside_a_here_document_joins_nothing(self):
+        """The lines are the shell's: `foo \` in the body of a here-document is data and does not swallow its terminator, and `echo a\\` ends in a backslash of its own."""
+        for name, command in (('a body line that ends in a backslash', "cat > f <<'EOF'\n#define X \\\nEOF\nsor lock a --already-fits ts"),
+                              ('a body of several lines', "cat > f <<'EOF'\nfoo \\\nbar \\\nEOF\nsor lock a --already-fits ts"),
+                              ('a run of two', 'echo a\\\\\nsor lock a --already-fits ts'),
+                              ('a run of four', 'echo a\\\\\\\\\nsor lock a --already-fits ts'),
+                              ('after a joined line', 'sor status \\\n  --json\nsor lock a --already-fits ts')):
+            with self.subTest(name):
+                self.assertEqual(self.ids_and_languages(command), [(['a'], ['ts'])])
+                self.assertEqual(hook.pre_bash(bash(command))['hookSpecificOutput']['permissionDecision'], 'ask')
+        for command in ("cat > f <<'EOF'\n#define X \\\nEOF\nsor release x --force", 'echo a\\\\\nsor release x --force'):
+            self.assertIn('frees a claim somebody else holds', hook.pre_bash(bash(command))['hookSpecificOutput']['permissionDecisionReason'], command)
+        self.assertEqual(hook.guarded_calls("cat > f <<'EOF'\nsor lock a --already-fits ts\nEOF"), [])        # the body of a here-document is still data
+        self.assertEqual(self.ids_and_languages('echo a\\\\\\\nsor lock a --already-fits ts'), [])         # a run of three: the last one joins, so the lock is echo's argument
+
     def test_a_command_that_only_mentions_it_is_not(self):
         for name, command in self.NOT_ASKED:
             with self.subTest(name):

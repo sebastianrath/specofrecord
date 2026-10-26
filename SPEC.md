@@ -882,7 +882,8 @@ What the tool does about it:
   can race for after a crash. Temp files older than 5 minutes are removed. `grant` numbers a record (it rises with the clock, so a record that comes back after the file
   was emptied is still a new one), `rev` counts the writes that changed it, `base` is the signature of the lock entries of its keys at the moment of the grant, `where`
   the working folder, the machine and the branch it was made in (the machine as its host name and, on a Mac, whose host name follows the network, also its hardware id: a folder is
-  on this machine when the ids match, else when the host names do). `locked_keys` are the keys the holder's locks changed. A claim that was freed stays for 2 hours as a tombstone (`freed`; `claims.TOMBSTONE`), only so that
+  on this machine when the ids match, else when the host names do; on a Mac, in the repository's own claims store, a claim with no machine id also when its folder is a
+  working folder of this repository). `locked_keys` are the keys the holder's locks changed. A claim that was freed stays for 2 hours as a tombstone (`freed`; `claims.TOMBSTONE`), only so that
   its holder can be told (below). The file is deleted when no claim and no tombstone is left.
 - **How a claim ends.** A holder releases it, or `sor claim` finds that nothing is left to protect, or somebody takes it over. Events are recorded as facts on the
   claim and free nothing: the session ended (`SessionEnd`, with its reason, in the time the hook has: it reads the claims file and not the project), a subagent stopped

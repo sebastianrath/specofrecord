@@ -562,7 +562,7 @@ def guarded_calls(command, depth=0):
     `|` or a new line, and what a quoted argument holds (`bash -c "..."`). The word `lock` or `test` and the option in a command that cannot be read
     (an open quote) count, for a guard that errs the other way would not guard."""
     found, body_ends = [], None   # body_ends: the word that ends a here-document whose lines are data, not commands
-    for line in command_lines(command):
+    for line in command_lines(command, lambda: body_ends is not None):
         if body_ends is not None:
             if line.strip() == body_ends:
                 body_ends = None
@@ -604,7 +604,7 @@ def command_segments(command, depth=0):
     """The simple commands of a shell command line as lists of words, split the way `guarded_calls` splits them: at `&&`, `||`, `;`, `|` and new lines, past
     here-documents whose lines are data, and into what a quoted argument of a shell holds (`bash -c "..."`). A line that cannot be read gives none."""
     out, body_ends = [], None
-    for line in command_lines(command):
+    for line in command_lines(command, lambda: body_ends is not None):
         if body_ends is not None:
             if line.strip() == body_ends:
                 body_ends = None
