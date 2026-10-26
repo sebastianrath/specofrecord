@@ -138,6 +138,8 @@ class TestTheOtherOptionsTheUserDecides(unittest.TestCase):
         ('a variable in braces and quotes', '"${P}" lock a --results r.json', 'lock', ['a'], {'results': ['r.json']}),
         ('a variable that holds the Python launcher', '$PY tools/py/sor.py -C proj lock a --results r.json', 'lock', ['a'], {'results': ['r.json']}),
         ('a variable that holds the command, with a test run', '$SOR test --targets py', 'test', [], {'targets': ['py']}),
+        ('the script with a launcher option, as typed', 'python3 -I tools/py/sor.py -C proj lock a --results r.json', 'lock', ['a'], {'results': ['r.json']}),
+        ('a variable that holds the launcher, with a launcher option', '$PY -I tools/py/sor.py -C proj lock a --results r.json', 'lock', ['a'], {'results': ['r.json']}),
         ('several at once', 'sor lock a --results r.json --allow-incomplete', 'lock', ['a'], {'results': ['r.json'], 'allow-incomplete': []}),
         ('a command that cannot be read', "sor test --targets py 'unbalanced", 'test', [], {'targets': []}),
         ('an unreadable lock with the shortest prefix of --confirm', "sor lock --c t1 'unbalanced", 'lock', [], {'confirm': []}),
@@ -152,7 +154,9 @@ class TestTheOtherOptionsTheUserDecides(unittest.TestCase):
         ('a project folder that is named like a command', 'sor -C lock status'),
         ('a search for the options', 'grep -rn -e "--targets" -e "--results" docs/'),
         ('an echo', 'echo sor test --targets py'),
-        ('a path that starts with a variable', '$HOME/bin/tool lock a --results r.json'),
+        ('git by its full path, with the words in a message', '/usr/bin/git commit -m "sor lock a --results r.json"'),
+        ('grep by its full path, searching for the options', '/usr/bin/grep -rn -e "--targets" -e "--results" docs/'),
+        ('a script that is not given a lock or test word', './run-sor.sh status --results r.json'),
         ('a variable that holds something else with the option on another command', '$P status --targets py'),
         ('a commit message', 'git commit -m "sor lock --allow-incomplete"'),
         ('a here-document that writes a file', "cat > x.sh <<'EOF'\nsor test --targets py\nEOF"),
@@ -170,6 +174,21 @@ class TestTheOtherOptionsTheUserDecides(unittest.TestCase):
         for name, command in self.NOT_ASKED:
             with self.subTest(name):
                 self.assertEqual(hook.guarded_calls(command), [])
+
+    HIDDEN_PROGRAM = [
+        ('a variable with a default', '${P:-sor} lock a --results r.json'),
+        ('a command substitution', '$(which sor) lock a --results r.json'),
+        ('a wrapper script that runs sor', './run-sor.sh lock a --results r.json'),
+        ('a variable holding the program, in front of a project folder', '$P -C proj lock a --allow-incomplete'),
+        ('a path that starts with a variable', '$HOME/bin/tool lock a --results r.json'),
+    ]
+
+    def test_a_program_the_guard_cannot_name_is_asked_about_when_it_has_the_words_of_a_guarded_call(self):
+        # the skill leaves the ask to this hook, which says nothing when it misses: a form it cannot read must err towards asking
+        for name, command in self.HIDDEN_PROGRAM:
+            with self.subTest(name):
+                calls = hook.guarded_calls(command)
+                self.assertTrue(calls and any(set(found) & {'results', 'allow-incomplete'} for _, _, found in calls), f'no question for: {command}')
 
     def test_the_user_is_told_what_each_one_does(self):
         for command, said in (

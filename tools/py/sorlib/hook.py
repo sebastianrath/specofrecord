@@ -364,21 +364,25 @@ def program_index(words):
     return i
 
 
-VARIABLE = re.compile(r'^\$\{?[A-Za-z_]\w*\}?$')   # a whole word that is a variable (`$P`, `${P}`), not a path that starts with one
+OPAQUE = re.compile(r'[$`]|/|\.(?:sh|bash|zsh)$')   # a program word that hides what runs: a variable (`$P`, `${P:-sor}`), a substitution, a script path
 
 
 def guarded_call(words):
     """(command, ids, found) when these words are a `sor lock` or `sor test` that carries an option the user has to say yes to (see GUARDED), else
-    None. `ids` are the clauses it names; `found` has each of those options with the values after it."""
+    None. `ids` are the clauses it names; `found` has each of those options with the values after it. A program word that hides what runs
+    (OPAQUE) counts as sor when the words after it are those of a call, with launcher options and a `sor.py` skipped, because this hook is the only
+    check the skill leaves and it says nothing when it misses; a plain program (grep, echo, git) never does."""
     i = program_index(words)
-    if i < len(words) and VARIABLE.match(words[i]):   # `$P lock ...` with P="python3 tools/py/sor.py": the program is whatever the variable holds, so it counts as sor
-        if i + 1 < len(words) and os.path.basename(words[i + 1]) in ('sor', 'sor.py'):   # `$PY tools/py/sor.py lock ...`
-            i += 1
-    elif i >= len(words) or os.path.basename(words[i]) not in ('sor', 'sor.py'):
+    if i >= len(words):
         return None
-    k = i + 1
-    while k < len(words) and words[k].startswith('-'):   # the options before the command: `-C folder`
-        k += 2 if words[k] == '-C' else 1
+    if os.path.basename(words[i]) in ('sor', 'sor.py') or OPAQUE.search(words[i]):
+        k = i + 1
+        while k < len(words) and (words[k].startswith('-') or os.path.basename(words[k]) in ('sor', 'sor.py')):   # `$PY -I tools/py/sor.py -C folder lock`
+            k += 2 if words[k] == '-C' else 1
+    elif words[i] in ('lock', 'test'):   # what is left of `$(which sor) lock ...` once the parentheses have split the line
+        k = i
+    else:
+        return None
     if k >= len(words) or words[k] not in ('lock', 'test'):
         return None
     command, args = words[k], words[k + 1:]
