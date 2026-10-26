@@ -1,4 +1,4 @@
-"""Every combination of what a claim can meet, checked against an oracle written apart from the code (proposals/shared-claims.md, the table "How a claim ends").
+"""Every combination of what a claim can meet, checked against an oracle written apart from the code (SPEC §16).
 
 A holder `a` claims `greet/hello` in a working folder; time and events change what its claim is; a requester `b` in the main folder asks for the clause in four ways
 (`sor claims --json`, the edit guard on the text and on the code, `sor claim`, `sor claim --take-over`), and every way has to agree with the oracle:

@@ -710,24 +710,25 @@ def cmd_claim(args):
 
 def cmd_claims(args):
     """`sor claims [--json]`: every claim in force, and for each what stands in the way of the next claim of it. The documented way to read claims, for a tool
-    that is not sor (a merge gate, an editor): nothing is written."""
+    that is not sor (a merge gate, an editor). It writes nothing of its own; like every command run from a session it renews that session's claims (SPEC §16)."""
     project, scan = load(args)
     held = claims.active(project)
-    rows = []
-    for c, d in claims.states(project, held, scan):
-        w = c.get('where') or {}
-        rows.append({'holder': c['agent'], 'ids': c['asked'], 'keys': c['keys'], 'session': c.get('session', ''), 'folder': w.get('path', ''), 'branch': w.get('label', ''),
-                     'host': w.get('host', ''), 'since': c['since'], 'last': c.get('last', c['since']), 'until': c['until'], 'state': d.kind, 'why': d.why,
-                     'changes': d.changes, 'ended': (c.get('ended') or {}).get('reason'), 'locked': bool(c.get('locked')), 'queued': c.get('queued'),
-                     'grant': c.get('grant'), 'rev': c.get('rev', 1)})
+    seen = claims.states(project, held, scan)
     st = claims.store(project)
     if args.json:
+        rows = []
+        for c, d in seen:
+            w = c.get('where') or {}
+            rows.append({'holder': c['agent'], 'ids': c['asked'], 'keys': c['keys'], 'session': c.get('session', ''), 'folder': w.get('path', ''), 'branch': w.get('label', ''),
+                         'host': w.get('host', ''), 'since': c['since'], 'last': c.get('last', c['since']), 'until': c['until'], 'state': d.kind, 'why': d.why,
+                         'changes': d.changes, 'ended': (c.get('ended') or {}).get('reason'), 'locked': bool(c.get('locked')), 'queued': c.get('queued'),
+                         'grant': c.get('grant'), 'rev': c.get('rev', 1)})
         print(json.dumps({'store': {'kind': st.kind, 'shared': st.shared}, 'claims': rows}, indent=2, ensure_ascii=False))
         return 0
     print(f'claims are shared by {st.shared}')
     if not held:
         print('no claims')
-    for c, d in claims.states(project, held, scan):
+    for c, d in seen:
         print('  ' + claims.explain(c, d).replace('\n', '\n  '))
     return 0
 

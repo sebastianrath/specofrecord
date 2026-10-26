@@ -58,6 +58,7 @@ DEFAULT_TTL = 30 * 60   # the idle window of a claim, in seconds, when nothing e
 NEVER = 4102444800      # 2100-01-01: the `until` of a claim with no idle window, a date every tool can read (not null, not year 9999)
 RENEW_FLOOR = 300       # a claim records its last activity at most this often, so it can end this much before its idle window is over
 TOMBSTONE = 2 * 3600   # seconds a freed claim stays in the file, to tell its holder; pruned when the file is written
+BIND_REFRESH = 3600     # a binding is rewritten when the same subagent binds again after this long, so that the day it is kept for counts from its last use
 DEFAULT_PARKED = 24 * 3600   # how long a claim that its gone holder left unfinished work behind is held, in seconds, when the root file says nothing
 
 
@@ -316,8 +317,6 @@ def adopt_old_file(project):
 def _move_in(project, st, old, held):
     held = [dict(c, where=c.get('where') or {'path': root_of(project), 'host': socket.gethostname()}) for c in held]
     _write(project, held)
-    if not held:
-        pass
     try:
         os.remove(old)
     except OSError:
@@ -1054,8 +1053,17 @@ def _claim(project, scan, universe, ids, agent, ttl, session, take_over=False):
                                                                                                            {k2 for c in took for k2 in (c.get('base') or {})}})
                 if all('start' in c for c in took):   # and what its unfinished work is measured from: what it left is still its work, whoever continues it
                     record['start'] = dict(start, **{k: v for c in took for k, v in c['start'].items()})
-            if mine:
-                record['since'] = mine[0]['since']
+            if mine:   # the agent claims what it already holds: the same claim goes on, with what it knows of its work (a new look at the files must not forget it)
+                before = mine[0]
+                record['grant'], record['since'] = before['grant'], before['since']
+                for fact in ('locked', 'queued', 'took_over'):
+                    if before.get(fact) and fact not in record:
+                        record[fact] = before[fact]
+                if before.get('took_over'):   # the unfinished work is still where the old holder left it
+                    record['where'] = dict(before.get('where') or record['where'])
+                for fact in ('base', 'start'):   # what it began from stays; only keys that are new since are measured from now
+                    if fact in before:
+                        record[fact] = dict(record.get(fact) or {}, **before[fact])
             # what this claim covers is no news any more: the agent's own freed claims on it go, other agents' stay
             spent = [c for c in held if c.get('freed') and same_agent(c, agent, session)
                      and all(any(covers(i, a) for i in ids) for a in c['asked'])]
@@ -1155,7 +1163,7 @@ def bind(project, session, agent_id, name, now=None):
         for other, b in mine.items():
             if b.get('name') == name and other != agent_id:
                 return False, other
-        if (mine.get(agent_id) or {}).get('name') != name:
+        if (mine.get(agent_id) or {}).get('name') != name or now - (mine.get(agent_id) or {}).get('at', 0) > BIND_REFRESH:   # a live subagent keeps its binding past a day
             mine[agent_id] = {'name': name, 'at': now}
             for sid in list(data):   # a binding is forgotten after a day: sessions come and go
                 data[sid] = {a: b for a, b in data[sid].items() if now - b.get('at', now) < 24 * 3600}

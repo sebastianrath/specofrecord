@@ -1,4 +1,4 @@
-"""Tests for how claims tell agents apart inside one Claude Code session (proposals/shared-claims.md, "Who holds a claim"). Subagents share their parent's session
+"""Tests for how claims tell agents apart inside one Claude Code session (SPEC §16). Subagents share their parent's session
 id, but Claude Code gives a hook an `agent_id` inside one: the Bash hook binds it to the name it passes with `--as`, the edit guard attributes an edit to that name, a
 subagent's activity renews its own claims and not the parent's, and the events of a subagent (`SubagentStart`, `SubagentStop`) and of the session (`Stop`, `SessionStart`)
 say whether a holder is gone. Also `sor claims --json`, `sor queued`, and what an agent may not do from a shell (`sor release --force`).
@@ -97,6 +97,16 @@ class TestASubagentNamesItself(Agents):
         self.assertIn('already used by another subagent', said)
         self.assertEqual(claims.bound_name(Project(self.dir), S, Y), '')
         self.assertIsNone(self.bash('sor claim greet/bye --as sub-b', agent_id=Y))
+
+    def test_a_subagent_that_is_still_there_keeps_its_binding_past_a_day(self):
+        project = Project(self.dir)
+        day = 24 * 3600
+        self.assertEqual(claims.bind(project, S, X, 'sub-a', now=1000), (True, ''))
+        self.assertEqual(claims.bind(project, S, X, 'sub-a', now=1000 + day - 600), (True, ''))      # it names itself again on a claim, a lock or a release
+        self.assertEqual(claims.bind(project, S, Y, 'sub-b', now=1000 + day + 600), (True, ''))      # a sibling binds a day after the first
+        self.assertEqual(claims.bound_name(project, S, X), 'sub-a')
+        self.assertEqual(claims.bind(project, S, Z, 'sub-c', now=1000 + 3 * day), (True, ''))      # one nobody has heard of for days is forgotten
+        self.assertEqual(claims.bound_name(project, S, X), '')
 
     def test_the_name_may_be_given_in_the_other_spellings_and_inside_a_shell(self):
         self.assertIsNone(self.bash('SOR_X=1 sor claim greet/hello --as=sub-a', agent_id=X))
@@ -328,6 +338,17 @@ class TestTheEventsOfSubagentsAndSessions(Agents):
         self.assertNotIn('busy_at', self.records('sub-a')[0])
         self.assertEqual(claims.others_for_session(Project(self.dir), OTHER, ['greet/hello']), [])      # quiet, and nothing left
 
+    def test_a_stop_that_lists_only_finished_tasks_is_not_busy_and_a_task_without_a_status_is(self):
+        self.age('sub-a', 3 * 3600)
+        hook.stop(self.payload(background_tasks=[{'type': 'shell', 'status': 'completed'}, {'type': 'subagent', 'status': 'Failed'}]))
+        self.assertNotIn('busy_at', self.records('sub-a')[0])
+        hook.stop(self.payload(background_tasks=[{'type': 'shell', 'status': 'completed'}, {'type': 'shell', 'status': 'running'}]))
+        self.assertTrue(self.records('sub-a')[0]['busy_at'])
+        hook.stop(self.payload(background_tasks=[{'type': 'shell', 'status': 'killed'}]))
+        self.assertNotIn('busy_at', self.records('sub-a')[0])
+        hook.stop(self.payload(background_tasks=[{'type': 'shell'}]))      # no status: it counts as working
+        self.assertTrue(self.records('sub-a')[0]['busy_at'])
+
     def test_the_end_of_the_session_ends_the_busy_fact_too(self):
         hook.stop(self.payload(background_tasks=[{'type': 'subagent'}]))
         self.age('sub-a', 3 * 3600)
@@ -404,6 +425,22 @@ class TestTheClaimsCommand(Agents):
         self.assertIn('main: greet/hello', out)
         self.sor('release', '--all', '--as', 'main', CLAUDE_CODE_SESSION_ID=S)
         self.assertIn('no claims', self.sor('claims')[1])
+
+    def test_the_text_form_reads_the_holders_once(self):
+        self.claim('main', 'greet/hello')
+        self.age('main', 3 * 3600)
+        reads = []
+        real = claims.states
+
+        def counting(*a, **k):
+            reads.append(1)
+            return real(*a, **k)
+
+        with mock.patch.object(claims, 'states', counting):
+            self.assertEqual(self.sor('claims')[0], 0)
+            self.assertEqual(len(reads), 1)
+            self.assertEqual(self.sor('claims', '--json')[0], 0)
+            self.assertEqual(len(reads), 2)
 
     def test_a_record_counts_its_writes_and_never_reuses_a_grant(self):
         self.claim('main', 'greet/hello')

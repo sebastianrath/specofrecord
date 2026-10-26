@@ -1,4 +1,4 @@
-"""Tests for what happens to a claim whose holder is gone (proposals/shared-claims.md, "How a claim ends"): the decision `sor claim` makes about each claim in its
+"""Tests for what happens to a claim whose holder is gone (SPEC §16): the decision `sor claim` makes about each claim in its
 way, row by row of the table in the proposal, in one working folder and in a worktree of its own. A claim is never freed by the clock alone: what its holder left
 behind decides, so a holder that works for five hours without a sign of life keeps what it holds.
 

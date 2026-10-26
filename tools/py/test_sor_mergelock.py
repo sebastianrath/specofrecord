@@ -1,5 +1,5 @@
 """Tests for the lock file when a merge touched it: conflict markers, a key written twice, a file that is no JSON, and the commands, the check and the hooks
-that meet it (proposals/shared-claims.md, "Lock files that merge"). A lock in that state is named, with what to do, by every command that reads it; the edit
+that meet it (SPEC §16). A lock in that state is named, with what to do, by every command that reads it; the edit
 guard goes on letting edits through, because those are the edits that resolve the merge; nothing is rewritten.
 
     cd <repo> && python3 -m unittest discover -s tools/py -p 'test_*.py' -v

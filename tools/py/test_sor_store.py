@@ -1,4 +1,4 @@
-"""Tests for where claims live (proposals/shared-claims.md, "One store, found per environment"): one set of claims for every working folder of a project, whichever way
+"""Tests for where claims live (SPEC §16): one set of claims for every working folder of a project, whichever way
 the folders are made. In a git repository every worktree shares the common git directory; SOR_CLAIMS_DIR names a folder for clones, Perforce workspaces and shared
 drives; without either, the claims stay in the project's own folder, as they always did. The first tests are the bug that began this: two worktrees both claimed the
 same clause, because each had a claims file of its own.

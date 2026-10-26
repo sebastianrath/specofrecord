@@ -801,11 +801,19 @@ def session_start(payload):
     return {'hookSpecificOutput': {'hookEventName': 'SessionStart', 'additionalContext': ctx}}
 
 
+FINISHED = ('completed', 'failed', 'killed', 'cancelled', 'canceled', 'stopped', 'done', 'error')   # the states of a background task that works no more
+
+
+def working(tasks):
+    """Does the `background_tasks` list of a Stop name work that is still going on? A task counts unless its status is one that has ended; a task with no status does."""
+    return any(not (isinstance(t, dict) and str(t.get('status') or '').lower() in FINISHED) for t in tasks or ())
+
+
 def stop(payload):
     """Records what the `Stop` of the session said about its background work (`claims.mark_busy`): with work in flight (a long build, a subagent), its claims are
     not quiet for a while; without, that is forgotten. It frees nothing and decides nothing: it is idle only in the sense of waiting for the user."""
     for root in project_roots(payload):
-        claims.mark_busy(claims.at(root), (payload.get('session_id') or '').strip(), bool(payload.get('background_tasks')))
+        claims.mark_busy(claims.at(root), (payload.get('session_id') or '').strip(), working(payload.get('background_tasks')))
     return None
 
 

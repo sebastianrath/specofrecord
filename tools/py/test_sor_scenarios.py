@@ -1,7 +1,7 @@
-"""The situations the shared claim store (proposals/shared-claims.md) is for, one scenario per class, each on its own copy of examples/solar-system.
+"""The situations the shared claim store (SPEC §16) is for, one scenario per class, each on its own copy of examples/solar-system.
 
-Nothing is called in process: every actor is its own `python3 sor.py` (and its own hook program) with a session id of its own, in a folder of its own, the way
-separate agents run. That is what the older tests did not do: they ran every agent in one folder, so two worktrees never had a claims file apiece.
+Every actor is its own `python3 sor.py` (and its own hook program) with a session id of its own, in a folder of its own, the way
+separate agents run (the swarm test counts folder reads in process, once the worktrees are made). That is what the older tests did not do: they ran every agent in one folder, so two worktrees never had a claims file apiece.
 
     python3 -m unittest tools.py.test_sor_scenarios -v
     SOR_SCENARIO_TOOL=<folder holding an older sor.py> SOR_SCENARIO_EXAMPLE=<its examples/solar-system> python3 -m unittest tools.py.test_sor_scenarios   # another version
@@ -344,6 +344,39 @@ class GoneHolderScenarios(GitScene):
         self.ended(wt, 'sess-ana')
         self.git(wt, 'add', '-A')
         self.git(wt, 'commit', '-q', '-m', 'Jupiter')
+
+    def test_claiming_the_same_clause_again_keeps_what_the_claim_knew_of_its_locked_work(self):
+        repo, project = self.repository()
+        wt = self.worktree(repo, 'feature')
+        self.ok(wt, 'sess-ana', 'claim', JUPITER, '--as', 'ana')
+        self.resize_jupiter(wt, self.jupiter(wt) + 1)
+        self.lock(wt, 'sess-ana', 'ana')
+        self.ok(wt, 'sess-ana', 'claim', JUPITER, '--as', 'ana')      # she claims it again to go on
+        self.ended(wt, 'sess-ana')
+        self.git(wt, 'add', '-A')
+        self.git(wt, 'commit', '-q', '-m', 'Jupiter')
+        self.git(repo, 'worktree', 'remove', '--force', wt)      # swept away before the merge
+        self.assertIn('waiting for the merge', self.refused(repo, 'sess-bob', 'claim', JUPITER, '--as', 'bob'))
+
+    def test_claiming_the_same_clause_again_keeps_what_was_unfinished_since_the_first_claim(self):
+        repo, project = self.repository()
+        wt = self.worktree(repo, 'feature')
+        self.ok(wt, 'sess-ana', 'claim', JUPITER, '--as', 'ana')
+        self.resize_jupiter(wt, self.jupiter(wt) + 1)
+        self.ok(wt, 'sess-ana', 'claim', JUPITER, '--as', 'ana')      # again, with her edits in the files
+        self.ended(wt, 'sess-ana')
+        self.assertIn('parked', self.refused(repo, 'sess-bob', 'claim', JUPITER, '--as', 'bob'))
+
+    def test_claiming_the_same_clause_again_after_a_take_over_keeps_the_place_of_the_unfinished_work(self):
+        repo, project = self.repository()
+        wt = self.worktree(repo, 'feature')
+        self.ok(wt, 'sess-ana', 'claim', JUPITER, '--as', 'ana')
+        self.resize_jupiter(wt, self.jupiter(wt) + 1)
+        self.ended(wt, 'sess-ana')
+        self.ok(repo, 'sess-bob', 'claim', JUPITER, '--as', 'bob', '--take-over')
+        self.ok(repo, 'sess-bob', 'claim', JUPITER, '--as', 'bob')      # bob claims again from his own folder
+        (claim,) = [c for c in self.claims(repo)['claims'] if c['holder'] == 'bob']
+        self.assertEqual(os.path.realpath(claim['folder']), os.path.realpath(wt))
 
     def test_finished_work_that_is_not_merged_yet_makes_the_next_claim_wait(self):
         repo, project = self.repository()
