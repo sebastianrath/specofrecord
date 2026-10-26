@@ -2,7 +2,7 @@
 
 <p align="center"><img src="social/banner.png" alt="Spec of Record banner showing one spec clause linked to the two pieces of code built from it" width="75%"></p>
 
-Spec of Record is a development philosophy and toolchain for AI-built software, where one or many agents build from a single spec, aimed at mid-sized to large projects. It turns the spec into a centralized design document that always stays in sync with the code, so a team of different specialties can understand, review and change the software together. You write what your software should do in plain language, an AI agent turns it into code, and each piece of code stays linked to the statements in the spec and to its test results.
+Spec of Record is a development philosophy and toolchain for AI-built software, where one or many agents build from multiple spec files, aimed at mid-sized to large projects. It turns all specs into a centralized design document that always stays in sync with the code, so a team of different specialties can understand, review and change the software together. You write what your software should do in plain language, an AI agent turns it into code, and each piece of code stays linked to the statements in the spec and to its test results.
 
 The spec is split into parts, so engineering, QA and UX can each work in their own field of expertise while sharing a common design document. You can change either side, the spec or the code, and the other one is updated to match.
 
