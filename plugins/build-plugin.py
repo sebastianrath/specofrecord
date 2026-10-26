@@ -202,7 +202,9 @@ def smoke(zip_path):
         expect(result.returncode == 0 and os.path.isfile(claims_file), 'session-end hook leaves the claims of another session', result)
         end = json.dumps({'session_id': 'smoke-session', 'cwd': project})
         result = run(commands[('SessionEnd', '')], project, stdin=end, env=env, shell=True)
-        expect(result.returncode == 0 and not os.path.exists(claims_file), 'session-end hook frees the claims of the ending session', result)
+        claims = run([sor, 'claims', '--json'], project, env=env)
+        ended = claims.returncode == 0 and any(c.get('session') == 'smoke-session' and c.get('ended') for c in json.loads(claims.stdout)['claims'])
+        expect(result.returncode == 0 and ended, 'session-end hook records that the ending session is gone, on its claims', claims)
     finally:
         shutil.rmtree(work, ignore_errors=True)
     print('smoke test passed')
