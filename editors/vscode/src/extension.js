@@ -201,11 +201,35 @@ function activate(context) {
 
   // @clause state state/status-bar state/gutter lenses/clause-lens
   // ---------------------------------------------------------------- state: marks and status bar
+  // The part of each spec file and the parts that have code, once per index: a part has code when a region names it, or when its code
+  // is written by hand (`Source: code at <path>` or `Code: <path> (by hand)` in the lines above the first `## `), which no region shows.
+  const partInfo = new WeakMap();   // index -> { partOf: Map(path key -> part id), covered: Set(part ids) }
+  function writtenByHand(file) {
+    try {
+      const header = [];
+      for (const t of fs.readFileSync(file, 'utf8').split(/\r?\n/)) { if (/^##\s/.test(t)) break; header.push(t); }
+      return /(^|\.\s)(Source: code at|Code:)\s/m.test(header.join('\n'));
+    } catch (e) { return false; }
+  }
+  function partsOf(project) {
+    let p = partInfo.get(project.index);
+    if (!p) {
+      p = { partOf: new Map(), covered: new Set() };
+      for (const r of project.index.regions) for (const k of r.keys) p.covered.add(k);
+      for (const it of project.index.items) {
+        if (it.kind !== 'part') continue;
+        p.partOf.set(norm(it.path), it.id);
+        if (writtenByHand(it.path)) p.covered.add(it.id);
+      }
+      partInfo.set(project.index, p);
+    }
+    return p;
+  }
   /** A rule or table row with no code of its own and none in its part: it gets a grey mark and a `no code yet` lens, no state (state/gutter, lenses/clause-lens). */
   function noCode(project, it) {
     if ((it.kind !== 'rules' && it.kind !== 'row') || it.regions.length) return false;
-    const part = it.id.includes('/') ? it.id.slice(0, it.id.lastIndexOf('/')) : 'ROOT';
-    return !project.index.regions.some((r) => r.keys.includes(part));
+    const p = partsOf(project);
+    return !p.covered.has(p.partOf.get(norm(it.path)));
   }
 
   function computeMarks() {

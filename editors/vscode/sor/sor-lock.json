@@ -73,7 +73,7 @@
 
 "lenses": {"code": "65e14a1d9f86", "kind": "part", "text": "a08efdf191d1"},
 
-"lenses/clause-lens": {"code": "66b50ebc9a57", "kind": "item", "text": "a455b8fe1649"},
+"lenses/clause-lens": {"code": "d30dad33a986", "kind": "item", "text": "d7ac6df692b9"},
 
 "lenses/cursor-only": {"code": "9c656b77ebe8", "kind": "item", "text": "994158dff5ac"},
 
@@ -95,7 +95,7 @@
 
 "lenses/show-all": {"code": "3e86d28ca2de", "kind": "item", "text": "1b9219220141"},
 
-"lenses/test:clause-lens": {"kind": "test", "result": "pass", "text": "e26d4f665cea", "via": "file"},
+"lenses/test:clause-lens": {"kind": "test", "result": "pass", "text": "061405ed73d5", "via": "file"},
 
 "lenses/test:cursor-only": {"kind": "test", "result": "pass", "text": "acb09c05c15f", "via": "file"},
 
@@ -113,7 +113,7 @@
 
 "lenses/test:show-all": {"kind": "test", "result": "pass", "text": "d4da3235c7fb", "via": "file"},
 
-"lenses/test:targets": {"kind": "test", "refs": {"lenses/clause-lens": "a455b8fe1649"}, "result": "pass", "text": "d7aba278142b", "via": "file"},
+"lenses/test:targets": {"kind": "test", "refs": {"lenses/clause-lens": "d7ac6df692b9"}, "result": "pass", "text": "d7aba278142b", "via": "file"},
 
 "lenses/word-mismatch": {"kind": "item", "text": "80ed2c3904a7"},
 
@@ -317,11 +317,11 @@
 
 "show-only": {"kind": "item", "text": "f921f02f60d2"},
 
-"state": {"code": "8c1c1f485e82", "kind": "part", "text": "f380995332a3"},
+"state": {"code": "ad6d2449d99d", "kind": "part", "text": "f380995332a3"},
 
 "state/blame": {"code": "04d9ebcf4115", "kind": "item", "text": "01ef6e7d526b"},
 
-"state/gutter": {"code": "8c1c1f485e82", "kind": "item", "text": "56057d2b4fd6"},
+"state/gutter": {"code": "ad6d2449d99d", "kind": "item", "text": "eb79131f8cf1"},
 
 "state/hover": {"kind": "item", "text": "18fcc786f9d4"},
 
@@ -335,7 +335,7 @@
 
 "state/states": {"code": "96da5ae1b18e", "kind": "item", "text": "6645ce6aa550"},
 
-"state/status-bar": {"code": "1fa6b4ba836c", "kind": "item", "text": "20cbeccff62f"},
+"state/status-bar": {"code": "1df0b642af27", "kind": "item", "text": "20cbeccff62f"},
 
 "state/test:blame": {"kind": "test", "result": "manual", "text": "6edd5cfc798f"},
 

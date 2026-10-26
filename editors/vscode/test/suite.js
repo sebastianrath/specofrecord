@@ -484,6 +484,41 @@ exports.run = async function run() {
   await settle();
   ok(`status bar: "${sbZero}", and the tool's numbers while a clause is changed on disk; hover says to recompile, recompile and review marks are there`);
 
+  // 9b. which rules and rows are "no code yet": a part with code of its own covers its rules and its table rows, a part with none does not,
+  // and a part whose code is written by hand (`Source: code at`) has code too (lenses/clause-lens, state/gutter)
+  const ncSpecs = { covered: 'scratch-covered.md', bare: 'scratch-bare.md', legacy: 'scratch-legacy.md' };
+  const ncPaths = Object.fromEntries(Object.entries(ncSpecs).map(([k, f]) => [k, path.join(project.root, 'sor', f)]));
+  const ncPage = file('out', 'index.html').fsPath, ncLegacy = path.join(project.root, 'out', 'legacy.js');
+  const ncPageOriginal = fs.readFileSync(ncPage);
+  const ncTable = (name) => `- **table** — A table:\n\n| Name | Size |\n|------|------|\n| ${name} | 1 |\n`;
+  fs.writeFileSync(ncPaths.covered, `# Scratch covered\nWhy: s.\n\n## Rules\n- **covered** — no code of its own, its part has code.\n${ncTable('Ceres')}\n## Tests\n`);
+  fs.writeFileSync(ncPaths.bare, `# Scratch bare\nWhy: s.\n\n## Rules\n- **bare** — no code anywhere.\n${ncTable('Vesta')}\n## Tests\n`);
+  fs.writeFileSync(ncPaths.legacy, '# Scratch legacy\nWhy: s.\nSource: code at out/legacy.js\n\n## Rules\n- **legacy** — written by hand.\n\n## Tests\n');
+  fs.writeFileSync(ncLegacy, 'x\n');
+  fs.writeFileSync(ncPage, ncPageOriginal + '\n<!-- @clause scratch-covered -->\n<p>x</p>\n<!-- @clause end -->\n');
+  try {
+    assert(await until(() => api.state.projects[0].index.items.some((i) => i.id === 'scratch-legacy/legacy') && api.state.projects[0].index.regions.some((r) => r.keys.includes('scratch-covered')), 20000), 'the scratch parts are indexed');
+    await settle();
+    // new files are all "to recompile" (blue), which hides the grey mark, so the lens is what shows whether an item counts as "no code yet"
+    const ncIsMarked = async (which, re) => {
+      const doc = await vscode.workspace.openTextDocument(ncPaths[which]);
+      const line = [...Array(doc.lineCount).keys()].find((n) => re.test(doc.lineAt(n).text));
+      assert(line !== undefined, `${which}: line for ${re}`);
+      return (await lensesAt(doc, line)).some((l) => l.range.start.line === line && /^no code yet/.test(l.command.title));
+    };
+    assert(!(await ncIsMarked('covered', /\*\*covered\*\*/)), 'a rule in a part with code is not "no code yet"');
+    assert(!(await ncIsMarked('covered', /\| Ceres/)), 'a table row in a part with code is not "no code yet" (the row\'s part is not its table)');
+    assert((await ncIsMarked('bare', /\*\*bare\*\*/)), 'a rule in a part with no code is "no code yet"');
+    assert((await ncIsMarked('bare', /\| Vesta/)), 'a table row in a part with no code is "no code yet"');
+    assert(!(await ncIsMarked('legacy', /\*\*legacy\*\*/)), 'a rule in a part with hand-written code (Source: code at) is not "no code yet"');
+    ok('no code yet: parts with code, rows of such parts and hand-written parts are not flagged, bare ones are');
+  } finally {
+    fs.writeFileSync(ncPage, ncPageOriginal);
+    for (const f of [ncLegacy, ...Object.values(ncPaths)]) fs.rmSync(f, { force: true });
+  }
+  await until(() => !api.state.projects[0].index.items.some((i) => i.id.startsWith('scratch-')), 20000);
+  await settle();
+
   // 10. marker lines: which lines are hidden (marker-lines/which)
   const mlDoc = await vscode.workspace.openTextDocument(file('out', 'index.html'));
   const mlEd = await vscode.window.showTextDocument(mlDoc, { preview: false });

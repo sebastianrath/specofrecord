@@ -5,7 +5,8 @@ Why: clickable lines above clauses and above their code, to jump from one to the
 - **clause-lens** — every item and table row with code gets a lens naming its code region
   (`out/index.html:26-28`), or how many regions it has and, when they are in more than one target,
   which (`2 code regions (py, ts)`); a part heading gets one even with no code. A rule or table
-  row with no code of its own and none in its part gets `no code yet`, which clicks nowhere.
+  row with no code of its own and none in its part (a part with hand-written code, `Source: code at`,
+  has code) gets `no code yet`, which clicks nowhere.
 - **flags** — an item that needs attention ends with `● drift`, `● to review` or `● to recompile`.
 - **jump** — clicking a clause lens jumps to its code; with several regions it asks which first,
   naming the target of each when they are in more than one.
@@ -31,7 +32,8 @@ Why: clickable lines above clauses and above their code, to jump from one to the
 ## Tests
 - **clause-lens** — the sun item's lens names `out/index.html:` and a range and opens it; the Mars
   row's lens names a single line (test/suite.js); the `calm` rule, which has no code anywhere, has a
-  `no code yet` lens that does nothing, and the sun item has none (test/suite.js).
+  `no code yet` lens that does nothing, and the sun item has none; a table row in a part with code, and a
+  rule in a part with hand-written code, have none either (test/suite.js).
 - **marker-lens** — the `@clause bodies/sun` line has one lens, `bodies/sun · …`, that opens the
   sun item; `@clause end` has none (test/suite.js).
 - **glue-lens** — with the cursor in a `@clause glue` region, its marker line has a `glue` lens and

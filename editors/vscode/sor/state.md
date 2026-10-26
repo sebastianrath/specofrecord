@@ -13,7 +13,7 @@ up to date.
   was edited and no longer matches the lock).
 - **gutter** — red for drift, amber for review, blue for recompile, on the lines of each code
   region and of each item; in sync shows no mark. A rule or table row with no code of its own and
-  none in its part is grey, `no code yet`, where no state mark is. VS Code gives no tooltip on the
+  none in its part (also not `Source: code at`) is grey, `no code yet`, where no state mark is. VS Code gives no tooltip on the
   icon, so hovering the line's text explains the mark: item, state word, meaning.
 - **worst-wins** — when several states apply, the worst wins: drift, then review, then recompile.
 - **status-bar** — the status bar counts "N drift · N review · N recompile" over all projects.
