@@ -1,7 +1,7 @@
 # Makes a release: the plugin zip and the VS Code extension's .vsix, each with a build provenance attestation, in ONE GitHub release.
 #
 # Push a tag `v<version>`,
-#   git tag -s v0.1.15 -m v0.1.15 && git push origin v0.1.15
+#   git tag -s v0.1.16 -m v0.1.16 && git push origin v0.1.16
 # The version of a release is the tag's, and the whole repository has one version: set the version fields in
 # plugins/specofrecord/.claude-plugin/plugin.json, editors/vscode/package.json (and its lock file) and tools/js/package.json to
 # the tag's version, commit, and only then tag. A build fails when its version is not the tag's.
@@ -14,9 +14,9 @@
 #   sor-vscode-v<version>.vsix
 #   <file>.attestation.jsonl for each of the two files (the attestation receipt, the same files are also in the run's artifacts)
 # Check a download against this repository, online
-#   gh attestation verify sor-vscode-v0.1.15.vsix --repo sebastianrath/specofrecord
+#   gh attestation verify sor-vscode-v0.1.16.vsix --repo sebastianrath/specofrecord
 # or offline with the receipt next to it
-#   gh attestation verify sor-vscode-v0.1.15.vsix --repo sebastianrath/specofrecord --bundle sor-vscode-v0.1.15.vsix.attestation.jsonl
+#   gh attestation verify sor-vscode-v0.1.16.vsix --repo sebastianrath/specofrecord --bundle sor-vscode-v0.1.16.vsix.attestation.jsonl
 #
 # A last job publishes the .vsix to the Visual Studio Marketplace once the publisher and the VSCE_PAT secret exist.
 name: Release
