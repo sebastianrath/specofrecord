@@ -36,3 +36,6 @@ plugins/specofrecord/evals/results/
 
 # Built plugin zips and .vsix packages
 dist/
+
+# design proposals: kept locally, never committed
+proposals/
