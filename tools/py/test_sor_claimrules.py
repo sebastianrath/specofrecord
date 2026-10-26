@@ -394,6 +394,150 @@ class TestWorkThatIsPartlyDone(Scene):
         self.assertIn(self.second, said)
 
 
+class TestWhatTheHolderDidAndWhatWasThereBefore(Scene):
+    """`unfinished` is what the holder changed since the grant, not every pending change on its keys."""
+
+    def test_a_project_with_no_lock_yet_does_not_park_a_claim_that_did_nothing(self):
+        os.remove(os.path.join(self.dir, 'sor', 'sor-lock.json'))
+        self.assertEqual(self.claim(self.dir, A, 'greet/hello')[0], 0)
+        self.age(A, HOUR)      # quiet: every key of the project is `new`, and the holder did nothing
+        self.assertEqual(self.free()[0], 0)
+
+    def test_the_same_project_does_park_a_claim_whose_holder_began_work(self):
+        os.remove(os.path.join(self.dir, 'sor', 'sor-lock.json'))
+        self.assertEqual(self.claim(self.dir, A, 'greet/hello')[0], 0)
+        self.unfinished(self.dir)
+        self.age(A, HOUR)
+        code, said = self.free()
+        self.assertEqual(code, 3, said)
+        self.assertIn('parked', said)
+        self.assertIn('1 change', said)
+
+    def test_a_change_made_before_the_claim_is_not_the_holders_unfinished_work(self):
+        self.unfinished(self.second)      # a person's edit, and then the holder claims and does nothing
+        self.assertEqual(self.claim(self.second, A, 'greet/hello')[0], 0)
+        self.end(A)
+        self.assertEqual(self.free()[0], 0)
+
+    def test_a_change_made_after_the_claim_is(self):
+        self.assertEqual(self.claim(self.second, A, 'greet/hello')[0], 0)
+        self.unfinished(self.second)
+        self.end(A)
+        self.assertEqual(self.free()[0], 3)
+
+    def test_after_a_takeover_what_the_old_holder_left_is_still_unfinished_work(self):
+        self.assertEqual(self.claim(self.second, A, 'greet/hello')[0], 0)
+        self.unfinished(self.second)
+        self.end(A)
+        self.assertEqual(self.claim(self.dir, B, 'greet/hello', take_over=True)[0], 0)
+        self.age(B, HOUR)
+        code, said = self.run_at(self.dir, OTHER_SESSION, 'claim', 'greet/hello', '--as', 'c')
+        self.assertEqual(code, 3, said)
+        self.assertIn('parked', said)
+
+
+class TestAWorkingFolderThatIsGoneAfterTheMerge(Scene):
+    def test_the_work_reached_this_copy_so_the_claim_is_free(self):
+        self.assertEqual(self.claim(self.second, A, 'greet/hello')[0], 0)
+        self.unfinished(self.second)
+        self.finish(self.second, A)
+        git(self.second, 'add', '-A')
+        git(self.second, 'commit', '-q', '-m', 'hello')
+        git(self.dir, 'merge', '-q', 'second')
+        git(self.dir, 'worktree', 'remove', '--force', self.second)      # a person, or the sweep, removes the worktree after the merge
+        code, said = self.free()
+        self.assertEqual(code, 0, said)
+        self.assertIn('its work has reached this copy', said)
+
+    def test_before_the_merge_the_same_claim_waits(self):
+        self.assertEqual(self.claim(self.second, A, 'greet/hello')[0], 0)
+        self.unfinished(self.second)
+        self.finish(self.second, A)
+        git(self.dir, 'worktree', 'remove', '--force', self.second)
+        code, said = self.free()
+        self.assertEqual(code, 3, said)
+        self.assertIn('waiting for the merge', said)
+
+
+class TestTheLastLookOfAClaim(Scene):
+    def test_a_holder_whose_record_keeps_changing_is_held_and_never_freed_on_a_stale_look(self):
+        self.assertEqual(self.claim(self.second, A, 'greet/hello')[0], 0)
+        self.end(A)      # the first look says free (gone, nothing left)
+        real = claims.decide
+        looks = []
+
+        def and_then_the_record_changes(project, c, *args, **kw):
+            result = real(project, c, *args, **kw)
+            looks.append(result.kind)
+            self.rewrite(lambda r: r.update(note=len(looks)) if r['agent'] == 'a' else None)      # a write of the record: its rev moves after every look
+            return result
+
+        with mock.patch.object(claims, 'decide', and_then_the_record_changes):
+            code, said = self.free()
+        self.assertEqual(looks, ['free', 'free', 'free'])      # three looks, and then it stops looking
+        self.assertEqual(code, 3, said)
+        self.assertEqual(len(self.of(A)), 1)      # the holder kept its claim
+
+
+class TestTheGuardReadsFewFolders(Scene):
+    def gone_holders(self, folders):
+        """Records of holders that ended, all on greet/hello, each with a working folder of its own (copies of the project)."""
+        import shutil
+        project = Project(self.dir)
+        held = []
+        for n, folder in enumerate(folders):
+            held.append({'agent': f'h{n}', 'asked': ['greet/hello'], 'keys': ['greet/hello', 'greet/hello.text'], 'since': time.time(), 'until': time.time() + 600, 'idle': 1800,
+                         'last': time.time(), 'regions': [], 'session': f'sess{n:04d}-x', 'where': {'path': folder, 'host': claims.socket.gethostname(), 'label': ''}, 'base': {},
+                         'ended': {'reason': 'other', 'at': time.time() - 60}})
+        claims._write(project, held)
+
+    def copies(self, n):
+        import shutil
+        out = []
+        for i in range(n):
+            d = os.path.join(os.path.dirname(self.second), f'copy{i}')
+            shutil.copytree(self.dir, d, ignore=shutil.ignore_patterns('.git'))
+            out.append(d)
+        return out
+
+    def test_each_folder_is_read_once_however_many_claims_it_holds(self):
+        folders = self.copies(2)
+        self.gone_holders([folders[0], folders[1]] * 5)      # ten holders in two folders
+        calls = []
+        real = claims.lockfile.status
+
+        def counting(*a, **k):
+            calls.append(1)
+            return real(*a, **k)
+
+        with mock.patch.object(claims.lockfile, 'status', counting):
+            claims.others_for_session(Project(self.dir), B, ['greet/hello'])
+        self.assertLessEqual(len(calls), 3)      # the requester's folder, and the two others once each
+
+    def test_it_reads_at_most_a_few_holders_that_are_gone_and_takes_the_rest_to_stand(self):
+        folders = self.copies(5)
+        self.gone_holders(folders)
+        calls = []
+        real = claims.lockfile.status
+
+        def counting(*a, **k):
+            calls.append(1)
+            return real(*a, **k)
+
+        with mock.patch.object(claims, 'GUARD_LOOKS', 2), mock.patch.object(claims.lockfile, 'status', counting):
+            held = claims.standing(Project(self.dir), claims.active(Project(self.dir)))
+        self.assertLessEqual(len(calls), 2)
+        self.assertTrue(held)      # the first that stands ends the look, and what is not looked at stands
+
+    def test_with_the_cap_gone_the_decision_is_still_made_in_full_by_sor_claim(self):
+        folders = self.copies(3)
+        self.gone_holders(folders)
+        with mock.patch.object(claims, 'GUARD_LOOKS', 1):
+            self.assertEqual(len(claims.states(Project(self.dir), claims.active(Project(self.dir)), limit=claims.GUARD_LOOKS)), 3)
+        code, said = self.free()
+        self.assertEqual(code, 0, said)      # every holder ended and left nothing: free, whatever the guard's cap
+
+
 class TestWhatTheEditGuardDoes(Scene):
     def guard(self, root, session, clause='hello', old='Hello', new='Hi'):
         edit = flows.edit(os.path.join(root, 'sor', 'greet.md'), '{text: %s}' % old, '{text: %s}' % new, session_id=session)

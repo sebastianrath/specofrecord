@@ -515,6 +515,9 @@ function claimsFile(project) {
   const env = process.env.SOR_CLAIMS_DIR || '';
   if (env) {
     const home = env.startsWith('~') ? path.join(os.homedir(), env.slice(1)) : env;
+    if (!path.isAbsolute(home)) {
+      throw new Error(`SOR_CLAIMS_DIR=${env} is a relative path, which every process would read against its own folder (a hook follows the agent's \`cd\`) and so find a store of its own: write an absolute path`);
+    }
     return path.join(path.resolve(home), projectKey(project, git ? git[0] : null), STORE_FILE);
   }
   if (git) return path.join(git[1], STORE_SUBDIR, projectKey(project, git[0]), STORE_FILE);

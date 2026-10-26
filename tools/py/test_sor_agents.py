@@ -109,6 +109,74 @@ class TestASubagentNamesItself(Agents):
         self.assertIsNone(self.bash('sor claim greet/bye --as sub-a', agent_id=Y, session=OTHER))
 
 
+class TestHooksAtARepositoryRoot(flows.Flow):
+    """A repository root that holds projects in subfolders has no `sor/` above it: the hooks find the project from the folder `sor -C <folder>` names, or from the
+    projects below the cwd (the pattern CLAUDE.md prescribes for this repository: examples/solar-system, editors/vscode)."""
+
+    def setUp(self):
+        super().setUp()
+        self.proj = os.path.join(self.dir, 'proj')
+        base.make_project(self.proj, {'greet': PAGE})
+        write(self.proj, 'out/app.js', CODE)
+        self.assertEqual(base.run_sor(self.proj, 'lock', '--all')[0], 0)
+        patcher = mock.patch.dict(os.environ, {'SOR_ENFORCE_CLAIMS': '1'})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def bash(self, command, agent_id=X, cwd=None):
+        return hook.pre_bash({'tool_name': 'Bash', 'tool_input': {'command': command}, 'session_id': S, 'agent_id': agent_id, 'cwd': cwd or self.dir})
+
+    def test_the_folder_a_c_option_names_decides_where_a_subagent_is_bound(self):
+        for spelling in (f'-C {self.proj}', f'-C proj', f'-Cproj'):
+            claims._write(claims.at(self.proj), [])
+            for path in (claims.bindings_file(claims.at(self.proj)),):
+                if os.path.exists(path):
+                    os.remove(path)
+            self.assertIsNone(self.bash(f'python3 tools/py/sor.py {spelling} claim greet/hello --as sub-a'), spelling)
+            self.assertEqual(claims.bound_name(claims.at(self.proj), S, X), 'sub-a', spelling)
+
+    def test_a_c_folder_that_is_no_project_binds_nothing_and_does_not_fail(self):
+        self.assertIsNone(self.bash('python3 tools/py/sor.py -C /nonexistent claim greet/hello --as sub-a'))
+        self.assertEqual(claims.read_bindings(claims.at(self.proj)), {})
+
+    def test_without_c_the_projects_below_the_cwd_are_bound_in(self):
+        self.assertIsNone(self.bash('cd proj && sor claim greet/hello --as sub-a'))
+        self.assertEqual(claims.bound_name(claims.at(self.proj), S, X), 'sub-a')
+
+    def test_the_binding_makes_the_subagents_own_edit_pass_and_a_siblings_not(self):
+        self.bash(f'python3 tools/py/sor.py -C {self.proj} claim greet/hello --as sub-a')
+        with mock.patch.dict(os.environ, {'CLAUDE_CODE_SESSION_ID': S}):
+            self.assertEqual(base.run_sor(self.proj, 'claim', 'greet/hello', '--as', 'sub-a')[0], 0)
+        spec = os.path.join(self.proj, 'sor', 'greet.md')
+        own = dict(flows.edit(spec, '{text: Hello}', '{text: Hi}'), session_id=S, agent_id=X, cwd=self.dir)
+        sibling = dict(flows.edit(spec, '{text: Hello}', '{text: Hi}'), session_id=S, agent_id=Y, cwd=self.dir)
+        self.assertIsNone(flows.reason(hook.pre_edit(own)))
+        self.assertIn('Someone else is working on this', flows.reason(hook.pre_edit(sibling)))
+
+    def test_the_end_of_the_session_and_the_events_are_recorded_in_the_projects_below_the_cwd(self):
+        with mock.patch.dict(os.environ, {'CLAUDE_CODE_SESSION_ID': S}):
+            self.assertEqual(base.run_sor(self.proj, 'claim', 'greet/hello', '--as', 'sub-a')[0], 0)
+        self.bash(f'python3 tools/py/sor.py -C {self.proj} claim greet/hello --as sub-a')
+        payload = {'session_id': S, 'cwd': self.dir, 'agent_id': X}
+        hook.stop(dict(payload, background_tasks=[{'type': 'shell'}]))
+        (c,) = claims.read(claims.at(self.proj))
+        self.assertTrue(c['busy_at'])
+        hook.subagent_stop(payload)
+        self.assertTrue(claims.read(claims.at(self.proj))[0]['stopped'])
+        hook.subagent_start(payload)
+        self.assertNotIn('stopped', claims.read(claims.at(self.proj))[0])
+        hook.session_end(dict(payload, reason='other'))
+        self.assertEqual(claims.read(claims.at(self.proj))[0]['ended']['reason'], 'other')
+
+    def test_a_folder_with_no_project_below_it_is_left_alone(self):
+        import shutil
+        import tempfile
+        empty = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, empty, True)
+        self.assertIsNone(hook.session_end({'session_id': S, 'cwd': empty}))
+        self.assertIsNone(hook.stop({'session_id': S, 'cwd': empty, 'background_tasks': [{'type': 'shell'}]}))
+
+
 class TestTheEditGuardTellsSiblingsApart(Agents):
     def setUp(self):
         super().setUp()
@@ -146,6 +214,13 @@ class TestAgentsMayNotForceARelease(Agents):
                 said = flows.reason(self.bash(command, agent_id=agent))
                 self.assertIn('frees a claim somebody else holds', said, (agent, command))
                 self.assertIn('claim <id>', said)
+
+    def test_the_abbreviations_argparse_takes_for_force_are_refused_too(self):
+        for flag in ('--f', '--fo', '--for', '--forc', '--force', '--force=1'):
+            said = flows.reason(self.bash(f'sor release greet/hello {flag}'))
+            self.assertIn('frees a claim somebody else holds', said, flag)
+        for flag in ('--all', '--as main', '--fr', '--fo2'):
+            self.assertIsNone(self.bash(f'sor release greet/hello {flag}'), flag)
 
     def test_a_release_without_force_and_talk_about_it_pass(self):
         self.assertIsNone(self.bash('sor release --all'))

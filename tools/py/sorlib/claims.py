@@ -214,6 +214,9 @@ def store(project):
     project's own `sor/` folder as before. `kind` says which; `shared` says with whom, in words."""
     git = git_dirs(root_of(project))
     env = getenv('CLAIMS_DIR')
+    if env and not os.path.isabs(os.path.expanduser(env)):
+        raise ClaimError(f'SOR_CLAIMS_DIR={env} is a relative path, which every process would read against its own folder (a hook follows the agent\'s `cd`) and so find a store of its own: '
+                         'write an absolute path')
     if env:
         folder = os.path.join(os.path.abspath(os.path.expanduser(env)), project_key(project, git[0] if git else None))
         kind, shared = 'dir', f'every working folder that sets SOR_CLAIMS_DIR to {os.path.abspath(os.path.expanduser(env))}'
@@ -271,6 +274,16 @@ def lock_base(project, keys):
     except (OSError, lockfile.LockFormatError):
         return {}
     return {k: entry_sig(lock.get(k)) for k in sorted(keys) if '@' not in k}
+
+
+def start_state(project, scan, keys):
+    """{key: signature of the entry the files make of it now} for the keys of a claim: what the claim starts from, so that `sor claim` can tell later what its holder
+    changed since (`inspect`) from what was there before it, such as a project that has no lock yet, where every key is new. Empty when it cannot be worked out."""
+    try:
+        now = lockfile.snapshot(project, scan)
+    except (Exception, SystemExit):
+        return {}
+    return {k: entry_sig(now[k]) for k in sorted(keys) if '@' not in k and k in now}
 
 
 def old_file(project):
@@ -661,22 +674,30 @@ def queue_words(c, now=None):
     return f"queued by {q['by']} since {when(q['at'])}"
 
 
-def states(project, held, scan=None, now=None):
-    """[(claim, Decision)] for every claim in `held`, the ones that hold nothing back too (kind free): what `sor claims` and `sor status` show."""
+def states(project, held, scan=None, now=None, limit=None, first=False):
+    """[(claim, Decision)] for every claim in `held`, the ones that hold nothing back too (kind free): what `sor claims` and `sor status` show. A holder at work is held
+    without looking at anything else; the project is read only when a holder is gone, each holder's folder once per call. `limit`: at most that many holders that are gone
+    are read, and the rest are taken to stand ("not looked at"). `first`: stop after the first that stands."""
     now = time.time() if now is None else now
     window = project_parked(project)
-    out, lock = [], None
+    out, lock, cache, looked = [], None, {}, 0
     for c in held:
         if not is_gone(c, now, window) and not _folder_gone(c):
             out.append((c, Decision('held', 'its holder is at work or has reserved it', folder=(c.get('where') or {}).get('path', ''),
                                     label=(c.get('where') or {}).get('label', ''))))
-            continue
-        if scan is None:
-            from .markers import Scan
-            scan = Scan(project)
-        if lock is None:
-            lock = _lock_of(project)
-        out.append((c, decide(project, c, scan, lock, now, window)))
+        elif limit is not None and looked >= limit:
+            out.append((c, Decision('held', 'too many holders are gone to read them all here; `sor claim` decides', folder=(c.get('where') or {}).get('path', ''),
+                                    label=(c.get('where') or {}).get('label', ''))))
+        else:
+            looked += 1
+            if scan is None:
+                from .markers import Scan
+                scan = Scan(project)
+            if lock is None:
+                lock = _lock_of(project)
+            out.append((c, decide(project, c, scan, lock, now, window, cache)))
+        if first and out[-1][1].kind != 'free':
+            break
     return out
 
 
@@ -818,36 +839,59 @@ def _lock_of(project):
         return None
 
 
-def inspect(project, c, scan, lock, same_folder):
-    """What a holder has in its working folder, read the way `sor status` reads a project and without writing anything: (unfinished keys, worked, lock).
-    `worked`: its lock has entries for its keys that differ from the `base` the claim recorded. None when the folder cannot be read (another machine,
-    no permission, not a project any more)."""
+def folder_state(project, c, scan, lock, same_folder, cache):
+    """(project, scan, lock, findings, snapshot) of the working folder a holder is in, read the way `sor status` reads a project and without writing anything, or
+    None when it cannot be read (another machine, no permission, not a project any more). `cache` ({path: result}) keeps what was read for the rest of the call:
+    the claims of one folder share it."""
     from .markers import Scan
     from .model import Project
-    keys = {k for k in c.get('keys', []) if '@' not in k}
     if same_folder:
         proj, sc, lk = project, scan, lock
+        where = os.path.realpath(root_of(project))
     else:
         if (c.get('where') or {}).get('host') not in (None, socket.gethostname()):
             return None   # a path on another machine says nothing about this one
+        where = c['where']['path']
+        if cache is not None and where in cache:
+            return cache[where]
         try:
-            proj = Project(c['where']['path'])
+            proj = Project(where)
             sc, lk = Scan(proj), lockfile.read(proj)
         except (Exception, SystemExit):
+            if cache is not None:
+                cache[where] = None
             return None
-    if lk is None or sc is None:
+    result = None
+    if lk is not None and sc is not None:
+        try:
+            findings, _ = lockfile.status(proj, sc, lk)
+            result = (proj, sc, lk, findings, lockfile.snapshot(proj, sc))
+        except (Exception, SystemExit):
+            result = None
+    if cache is not None and not same_folder:
+        cache[where] = result
+    return result
+
+
+def inspect(project, c, scan, lock, same_folder, cache=None):
+    """What a holder has in its working folder: (unfinished keys, changed keys, worked, lock), or None when the folder cannot be read. `unfinished`: its keys that
+    `sor status` lists as new, changed, removed, behind or drifting and that are not what they were when the claim was granted (`start`): what it did since, not what
+    was there before it, so a project with no lock yet, or a person's edit made before the claim, does not park a claim that did nothing. A claim from before `start`
+    counts every such finding. `changed`: the keys it locked since the grant, the ones whose entry differs from the `base` the claim recorded."""
+    seen = folder_state(project, c, scan, lock, same_folder, cache)
+    if seen is None:
         return None
-    try:
-        findings, _ = lockfile.status(proj, sc, lk)
-    except (Exception, SystemExit):
-        return None
-    unfinished = sorted({f.key.split('@')[0] for f in findings if f.status in UNFINISHED and f.key.split('@')[0] in keys})
+    _, _, lk, findings, now = seen
+    keys = {k for k in c.get('keys', []) if '@' not in k}
+    start = c.get('start')
+    unfinished = sorted({f.key.split('@')[0] for f in findings if f.status in UNFINISHED and f.key.split('@')[0] in keys
+                         and (start is None or f.key.split('@')[0] not in start or entry_sig(now.get(f.key.split('@')[0])) != start[f.key.split('@')[0]])})
     base = c.get('base') or {}
     changed = sorted(k for k in keys if base and entry_sig(lk.get(k)) != base.get(k, ''))   # the keys it locked since the grant
     return SimpleNamespace(unfinished=unfinished, changed=changed, worked=bool(changed), lock=lk)
 
 
-def decide(project, c, scan=None, lock=None, now=None, window=None):
+def decide(project, c, scan=None, lock=None, now=None, window=None, cache=None):
     """Whether a claim in the way stands, seen from this working folder (`project`, with its `scan` and `lock` when the caller has them): a Decision.
     The rules, first that fits: the holder's folder is gone (free, unless it locked work: that waits for its merge); the holder is not gone (held); its
     work has arrived in this copy (free); it is gone and its folder is this one (free: what it left is in files that are shared, and shows as changes
@@ -859,8 +903,13 @@ def decide(project, c, scan=None, lock=None, now=None, window=None):
     path, here = where.get('path'), os.path.realpath(root_of(project))
     on_this_machine = where.get('host') in (None, socket.gethostname())
     if path and on_this_machine and not os.path.isdir(path):
-        return Decision('waiting' if c.get('locked') else 'free', 'its working folder is gone' + (', and it locked work that waits for its merge' if c.get('locked') else ''),
-                        folder=path, label=where.get('label', ''))
+        if not c.get('locked'):
+            return Decision('free', 'its working folder is gone', folder=path, label=where.get('label', ''))
+        lock = _lock_of(project) if lock is None else lock
+        base = c.get('base') or {}
+        if lock is not None and base and any(entry_sig(lock.get(k)) != base.get(k, '') for k in c.get('keys', []) if '@' not in k):   # the folder cannot say, this copy can
+            return Decision('free', 'its working folder is gone, and its work has reached this copy', folder=path, label=where.get('label', ''))
+        return Decision('waiting', 'its working folder is gone, and it locked work that waits for its merge', folder=path, label=where.get('label', ''))
     if not is_gone(c, now, window):
         return Decision('held', 'its holder is at work or has reserved it', folder=path or '', label=where.get('label', ''))
     same_folder = not path or os.path.realpath(path) == here
@@ -870,7 +919,7 @@ def decide(project, c, scan=None, lock=None, now=None, window=None):
         from .markers import Scan
         scan = Scan(project)
     lock = _lock_of(project) if lock is None else lock
-    seen = inspect(project, c, scan, lock, same_folder)
+    seen = inspect(project, c, scan, lock, same_folder, cache)
     folder, label = path or here, where.get('label', '')
     if seen is None:   # a folder nobody here can read: only the idle window speaks
         return Decision('free' if is_quiet(c, now, window) else 'held', 'its folder cannot be read from here', folder=folder, label=label)
@@ -890,26 +939,13 @@ def decide(project, c, scan=None, lock=None, now=None, window=None):
     return Decision('free', 'its holder is gone and left nothing', folder=folder, label=label)
 
 
+GUARD_LOOKS = 8   # the holders that are gone which the edit guard reads per call: each is read in its own folder, and the hook has 30 seconds
+
+
 def standing(project, held, scan=None, now=None):
-    """[(claim, Decision)] of the claims in `held` that still stand, seen from this working folder. A claim whose holder is at work is held without
-    looking at anything else; the project is read only when a holder is gone."""
-    now = time.time() if now is None else now
-    window = project_parked(project)
-    out, lock = [], None
-    for c in held:
-        if not is_gone(c, now, window) and not _folder_gone(c):
-            out.append((c, Decision('held', 'its holder is at work or has reserved it', folder=(c.get('where') or {}).get('path', ''),
-                                    label=(c.get('where') or {}).get('label', ''))))
-            continue
-        if scan is None:
-            from .markers import Scan
-            scan = Scan(project)
-        if lock is None:
-            lock = _lock_of(project)
-        d = decide(project, c, scan, lock, now, window)
-        if d.kind != 'free':
-            out.append((c, d))
-    return out
+    """[(claim, Decision)] of the claims in `held` that still stand, seen from this working folder: `states` without the ones that hold nothing back. It stops at the
+    first that stands, which is all a refusal needs, and reads at most GUARD_LOOKS holders that are gone; a holder past that is taken to stand until `sor claim` decides."""
+    return [(c, d) for c, d in states(project, held, scan, now, limit=GUARD_LOOKS, first=True) if d.kind != 'free']
 
 
 def _folder_gone(c):
@@ -967,15 +1003,15 @@ def _claim(project, scan, universe, ids, agent, ttl, session, take_over=False):
         else:
             regions |= regions_of(scan, owned[ident])
     shared = sorted({k for _, ids_ in regions for k in ids_} - plain)
-    base, here = lock_base(project, keys), where_here(project)
+    base, here, start = lock_base(project, keys), where_here(project), start_state(project, scan, keys)
     lock, window = _lock_of(project), project_parked(project)
-    looks = 0
+    looks, cache = 0, {}
     while True:
         looks += 1
         # Look first, without the mutex: deciding whether a gone holder left something to protect reads other folders, which takes time.
         now = time.time()
         mind = [c for c in read(project) if not c.get('freed') and not same_agent(c, agent, session) and conflicts([c], keys, regions)]
-        decided = {c.get('grant'): (c.get('rev'), decide(project, c, scan, lock, now, window)) for c in mind}
+        decided = {c.get('grant'): (c.get('rev'), decide(project, c, scan, lock, now, window, cache)) for c in mind}
         with _Mutex(project):
             now = time.time()
             held = read(project)   # in force, or freed and kept for a while: see `lapsed`
@@ -984,7 +1020,9 @@ def _claim(project, scan, universe, ids, agent, ttl, session, take_over=False):
             holders = conflicts(theirs, keys, regions)
             if looks < 3 and any(c.get('grant') not in decided or decided[c['grant']][0] != c.get('rev') for c in holders):
                 continue   # the record of a holder changed since it was looked at (it renewed, it resumed): look again
-            states = {c['grant']: decided[c['grant']][1] if c.get('grant') in decided else Decision('held', 'it changed while it was looked at') for c in holders}
+            # a holder whose record changed since it was looked at, or that appeared, counts as held on the last look too, never as what was decided of its old record
+            states = {c['grant']: decided[c['grant']][1] if c.get('grant') in decided and decided[c['grant']][0] == c.get('rev')
+                      else Decision('held', 'it changed while it was looked at') for c in holders}
             free = [c for c in holders if states[c['grant']].kind == 'free']
             stand = [c for c in holders if states[c['grant']].kind != 'free']
             took = []
@@ -1002,7 +1040,7 @@ def _claim(project, scan, universe, ids, agent, ttl, session, take_over=False):
             # name given with --as. Several agents of one session (its subagents) share it.
             record = {'agent': agent, 'asked': sorted(ids), 'keys': sorted(keys), 'since': now,
                       'until': NEVER if ttl is None else now + ttl, 'idle': ttl, 'last': now,
-                      'regions': [[f, list(ks)] for f, ks in sorted(regions)], 'session': session, 'where': here, 'base': base}
+                      'regions': [[f, list(ks)] for f, ks in sorted(regions)], 'session': session, 'where': here, 'base': base, 'start': start}
             if pins:
                 record['pins'] = sorted(pins)   # the keys whose text this claim relies on (a claim of one language of a clause)
             if took:
@@ -1012,6 +1050,8 @@ def _claim(project, scan, universe, ids, agent, ttl, session, take_over=False):
                 record['where'] = dict(took[0].get('where') or here)
                 record['base'] = dict({k: v for c in took for k, v in (c.get('base') or {}).items()}, **{k: v for k, v in base.items() if k not in
                                                                                                            {k2 for c in took for k2 in (c.get('base') or {})}})
+                if all('start' in c for c in took):   # and what its unfinished work is measured from: what it left is still its work, whoever continues it
+                    record['start'] = dict(start, **{k: v for c in took for k, v in c['start'].items()})
             if mine:
                 record['since'] = mine[0]['since']
             # what this claim covers is no news any more: the agent's own freed claims on it go, other agents' stay

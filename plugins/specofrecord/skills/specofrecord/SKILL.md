@@ -36,7 +36,7 @@ only when asked, or when the project is tiny like hello world.
 | `sor check [<parts>]` | every problem in the spec and the markers, plus notes; with parts, only those and the parts inside them: use it while others work |
 | `sor test` | runs the clauses' tests (headless Chrome, web projects only) |
 | `sor claim <ids>` / `sor release --all` | say you work on these clauses / give them up |
-| `sor claims [--json]`, `sor queued <holder> --by <name>` | every claim in force and what is the matter with each (it writes nothing) / whoever merges says that a holder's work is queued for its merge |
+| `sor claims [--json]`, `sor queued <holder> --by <name>` | every claim in force and what is the matter with each (it changes nothing but renewing your own claims, as every command does) / whoever merges says that a holder's work is queued for its merge |
 | `sor lock` | accept what you claimed, with its code and test results (the forms are in "Locking") |
 | `sor new <part>` / `sor new --root` | a skeleton with `<fill in: ...>` placeholders, which `sor check` reports until filled |
 | `sor show <id>`, `sor markers <id or file:line>` | a part's clauses with their code; where a clause's code is, or which clause a line serves |

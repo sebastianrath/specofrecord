@@ -260,6 +260,23 @@ class TestClaimsDirChosenByTheUser(Folders):
             self.assertEqual(base.run_sor(other, 'claim', 'greet/hello', '--as', 'bob')[0], 0)      # the same id in another project: no clash
             self.assertEqual(sorted(c['agent'] for c in claims.active(Project(self.dir))), ['alice'])
 
+    def test_a_relative_path_is_refused_with_a_message_by_everything_that_reads_claims(self):
+        with mock.patch.dict(os.environ, {'SOR_CLAIMS_DIR': '../claims'}):
+            with self.assertRaises(claims.ClaimError) as caught:
+                claims.store(Project(self.dir))
+            self.assertIn('relative path', str(caught.exception))
+            for args in (('claim', 'greet/hello', '--as', 'alice'), ('status', '--json'), ('claims',), ('lock', 'greet/hello', '--as', 'alice')):
+                code, out, err = base.run_sor(self.dir, *args)
+                self.assertEqual(code, 2, (args, out, err))
+                self.assertIn('SOR_CLAIMS_DIR=../claims is a relative path', err)
+                self.assertNotIn('Traceback', err)
+
+    @unittest.skipUnless(NODE, 'needs node')
+    def test_the_editors_tool_says_the_same(self):
+        done = subprocess.run([NODE, JS, '-C', self.dir, 'status', '--json'], capture_output=True, text=True, env=dict(os.environ, SOR_CLAIMS_DIR='rel/claims'))
+        self.assertEqual(done.returncode, 2)
+        self.assertIn('SOR_CLAIMS_DIR=rel/claims is a relative path', done.stderr)
+
     def test_the_variable_may_name_a_folder_that_does_not_exist_yet(self):
         later = os.path.join(self.shared, 'a', 'b')
         with mock.patch.dict(os.environ, {'SOR_CLAIMS_DIR': later}):

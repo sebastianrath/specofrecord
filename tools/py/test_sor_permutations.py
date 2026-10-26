@@ -168,7 +168,7 @@ class World:
 
 PLACES = ('here', 'other', 'host', 'gone')
 LIVES = ('active', 'quiet', 'busy', 'busy_past', 'ended', 'stopped', 'resumed')
-WORKS = ('none', 'unfinished', 'locked', 'arrived', 'arrived_plus_unfinished', 'partial', 'half_arrived', 'changed_again')
+WORKS = ('none', 'earlier_edit', 'unfinished', 'locked', 'arrived', 'arrived_plus_unfinished', 'partial', 'half_arrived', 'changed_again')
 GONE = ('quiet', 'busy_past', 'ended', 'stopped')
 
 
@@ -177,11 +177,11 @@ def cases():
     for place, live, work, late in itertools.product(PLACES, LIVES, WORKS, (False, True)):
         if place == 'here' and work in ('arrived', 'changed_again'):
             continue      # locked in the requester's own folder is arrived: the same case as `locked`
-        if place in ('host', 'gone') and work == 'half_arrived':
+        if place in ('host', 'gone') and work in ('half_arrived', 'earlier_edit'):
             continue
         if place == 'host' and work not in ('none', 'unfinished', 'locked'):
             continue      # a folder nobody here can read: what it holds does not matter
-        if place == 'gone' and (work not in ('none', 'locked') or late):
+        if place == 'gone' and (work not in ('none', 'locked', 'arrived') or late):
             continue      # a folder that is gone holds nothing; it only matters whether the holder locked work
         out.append((place, live, work, late))
     return out
@@ -191,8 +191,8 @@ def expected(place, live, work, late):
     """What `sor claim` finds for the holder: free, held, parked or waiting."""
     locked_work = work in ('locked', 'arrived', 'arrived_plus_unfinished', 'partial', 'half_arrived', 'changed_again')
     unfinished_work = work in ('unfinished', 'arrived_plus_unfinished', 'partial')
-    if place == 'gone':
-        return 'waiting' if locked_work else 'free'
+    if place == 'gone':      # the folder cannot say; this copy can: work that reached it is arrived
+        return 'free' if work in ('arrived', 'changed_again') or not locked_work else 'waiting'
     if live not in GONE:
         return 'held'
     if place == 'host':
@@ -218,6 +218,8 @@ class Arranged:
         w = world
         root = w.main if place == 'here' else w.second
         ids = ('greet/hello', 'greet/bye') if work in ('partial', 'half_arrived') else ('greet/hello',)
+        if work == 'earlier_edit':      # somebody changed hello before the holder claimed it, and the holder did nothing
+            w.edit(root, 'hello', 'Hello', 'Hi')
         code, said = w.run(root, A, 'claim', *ids, '--as', 'a')
         assert code == 0, said
         name = lambda clause: ['--as', 'a']
@@ -293,7 +295,9 @@ MUTANTS = {
     'one changed entry in the requester\'s copy is enough (any, not all)': [("all(entry_sig(lock.get(k)) != base.get(k, '') for k in seen.changed)", "any(entry_sig(lock.get(k)) != base.get(k, '') for k in seen.changed)")],
     'unfinished work does not keep arrived work from being arrived': [("seen.worked and not seen.unfinished and lock is not None", 'seen.worked and lock is not None')],
     'the background signal is ignored': [("return bool(at) and not c.get('ended') and (window is None or now - at < window)", 'return False')],
-    'a folder that is gone frees the claim even if the holder locked work': [("'waiting' if c.get('locked') else 'free', 'its working folder is gone'", "'free', 'its working folder is gone'")],
+    'a folder that is gone frees the claim even if the holder locked work': [("        if not c.get('locked'):\n            return Decision('free', 'its working folder is gone'", "        if True:\n            return Decision('free', 'its working folder is gone'")],
+    'a folder that is gone is never read as arrived': [("if lock is not None and base and any(entry_sig(lock.get(k)) != base.get(k, '') for k in c.get('keys', []) if '@' not in k):", 'if False:')],
+    'unfinished counts what was there before the grant': [("and (start is None or f.key.split('@')[0] not in start or entry_sig(now.get(f.key.split('@')[0])) != start[f.key.split('@')[0]])", 'and True')],
     'a folder on another machine is read as if it were here': [("on_this_machine = where.get('host') in (None, socket.gethostname())", 'on_this_machine = True'),
                                                               ("if (c.get('where') or {}).get('host') not in (None, socket.gethostname()):\n            return None", 'if False:\n            return None')],
     'a holder that ended in this folder is parked like one in another': [('if same_folder and ended:', 'if False:')],

@@ -1340,7 +1340,7 @@ def main(argv=None):
     except lockfile.LockFormatError as e:   # a lock in a format this copy does not read, with conflict markers or damaged: say so, change nothing
         print(f'sor: {e}', file=sys.stderr)
         return 2
-    except ResultsError as e:
+    except (ResultsError, claims.ClaimError) as e:   # a bad --results file, a relative SOR_CLAIMS_DIR, a busy claims file: say so, not a traceback
         print(f'sor: {e}', file=sys.stderr)
         return 2
     except OSError as e:   # a file that cannot be read or written: say which, not a traceback

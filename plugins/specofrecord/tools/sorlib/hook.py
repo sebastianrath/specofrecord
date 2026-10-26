@@ -489,17 +489,21 @@ def command_segments(command, depth=0):
 
 
 def sor_calls(command):
-    """[(subcommand, words after it)] for every `sor <subcommand> ...` a shell command line runs."""
+    """[(subcommand, words after it, the folder `-C` names or '')] for every `sor <subcommand> ...` a shell command line runs."""
     out = []
     for words in command_segments(command):
         i = program_index(words)
         if i >= len(words) or os.path.basename(words[i]) not in ('sor', 'sor.py'):
             continue
-        k = i + 1
+        k, folder = i + 1, ''
         while k < len(words) and words[k].startswith('-'):   # the options before the command: `-C folder`
+            if words[k] == '-C' and k + 1 < len(words):
+                folder = words[k + 1]
+            elif words[k].startswith('-C') and len(words[k]) > 2:
+                folder = words[k][2:]
             k += 2 if words[k] == '-C' else 1
         if k < len(words):
-            out.append((words[k], words[k + 1:]))
+            out.append((words[k], words[k + 1:], folder))
     return out
 
 
@@ -513,8 +517,23 @@ def option_value(args, name):
     return ''
 
 
-def has_option(args, name):
-    return any(a == name or a.startswith(name + '=') for a in args)
+def forces(args):
+    """Does a `sor release` ask to force? argparse takes `--force` as any unambiguous prefix of it (`--f`, `--fo`, `--forc`), as `guarded_option` knows for the others."""
+    return any(len(a.split('=', 1)[0]) >= 3 and '--force'.startswith(a.split('=', 1)[0]) for a in args)
+
+
+def project_roots(payload, folder=''):
+    """The project roots a hook works on: the folder a `sor -C folder` names (relative to the cwd of the payload), else the project above the cwd, else the projects below
+    it, found as the shell guard finds them (a repository root with its projects in subfolders)."""
+    cwd = os.path.abspath(payload.get('cwd') or os.getcwd())
+    if folder:
+        root = find_root(os.path.join(os.path.abspath(os.path.join(cwd, os.path.expanduser(folder))), 'x'))
+        return [root] if root else []
+    root = find_root(os.path.join(cwd, 'x'))
+    if root:
+        return [root]
+    from . import shellguard   # not at the top: it uses this module
+    return shellguard.projects_of(payload)
 
 
 def agent_rules(payload):
@@ -527,9 +546,8 @@ def agent_rules(payload):
     if not calls:
         return None
     agent_id, session = payload.get('agent_id') or '', (payload.get('session_id') or '').strip()
-    root = None
-    for sub, args in calls:
-        if sub == 'release' and has_option(args, '--force'):
+    for sub, args, folder in calls:
+        if sub == 'release' and forces(args):
             return deny('`sor release --force` frees a claim somebody else holds without asking them, so an agent does not run it. Claim the clause instead: `' + CMD +
                         ' claim <id>` frees a claim that holds nothing back, and says why when one still stands; `--take-over` continues the work of a gone '
                         'holder that left it unfinished. A person can force a release from a terminal.')
@@ -538,8 +556,7 @@ def agent_rules(payload):
             if not name:
                 return deny(f'You are a subagent, so a claim, lock or release needs a name of your own: pass `--as <name>` on every call (for example `--as {agent_id[:8]}`). '
                             'The name is how the claims you make are told from your parent\'s and your siblings\'.')
-            root = root or find_root(os.path.join(payload.get('cwd') or os.getcwd(), 'x'))
-            if root:
+            for root in project_roots(payload, folder):
                 ok, other = claims.bind(claims.at(root), session, agent_id, name)
                 if not ok:
                     return deny(f'The name `{name}` is already used by another subagent of this session ({other[:8]}). Pass a name of your own with `--as`, '
@@ -549,11 +566,9 @@ def agent_rules(payload):
 
 def session_end(payload):
     """Records that the session is ending on its claims (`claims.mark_ended`), and frees nothing: what the claims of an ended session mean is decided
-    when somebody asks for the clause. It has 1.5 seconds, so it reads the claims file and nothing else, not the project. It looks for the project from
-    the folder the session ends in, so a session started above its project (a monorepo root with the project in a subfolder) records nothing; its
-    claims fall quiet when their idle window passes."""
-    root = find_root(os.path.join(payload.get('cwd') or os.getcwd(), 'x'))
-    if root:
+    when somebody asks for the clause. It has 1.5 seconds, so it reads the claims file and nothing else, not the project. It records in the project above the folder
+    the session ends in, or, from a repository root that holds projects in subfolders, in each project below it (`project_roots`)."""
+    for root in project_roots(payload):
         claims.mark_ended(claims.at(root), payload.get('session_id') or '', payload.get('reason') or 'other')
     return None
 
@@ -786,33 +801,28 @@ def session_start(payload):
     return {'hookSpecificOutput': {'hookEventName': 'SessionStart', 'additionalContext': ctx}}
 
 
-def project_root(payload):
-    return find_root(os.path.join(payload.get('cwd') or os.getcwd(), 'x'))
-
-
 def stop(payload):
     """Records what the `Stop` of the session said about its background work (`claims.mark_busy`): with work in flight (a long build, a subagent), its claims are
     not quiet for a while; without, that is forgotten. It frees nothing and decides nothing: it is idle only in the sense of waiting for the user."""
-    root = project_root(payload)
-    if root:
+    for root in project_roots(payload):
         claims.mark_busy(claims.at(root), (payload.get('session_id') or '').strip(), bool(payload.get('background_tasks')))
     return None
 
 
 def subagent_start(payload):
     """A subagent starts, or is resumed: its claims are no longer stopped, and it is told to name itself when it claims."""
-    root = project_root(payload)
-    if not root:
+    roots = project_roots(payload)
+    for root in roots:
+        claims.mark_stopped(claims.at(root), (payload.get('session_id') or '').strip(), payload.get('agent_id') or '', False)
+    if not roots:
         return None
-    claims.mark_stopped(claims.at(root), (payload.get('session_id') or '').strip(), payload.get('agent_id') or '', False)
     return context('SubagentStart', f'This project keeps its specification as clauses in {SPEC_DIR}/ (Spec of Record). If you claim, lock or release clauses, pass `--as <a name '
                    'of your own>` on every `' + CMD + ' claim`, `lock` and `release`: your claims are held under it, apart from your parent\'s and your siblings\'.')
 
 
 def subagent_stop(payload):
     """A subagent stopped: its claims say so, which makes the holder gone (a subagent can be resumed, and `subagent_start` clears it)."""
-    root = project_root(payload)
-    if root:
+    for root in project_roots(payload):
         claims.mark_stopped(claims.at(root), (payload.get('session_id') or '').strip(), payload.get('agent_id') or '', True)
     return None
 
