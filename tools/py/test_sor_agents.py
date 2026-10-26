@@ -538,5 +538,30 @@ class TestTheQueuedSignal(Agents):
         self.assertIn('nobody holds no claim', err)
 
 
+class TestBeforeTheFirstLock(Agents):
+    """A claim holds the code of its clause from the first minute, not only once something has been locked."""
+
+    def setUp(self):
+        super().setUp()
+        os.remove(os.path.join(self.spec, 'sor-lock.json'))
+        self.bash('sor claim greet/hello --as sub-a', agent_id=X)
+        self.claim('sub-a', 'greet/hello')
+
+    def code(self, agent_id, old='console.log("Hello")', new='console.log("Hi")', tool='Edit'):
+        payload = dict(flows.edit(self.app, old, new, tool=tool), session_id=S, cwd=self.dir)
+        payload['agent_id'] = agent_id
+        return flows.reason(hook.pre_edit(payload))
+
+    def test_a_sibling_cannot_edit_the_code_of_a_clause_that_is_claimed(self):
+        self.assertIn('Someone else is working on this', self.code(Y))
+
+    def test_the_holder_can_edit_its_own_code(self):
+        self.assertIsNone(self.code(X))
+
+    def test_a_clause_nobody_claimed_is_free_and_clauses_first_is_not_enforced_yet(self):
+        self.assertIsNone(self.code(Y, 'console.log("Bye")', 'console.log("Ciao")'))   # nothing is accepted, so nothing drifts
+        self.assertIsNone(self.code(Y, 'console.log("Thanks");\n', 'console.log("Thanks");\nvar unmarked = 1;\n'))
+
+
 if __name__ == '__main__':
     unittest.main()

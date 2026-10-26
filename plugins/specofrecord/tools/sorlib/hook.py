@@ -237,8 +237,6 @@ def pre_edit(payload):
         return context('PreToolUse', f'Spec of Record: {e} Edits to code are not checked against the lock until it is restored.')
     except lockfile.LockFormatError as e:   # the guard cannot tell what drifted from a lock it cannot read
         return deny(f'{e} Until then this copy cannot tell which edits the clauses allow, so edits to code are refused.')
-    if not lock:
-        return None  # nothing accepted yet, so nothing to drift from
     old_text = None
     if os.path.isfile(path):
         with open(path, encoding='utf8', errors='replace') as fh:
@@ -258,6 +256,8 @@ def pre_edit(payload):
         refusal = claim_refusal(project, payload, touched, regions, text=False)
         if refusal:
             return refusal
+    if not lock:
+        return None  # nothing accepted yet, so nothing to drift from; a claim holds its code all the same
     was, _ = lockfile.status(project, before, lock)
     now, _ = lockfile.status(project, after, lock)
     pending = {f.key for f in now if f.status in PENDING}
