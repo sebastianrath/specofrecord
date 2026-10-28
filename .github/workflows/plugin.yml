@@ -81,7 +81,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4.4.0
       - uses: actions/setup-python@v5.6.0
@@ -90,7 +90,10 @@ jobs:
       - uses: actions/setup-node@v4.4.0
         with:
           node-version: 'lts/*'
+      # `python`, not `python3`: setup-python puts only `python` on the PATH of a Windows runner. The steps run in bash (Git for Windows there), as the hooks do.
       - name: Unit tests
-        run: python3 -m unittest discover -s tools/py -p 'test_*.py'
+        shell: bash
+        run: python -m unittest discover -s tools/py -p 'test_*.py'
       - name: Build the plugin and smoke test the zip
-        run: python3 plugins/build-plugin.py --out dist
+        shell: bash
+        run: python plugins/build-plugin.py --out dist
