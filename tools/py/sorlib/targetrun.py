@@ -127,8 +127,11 @@ def read_lcov(path, root):
             record = raw.strip()
             if record.startswith('SF:'):
                 name = record[3:].strip().replace('\\', '/')
-                if os.path.isabs(name) or (len(name) > 1 and name[0].isalpha() and name[1] == ':'):
-                    name = os.path.relpath(name, root).replace(os.sep, '/')
+                if os.path.isabs(name) or name.startswith('/') or (len(name) > 1 and name[0].isalpha() and name[1] == ':'):   # Python 3.13 on Windows calls `/x` rooted, not absolute
+                    try:
+                        name = os.path.relpath(name, root).replace(os.sep, '/')
+                    except ValueError:   # another drive than the project's
+                        name = '..'
                 name = posixpath.normpath(name)
                 current = out.setdefault(name, {}) if not name.startswith('..') else None
             elif record.startswith('DA:') and current is not None:
