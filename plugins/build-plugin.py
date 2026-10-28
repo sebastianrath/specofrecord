@@ -173,9 +173,9 @@ def smoke(zip_path):
         for name in ('python', 'py'):
             shutil.copy(os.path.join(stub, 'python3'), os.path.join(stub, name))
         hook = os.path.join(root, 'bin', 'sor-hook')
-        result = run(SH + [hook, 'hook', 'session-start'], elsewhere, stdin='{}', env=stubbed)
+        result = run(['sh', hook, 'hook', 'session-start'], elsewhere, stdin='{}', env=stubbed)
         expect(result.returncode == 0 and 'edit guard is off' in result.stdout, 'sor-hook says at session start that no Python was found', result)
-        result = run(SH + [hook, 'hook', 'pre-edit'], elsewhere, stdin='{}', env=stubbed)
+        result = run(['sh', hook, 'hook', 'pre-edit'], elsewhere, stdin='{}', env=stubbed)
         expect(result.returncode == 0 and not result.stdout.strip(), 'sor-hook is silent for any other hook without Python', result)
 
         links = os.path.join(work, 'links')
