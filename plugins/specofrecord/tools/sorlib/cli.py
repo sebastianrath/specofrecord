@@ -40,7 +40,7 @@ from . import targetrun
 from . import testrun
 from . import views
 from .markers import Scan, file_stamps
-from .model import Project, part_id, split_lines
+from .model import Project, part_id, shown_path, split_lines
 
 
 def load(args):
@@ -335,7 +335,7 @@ def cmd_rehash(args, project, scan):
     except (claims.ClaimError, lockfile.LockWriteError) as e:
         print(f'lock: {e}', file=sys.stderr)
         return 2
-    where = os.path.relpath(project.lock_path, project.root)
+    where = shown_path(project.lock_path, project.root)
     if not stale and not form:
         print('nothing to rewrite: ' + ('every code hash in the lock follows the rule of its file type, and the file is in the form this tool writes' if current
                                         else f'there is no {project.lock_file} yet'))
@@ -366,7 +366,7 @@ def moved_files(project, scan, scope, before, wanted=(), glue=()):
     for clause, target in wanted:
         keys = set(lockfile.language_keys(project, clause))
         regions = regions + [r for r in scan.regions if project.target_of(r.file) == target and any(k in keys for k in r.keys)]
-    relevant = {p for p in set(before) | set(now) if p.startswith(spec)} | {os.path.join(project.root, r.file) for r in regions}
+    relevant = {p for p in set(before) | set(now) if p.startswith(spec)} | {os.path.normpath(os.path.join(project.root, r.file)) for r in regions}   # r.file is written with /; the stamps have the system's separator
     return sorted(os.path.relpath(p, project.root).replace(os.sep, '/') for p in relevant if before.get(p) != now.get(p))
 
 
@@ -634,7 +634,7 @@ def cmd_lock(args):
             return 0
     n = lockfile.result_counts(entries)
     what = f'{len(scope)} of {len(entries)} entries' if scope is not None else f'{len(entries)} entries'
-    print(f'locked {what} in {os.path.relpath(project.lock_path, project.root)}; '
+    print(f'locked {what} in {shown_path(project.lock_path, project.root)}; '
           f'tests: {lockfile.passed_text(lockfile.passed_by(entries))}, {lockfile.MANUAL_CHECKED.format(n["checked"])}, '
           f'{lockfile.MANUAL_UNCHECKED.format(n["manual"])}, ' + (f'{n["deferred"]} deferred to CI, ' if n['deferred'] else '')
           + f'{n["other"]} not passed')
@@ -650,7 +650,7 @@ def cmd_lock(args):
 def print_language_lock(project, entries, wanted, lines, glue):
     """What a lock of one language of a clause did, and what is left of the clause in the other languages."""
     shown = [f'{k}@{t}' for k, t in sorted(lines)] + [f'glue of {g[len("glue:"):]}' for g in sorted(glue)]
-    rel = os.path.relpath(project.lock_path, project.root)
+    rel = shown_path(project.lock_path, project.root)
     print(f'locked {", ".join(shown) or "nothing new"} in {rel}; the clause and its other languages stay as the lock had them')
     open_tests = [f'{k}@{t}' for (k, t), line in sorted(lines.items()) if 'result' in line and line['result'] != 'pass']
     if open_tests:
@@ -1142,7 +1142,7 @@ def cmd_evidence(args):
     out = args.out or os.path.join(project.root, 'evidence', args.job + '.json')
     evidence.write(out, data)
     n = {s: sum(r['status'] == s for r in data['results'].values()) for s in evidence.STATUSES}
-    print(f'wrote {os.path.relpath(out, project.root)}: job {args.job} provides {", ".join(prov)}; '
+    print(f'wrote {shown_path(out, project.root)}: job {args.job} provides {", ".join(prov)}; '
           f'{n["pass"]} passed, {n["fail"]} failed')
     for note in notes:
         print('note: ' + note)

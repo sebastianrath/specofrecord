@@ -13,10 +13,14 @@ The format itself is in `skills/specofrecord/reference/format-cheatsheet.md` (fu
 project this came from).
 
 ## Requirements
-- **Python 3.9 or newer** as `python3` on the PATH. The tools are plain Python (standard library only). Without
-  it the hooks do nothing and `sor` prints a message; with an older Python `sor` says which version it found.
+- **Python 3.9 or newer** as `python3`, `python` or `py -3` on the PATH (Windows has `python`, not `python3`). The tools are plain Python (standard library only). Without
+  it the hooks do nothing (the edit guard is off; the session-start hook says so once) and `sor` prints a message; with an older Python `sor` says which version it found.
 - **Chrome or Edge** only for `sor test` on web projects (set `SOR_CHROME` if it is not found).
-- macOS or Linux. **Windows is untested**: the hooks and `bin/sor` are POSIX shell.
+- macOS, Linux or Windows. On Windows, `sor` runs from Git Bash (`bin/sor`) or from cmd and PowerShell (`bin/sor.cmd`), and the guard
+  hooks watch both the Bash and the PowerShell tool. **The hooks themselves are shell scripts, so they need Git for Windows.** Claude Code
+  runs a hook with no `shell` field in Git Bash, or in PowerShell when Git Bash is not installed, and one entry cannot choose a shell per
+  platform. Without Git Bash the hooks fail (a non-blocking error) and the edit guard does not run. `bin/sor.cmd` on the PATH of the
+  PowerShell tool is not covered by Claude Code's documentation: try `sor --help` there.
 
 ## Try it
 **Status:** validated, tested with simulated hook input, and loaded live once: from a project's

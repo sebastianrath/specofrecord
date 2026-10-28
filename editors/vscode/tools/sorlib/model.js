@@ -54,6 +54,11 @@ const SKIP_HIDDEN = (name) => name.startsWith('.');
 const all = (rx, text) => Array.from(text.matchAll(rx));
 
 /** The lines of a text, numbered the way an editor numbers them: a line ends at LF, CRLF or CR and nowhere else. */
+/** The digest of a picture file in a design table: SHA-256 of its bytes with CRLF read as LF (a CRLF checkout is the same picture), first 12 hex digits. */
+function assetDigest(data) {
+  return crypto.createHash('sha256').update(data.toString('latin1').replace(/\r\n/g, '\n'), 'latin1').digest('hex').slice(0, 12);
+}
+
 function splitLines(text) {
   const lines = text.split(LINE_BREAK);
   if (lines.length && lines[lines.length - 1] === '') lines.pop();
@@ -497,7 +502,7 @@ class Project {
       const it = item('assets');
       for (const f of T.sorted(fs.readdirSync(assets).filter((x) => x.endsWith('.svg') && !SKIP_HIDDEN(x)).map((x) => path.join(assets, x)))) {
         const name = path.basename(f, '.svg');
-        const digest = crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex').slice(0, 12);
+        const digest = assetDigest(fs.readFileSync(f));
         const fileRel = path.relative(this.root, f).split(path.sep).join('/');
         it.rows.set(name, new Row(it, name, `| ${name} | ${fileRel} | ${digest} |`, new Map([['file', fileRel]])));
       }
@@ -772,7 +777,7 @@ class Project {
 }
 
 module.exports = {
-  splitLines, rpartition, partition, dirname, within, startersIn, sectionOf, unnamed, testKeyword, parseRunsOn, join, isRow, Row, Item, Part,
+  assetDigest, splitLines, rpartition, partition, dirname, within, startersIn, sectionOf, unnamed, testKeyword, parseRunsOn, join, isRow, Row, Item, Part,
   Project, parsePart, partId, partFiles, hasSpec, mdFiles, isFile, isDir, ROOT_ALIASES, SPEC_DIR, LOCK_FILE, LEGACY_LOCK_FILE, ROOT,
   PART_FILE_NAME, LEGACY_FILE_NAME, SECTIONS, VDEF, REF, CODE,
 };

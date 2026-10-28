@@ -22,12 +22,12 @@ sys.path.insert(0, HERE)
 
 from sorlib import lock as lockfile          # noqa: E402
 from sorlib import markers                   # noqa: E402
-from sorlib.model import split_lines         # noqa: E402
+from sorlib.model import asset_digest, split_lines   # noqa: E402
 
 PATH = os.path.join(REPO, 'vectors', 'hashing.json')
 with open(PATH, encoding='utf8') as fh:
     VECTORS = json.load(fh)
-CATEGORIES = ('style_of', 'split_lines', 'normalize', 'code_hash', 'text_hash', 'targets_digest', 'fold', 'marker', 'starters_of', 'lock_render')
+CATEGORIES = ('style_of', 'split_lines', 'normalize', 'code_hash', 'text_hash', 'asset_digest', 'targets_digest', 'fold', 'marker', 'starters_of', 'lock_render')
 
 
 def rows(category):
@@ -103,6 +103,11 @@ class TestEveryRow(unittest.TestCase):
                     region.lines = g['lines']
                     regions.append(region)
                 self.assertEqual(markers.code_hash(regions), r['hash'])
+
+    def test_asset_digest(self):
+        for r in rows('asset_digest'):
+            with self.subTest(r['name']):
+                self.assertEqual(asset_digest(bytes.fromhex(r['hex'])), r['hash'])
 
     def test_text_hash(self):
         for r in rows('text_hash'):

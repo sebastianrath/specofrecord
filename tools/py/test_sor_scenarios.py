@@ -28,7 +28,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 EXAMPLE = os.path.join(REPO, 'examples', 'solar-system')
 TOOL = os.environ.get('SOR_SCENARIO_TOOL') or HERE
-SOR = os.path.join(TOOL, 'sor.py')
+SOR = os.path.join(TOOL, 'sor.py').replace(os.sep, '/')   # it goes into command lines, which the shell lexer reads with / on Windows too
 GIT = shutil.which('git')
 NODE = shutil.which('node')
 JS = os.path.join(REPO, 'tools', 'js', 'sor.js')
@@ -488,7 +488,7 @@ class SharedFolderScenarios(GitScene):
         self.hook('subagent-stop', {'session_id': 'sess-par', 'agent_id': 'agent-x', 'cwd': two}, SOR_CLAIMS_DIR=shared)
         self.hook('session-end', {'session_id': 'sess-ana', 'cwd': one, 'reason': 'other'}, SOR_CLAIMS_DIR=shared)
         (key,) = os.listdir(shared)
-        found = sorted(os.path.relpath(os.path.join(d, f), shared) for d, _, files in os.walk(shared) for f in files)
+        found = sorted(os.path.relpath(os.path.join(d, f), shared).replace(os.sep, '/') for d, _, files in os.walk(shared) for f in files)
         self.assertEqual(found, [f'{key}/bindings.json', f'{key}/claims.json', f'{key}/claims.lock'])
 
 

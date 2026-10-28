@@ -228,8 +228,14 @@ class TestPreEditHook(Flow):
         elsewhere = tempfile.TemporaryDirectory()
         self.addCleanup(elsewhere.cleanup)
         link = os.path.join(elsewhere.name, 'project')
-        os.symlink(self.dir, link)
-        for path in (os.path.join(link, 'out', 'app.js'), os.path.join(self.dir, 'out', '..', 'out', 'app.js')):
+        paths = [os.path.join(self.dir, 'out', '..', 'out', 'app.js')]
+        try:
+            os.symlink(self.dir, link)
+            paths.append(os.path.join(link, 'out', 'app.js'))
+        except OSError:   # Windows allows a link only with a privilege (developer mode or an administrator); the dots are still tested
+            if os.name != 'nt':
+                raise
+        for path in paths:
             self.assertIn('Clauses come first', reason(hook.pre_edit(edit(path, '"Hello"', '"Hi"'))), path)
 
     def test_every_refusal_the_hook_makes_contains_a_phrase_the_skill_lists(self):

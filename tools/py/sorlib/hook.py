@@ -487,7 +487,19 @@ def guarded_option(word, command):
 
 
 PREFIXES = ('env', 'time', 'nohup', 'command', 'exec', 'sudo', 'nice', 'timeout')   # words that run the next word as a program
-SHELLS = ('bash', 'sh', 'zsh', 'dash', 'ksh', 'eval')                               # programs whose argument is a command line
+SOR_WORD = re.compile(r'(^|[\\/])sor(\.py|\.cmd)?$', re.I)   # (Windows names files without case) the launcher, its script or its Windows shim, after a folder written with / or \
+
+
+def is_sor(word):
+    return bool(SOR_WORD.search(word))
+
+
+SHELLS = ('bash', 'sh', 'zsh', 'dash', 'ksh', 'eval', 'pwsh', 'powershell', 'cmd', 'iex', 'invoke-expression')   # programs whose argument is a command line
+
+
+def is_shell(word):
+    """A shell by the name of its program, whatever its case or `.exe` (Windows writes `PowerShell.EXE` and `CMD`)."""
+    return re.sub(r'\.exe$', '', os.path.basename(word).lower()) in SHELLS
 
 
 def program_index(words):
@@ -503,6 +515,13 @@ def program_index(words):
             if base == 'env':   # `env -C folder sor ...`, `env -i -u NAME sor ...`: its options, and the values of the ones that take one
                 while i < len(words) and words[i].startswith('-') and words[i] != '--':
                     i += 2 if words[i] in ('-C', '-u', '-S', '--chdir', '--unset', '--split-string') else 1
+        elif re.sub(r'\.exe$', '', base.lower()) in ('cmd', 'pwsh', 'powershell'):   # `cmd /c sor lock ...`, `pwsh -c sor lock ...`
+            k = i + 1
+            while k < len(words) and (words[k].startswith('-') or words[k].lower() in ('/c', '/k')):
+                k += 1
+            if k >= len(words) or ' ' in words[k]:   # a quoted command line is the shell's argument: the callers read it from there
+                break
+            i = k
         else:
             break
     if i < len(words) and re.match(r'^(python[0-9.]*|py)(\.exe)?$', os.path.basename(words[i])):
@@ -523,9 +542,9 @@ def guarded_call(words):
     i = program_index(words)
     if i >= len(words):
         return None
-    if os.path.basename(words[i]) in ('sor', 'sor.py') or OPAQUE.search(words[i]):
+    if is_sor(words[i]) or OPAQUE.search(words[i]):
         k = i + 1
-        while k < len(words) and (words[k].startswith('-') or os.path.basename(words[k]) in ('sor', 'sor.py')):   # `$PY -I tools/py/sor.py -C folder lock`
+        while k < len(words) and (words[k].startswith('-') or is_sor(words[k])):   # `$PY -I tools/py/sor.py -C folder lock`
             k += 2 if words[k] == '-C' else 1
     elif words[i] in ('lock', 'test'):   # what is left of `$(which sor) lock ...` once the parentheses have split the line
         k = i
@@ -581,7 +600,7 @@ def guarded_calls(command, depth=0):
         for n, w in enumerate(words):
             if w == '<<' and n + 1 < len(words) and body_ends is None:   # a here-document: `cat > f <<'EOF'` writes the lines that follow, `bash <<EOF` runs them
                 i = program_index(current)
-                if not (i < len(current) and os.path.basename(current[i]) in SHELLS):
+                if not (i < len(current) and is_shell(current[i])):
                     body_ends = words[n + 1].lstrip('-')
             if SHELL_OPERATOR.match(w):
                 segments, current = segments + ([current] if current else []), []
@@ -593,7 +612,7 @@ def guarded_calls(command, depth=0):
                 found.append(call)
             elif depth < 3:
                 i = program_index(segment)
-                if i < len(segment) and os.path.basename(segment[i]) in SHELLS:   # `bash -c "sor lock ..."`: its argument is a command line
+                if i < len(segment) and is_shell(segment[i]):   # `bash -c "sor lock ..."`: its argument is a command line
                     for w in segment[i + 1:]:
                         if ' ' in w:
                             found += guarded_calls(w, depth + 1)
@@ -619,7 +638,7 @@ def command_segments(command, depth=0):
         for n, w in enumerate(words):
             if w == '<<' and n + 1 < len(words) and body_ends is None:
                 i = program_index(current)
-                if not (i < len(current) and os.path.basename(current[i]) in SHELLS):
+                if not (i < len(current) and is_shell(current[i])):
                     body_ends = words[n + 1].lstrip('-')
             if SHELL_OPERATOR.match(w):
                 segments, current = segments + ([current] if current else []), []
@@ -629,7 +648,7 @@ def command_segments(command, depth=0):
             out.append(segment)
             if depth < 3:
                 i = program_index(segment)
-                if i < len(segment) and os.path.basename(segment[i]) in SHELLS:
+                if i < len(segment) and is_shell(segment[i]):
                     for w in segment[i + 1:]:
                         if ' ' in w:
                             out += command_segments(w, depth + 1)
@@ -641,7 +660,7 @@ def sor_calls(command):
     out = []
     for words in command_segments(command):
         i = program_index(words)
-        if i >= len(words) or os.path.basename(words[i]) not in ('sor', 'sor.py'):
+        if i >= len(words) or not is_sor(words[i]):
             continue
         k, folder = i + 1, ''
         while k < len(words) and words[k].startswith('-'):   # the options before the command: `-C folder`
@@ -727,7 +746,7 @@ def pre_bash(payload):
     pass, `--confirm` says a person checked a manual test, `--results` takes the pass or fail of tests from a file, and `--targets` runs the commands
     a spec declares. A command that merely mentions an option (a grep, a document) passes. This guards Claude Code only; a person's terminal is not
     touched."""
-    if payload.get('tool_name') not in (None, 'Bash'):
+    if payload.get('tool_name') not in (None, 'Bash', 'PowerShell'):
         return None
     try:
         from . import shellguard   # not at the top: it uses this module
@@ -765,7 +784,7 @@ def pre_bash(payload):
 def post_bash(payload):
     """After a shell command: writes down the test commands a call with `--targets` ran, which the user was asked about (`record_allowed_targets`), and says what the edit guard would
     have refused had the command been an edit (see shellguard.py), also for one that failed."""
-    if payload.get('tool_name') not in (None, 'Bash'):
+    if payload.get('tool_name') not in (None, 'Bash', 'PowerShell'):
         return None
     try:
         if payload.get('hook_event_name') != 'PostToolUseFailure':   # a tool that failed may be one the user refused: only a call that went through says they allowed it
@@ -1002,9 +1021,18 @@ HOOKS = {'pre-edit': pre_edit, 'post-read': post_read, 'session-start': session_
          'stop': stop, 'subagent-start': subagent_start, 'subagent-stop': subagent_stop}
 
 
+def powershell_paths(payload):
+    """A PowerShell command with the backslashes inside a path (between two name characters) turned into slashes; a regex escape and a UNC prefix stay. PowerShell takes a backslash literally (its escape is the backtick), but the
+    lexer here reads it as an escape, so an unquoted Windows path to sor.py would lose the word that says it is sor and pass the approval check unseen."""
+    inp = payload.get('tool_input')
+    if payload.get('tool_name') == 'PowerShell' and isinstance(inp, dict) and isinstance(inp.get('command'), str):
+        return dict(payload, tool_input=dict(inp, command=re.sub(r'(?<=[\w.:~-])\\(?=[\w.~-])', '/', inp['command'])))
+    return payload
+
+
 def run(which):
     try:
-        payload = json.loads(sys.stdin.buffer.read().decode('utf-8') or '{}')
+        payload = powershell_paths(json.loads(sys.stdin.buffer.read().decode('utf-8') or '{}'))
         out = HOOKS[which](payload)
     except (Exception, SystemExit) as e:  # never block the agent because the tool itself failed (a refused project too)
         print(f'sor hook {which} failed: {type(e).__name__}: {e}', file=sys.stderr)

@@ -35,7 +35,7 @@ from . import claims
 from .invoke import command_lines
 from . import lock as lockfile
 from .hook import clause_first_reasons, enforcing, find_root, program_index
-from .invoke import CMD
+from .invoke import CMD, replace_file
 from .markers import SKIP_DIRS, Scan, file_stamps
 from .model import LEGACY_LOCK_FILE, LOCK_FILE, SPEC_DIR, Project, has_spec
 
@@ -129,7 +129,7 @@ def write_json(path, data):
     try:
         with open(scratch, 'w', encoding='utf8') as fh:
             json.dump(data, fh)
-        os.replace(scratch, path)
+        replace_file(scratch, path)
     except OSError:
         try:
             os.remove(scratch)

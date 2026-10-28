@@ -11,9 +11,9 @@ looked at, and a fix is credited to you if you want that.
 
 The tools run on your machine, so these matter most:
 
-- **The Claude Code plugin's hooks** (`plugins/specofrecord/hooks/hooks.json`) run `python3` on `tools/sor.py` before and
+- **The Claude Code plugin's hooks** (`plugins/specofrecord/hooks/hooks.json`) run Python (`bin/sor-hook` picks `python3`, `python` or `py -3`) on `tools/sor.py` before and
   after edits, reads and shell commands. A way to make them run something else, or to read or write outside the project,
-  is a vulnerability.
+  is a vulnerability. Without a usable Python (or, on Windows, without Git for Windows) the hooks do nothing, so the edit guard is off; the session-start hook says so when it can.
 - **The `sor` command** reads and writes a project's `sor/` folder, its code files, `sor-lock.json` and the claims files,
   and `sor test` starts a headless Chrome. A path or input that makes it touch files outside the project is a vulnerability.
 - **The VS Code extension** runs the bundled JavaScript tool (`tools/`) on the editor's own Node and never changes the

@@ -57,5 +57,46 @@ class TestTheNameOfTheCommand(unittest.TestCase):
         self.assertEqual(command_of(folder), 'sor')
 
 
+class TestReplacingAFileThatIsRead(unittest.TestCase):
+    """Windows refuses to replace a file while another process has it open; the files the tool writes (claims, bindings, the lock) are read without any mutex,
+    so a write has to wait for the reader for a moment instead of failing."""
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix='sor-replace-')
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        sys.path.insert(0, HERE)
+        self.addCleanup(sys.path.remove, HERE)
+        from sorlib import invoke
+        self.invoke = invoke
+        self.path = os.path.join(self.root, 'claims.json')
+        self.tmp = self.path + '.1.tmp'
+        for name, text in ((self.path, 'old'), (self.tmp, 'new')):
+            with open(name, 'w') as fh:
+                fh.write(text)
+
+    def test_a_reader_that_lets_go_after_a_moment_does_not_stop_the_write(self):
+        import threading
+        import time
+        reader = open(self.path)
+        timer = threading.Timer(0.15, reader.close)
+        timer.start()
+        self.addCleanup(reader.close)
+        self.addCleanup(timer.cancel)
+        self.invoke.replace_file(self.tmp, self.path)
+        with open(self.path) as fh:
+            self.assertEqual(fh.read(), 'new')
+        self.assertFalse(os.path.exists(self.tmp))
+        time.sleep(0.2)
+
+    def test_an_ordinary_replace_is_one(self):
+        self.invoke.replace_file(self.tmp, self.path)
+        with open(self.path) as fh:
+            self.assertEqual(fh.read(), 'new')
+
+    def test_an_error_that_is_not_a_reader_is_raised(self):
+        os.remove(self.tmp)
+        with self.assertRaises(OSError):
+            self.invoke.replace_file(self.tmp, self.path)
+
+
 if __name__ == '__main__':
     unittest.main()

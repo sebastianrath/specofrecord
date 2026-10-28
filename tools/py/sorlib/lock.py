@@ -28,7 +28,7 @@ import re
 import shutil
 import time
 
-from .invoke import CMD
+from .invoke import CMD, replace_file
 from .model import LEGACY_ROOT_KEY, ROOT, Item, Problem, Row, listed, test_keyword
 
 
@@ -438,7 +438,7 @@ def write(project, entries, fmt=None):
     had = existing_path(project)
     if had:
         shutil.copymode(had, tmp)   # keep the permissions the file had
-    os.replace(tmp, project.lock_path)
+    replace_file(tmp, project.lock_path)
     if had and had != project.lock_path:   # an older clauses-lock.json is replaced by sor-lock.json
         try:
             os.remove(had)

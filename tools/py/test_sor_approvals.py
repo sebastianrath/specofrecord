@@ -45,7 +45,7 @@ class Approved(base.Case):
                                                    ([f'- **runner** - Run with {{run: {run}}}, results in {{results: out/{name}.json}}.'] if run else []))
                  for name, run in runs.items()}
         self.project(parts, folder=folder)
-        return self.dir if folder is None else os.path.join(self.dir, folder)
+        return (self.dir if folder is None else os.path.join(self.dir, folder)).replace(os.sep, '/')   # goes into command lines
 
     def pay(self, command, **more):
         return dict({'session_id': 's', 'tool_name': 'Bash', 'cwd': self.dir, 'tool_input': {'command': command}}, **more)

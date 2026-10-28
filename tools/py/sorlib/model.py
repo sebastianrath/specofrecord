@@ -338,6 +338,17 @@ class Part:
         return '\n'.join(out)
 
 
+def shown_path(path, root):
+    """A path as the tool tells it to a person: relative to the project, written with / on every system, as the lock and the documents do."""
+    return os.path.relpath(path, root).replace(os.sep, '/')
+
+
+def asset_digest(data):
+    """The digest of a picture file in a design table: SHA-256 of its bytes with CRLF read as LF (a CRLF checkout is the same picture), first 12 hex digits."""
+    import hashlib
+    return hashlib.sha256(data.replace(b'\r\n', b'\n')).hexdigest()[:12]
+
+
 def part_id(root, f):
     rel = os.path.relpath(f, root)[:-3].replace(os.sep, '/')
     base, folder = os.path.basename(rel), os.path.dirname(rel)
@@ -502,7 +513,7 @@ class Project:
         if not m:
             return
         rel = m.group(1)
-        path = os.path.join(self.root, rel)
+        path = os.path.normpath(os.path.join(self.root, rel))   # rel is written with /; the path has the system's separator, as in the JavaScript copy
         part = Part('design', path, rel)
         part.title = 'Design'
         part.header['Why'] = 'colors and pictures exported from the design file'
@@ -534,7 +545,7 @@ class Project:
             for f in sorted(glob.glob(os.path.join(assets, '*.svg'))):
                 name = os.path.splitext(os.path.basename(f))[0]
                 with open(f, 'rb') as fh:
-                    digest = hashlib.sha256(fh.read()).hexdigest()[:12]
+                    digest = asset_digest(fh.read())
                 file_rel = os.path.relpath(f, self.root).replace(os.sep, '/')
                 it.rows[name] = Row(it, name, f'| {name} | {file_rel} | {digest} |', {'file': file_rel})
 

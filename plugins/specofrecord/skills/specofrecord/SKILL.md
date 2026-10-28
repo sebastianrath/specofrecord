@@ -10,7 +10,7 @@ The clauses in a `sor/` folder are the source of truth, and the code is built fr
 `@clause <id>` ... `@clause end` region (or ends with a line marker such as `// @clause bodies/planets/Mars`).
 
 The tool is the `sor` command (the plugin puts it on the PATH). If the shell cannot find it, run
-`python3 "${CLAUDE_SKILL_DIR}/../../tools/sor.py"` instead. Run it from the project folder (the one holding `sor/`), or
+`python3 "${CLAUDE_SKILL_DIR}/../../tools/sor.py"` instead (`python` or `py -3` on Windows, where there is no `python3`). Run it from the project folder (the one holding `sor/`), or
 pass `-C <folder>`. The format is in `reference/format-cheatsheet.md`.
 
 ## Which situation?
@@ -79,7 +79,7 @@ and the changed parts under a claimed part; `sor lock <ids>` locks only the ids 
 - Other agents hold claims: lock only your own clauses; `--all` is refused while they hold claims.
 - Failures that were already there: add `--allow-incomplete` and say so; it does not cover a test of code shared with a changed clause.
 - A person checks a `manual:` test: `sor lock --confirm <test>` is for people, never for you.
-- The user decides before `--allow-behind`, `--already-fits`, `--allow-incomplete`, `--confirm`, `--results` or `--targets` runs, and the hook asks them in plain words with no option name (for `--targets` only when a test command is new or changed since they last allowed it). Write the command as `sor lock ...` or `python3 <path>/sor.py lock ...`, which the hook reads, and run it after one line saying what you want to save or run and what they trust you on; do not also wait for an answer in chat. The command's `description` is the title of that dialog, so write it for someone who has never seen `sor`: what happens, in everyday words, with no ids, clause names, option names or counts ("Run the tests and save the result", not "Final lock of the four ids with test runs"). The hook says nothing when it cannot read a command (a variable, a script, a substitution), so if you cannot use those forms, or there is no hook, ask in chat first and wait.
+- The user decides before `--allow-behind`, `--already-fits`, `--allow-incomplete`, `--confirm`, `--results` or `--targets` runs, and the hook asks them in plain words with no option name (for `--targets` only when a test command is new or changed since they last allowed it). Write the command as `sor lock ...` or `python3 <path>/sor.py lock ...` (`python` or `py -3` on Windows), which the hook reads, and run it after one line saying what you want to save or run and what they trust you on; do not also wait for an answer in chat. The command's `description` is the title of that dialog, so write it for someone who has never seen `sor`: what happens, in everyday words, with no ids, clause names, option names or counts ("Run the tests and save the result", not "Final lock of the four ids with test runs"). The hook says nothing when it cannot read a command (a variable, a script, a substitution), so if you cannot use those forms, or there is no hook, ask in chat first and wait.
 - A lock is refused while a test that is not `manual:` or `runs on:` has no passing result: the `tests (N)` block of `sor status`
   lists them and says the way out (for a test nobody can run yet, a `manual:` line saying what a person checks).
 - The lock takes the code of the clauses and the glue files with it (a file that is only glue, such as `__init__.py`,

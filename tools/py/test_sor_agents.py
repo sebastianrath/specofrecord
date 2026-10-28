@@ -125,7 +125,7 @@ class TestHooksAtARepositoryRoot(flows.Flow):
 
     def setUp(self):
         super().setUp()
-        self.proj = os.path.join(self.dir, 'proj')
+        self.proj = os.path.join(self.dir, 'proj').replace(os.sep, '/')   # a path in a command line, which the shell lexer reads with / on Windows too
         base.make_project(self.proj, {'greet': PAGE})
         write(self.proj, 'out/app.js', CODE)
         self.assertEqual(base.run_sor(self.proj, 'lock', '--all')[0], 0)

@@ -2470,6 +2470,41 @@
    }
   ]
  },
+ "asset_digest": {
+  "how": "asset_digest(bytes) -> hash: SHA-256 of the bytes of a picture file with every CRLF read as LF (a lone CR stays), first 12 hex digits (the third column of a design table). `hex` is the file.",
+  "rows": [
+   {
+    "name": "a picture with LF",
+    "hex": "3c7376673e0a3c672f3e0a3c2f7376673e0a",
+    "hash": "5e312387f6fe"
+   },
+   {
+    "name": "a picture with CRLF is the same picture",
+    "hex": "3c7376673e0d0a3c672f3e0d0a3c2f7376673e0d0a",
+    "hash": "5e312387f6fe"
+   },
+   {
+    "name": "a lone CR stays",
+    "hex": "3c7376673e0d3c672f3e0d3c2f7376673e0d",
+    "hash": "7c5be7070517"
+   },
+   {
+    "name": "CRLF, CR, LF and CR CR LF",
+    "hex": "610d0a620d630a640d0d0a65",
+    "hash": "4fe6069e0c57"
+   },
+   {
+    "name": "the empty file",
+    "hex": "",
+    "hash": "e3b0c44298fc"
+   },
+   {
+    "name": "bytes that are not UTF-8",
+    "hex": "fffe0d0a00",
+    "hash": "a395ad0da953"
+   }
+  ]
+ },
  "text_hash": {
   "how": "text_hash(text) -> hash: SHA-256 of the UTF-8, first 12 hex digits (lock.h).",
   "rows": [

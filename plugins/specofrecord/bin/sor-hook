@@ -1,0 +1,19 @@
+#!/bin/sh
+# Starts a hook of the plugin: sh bin/sor-hook hook pre-edit. Without a usable Python the guard cannot run: the hook exits 0 and the session-start hook says so.
+here=$(cd "$(dirname "$0")" && pwd)
+# Every Edit, Read and Bash call runs a hook, and sor-python starts up to three Pythons to pick one: do that once per PATH and keep the answer.
+cache="${CLAUDE_PLUGIN_DATA:-${TMPDIR:-/tmp}}/sor-python.$(printf %s "$PATH" | cksum | cut -d' ' -f1)"
+SOR_PY=$(cat "$cache" 2>/dev/null)
+if [ -z "$SOR_PY" ]; then
+  . "$here/sor-python"
+  [ -n "$SOR_PY" ] && echo "$SOR_PY" > "$cache" 2>/dev/null
+fi
+if [ -z "$SOR_PY" ]; then
+  # no Python: the guard cannot run. Say so once, at the start of the session (exit 0, so no error noise on every edit)
+  [ "$2" = session-start ] && echo '{"systemMessage": "Spec of Record: Python 3.9 or newer was not found (python3, python or py -3), so the edit guard is off in this session. Install Python and restart."}'
+  exit 0
+fi
+$SOR_PY "$here/../tools/sor.py" "$@"
+status=$?
+[ "$status" = 127 ] && rm -f "$cache"   # the kept answer is gone (Python was uninstalled): pick again next time
+[ "$status" = 0 ] || exit 1

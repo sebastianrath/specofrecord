@@ -800,5 +800,32 @@ class TestALockMadeUnderTheOldRule(Project1):
         self.assertEqual(flows.lock_bytes(self.dir), before)
 
 
+class TestACheckoutWithWindowsLineEndings(unittest.TestCase):
+    """A project that git checked out with CRLF (core.autocrlf on Windows) is the project the lock was made for: spec text, code and the design's pictures
+    hash alike with either line ending (SPEC §11)."""
+    TEXT = ('.md', '.js', '.html', '.css', '.json', '.svg')
+
+    def test_the_example_of_this_repository_reads_clean_with_every_text_file_in_crlf(self):
+        import shutil
+        import tempfile
+        copy = os.path.join(tempfile.mkdtemp(prefix='sor-crlf-'), 'solar-system')
+        self.addCleanup(shutil.rmtree, os.path.dirname(copy), ignore_errors=True)
+        shutil.copytree(os.path.join(base.REPO, 'examples', 'solar-system'), copy, ignore=shutil.ignore_patterns('node_modules', '.git'))
+        converted = 0
+        for folder, _, files in os.walk(copy):
+            for name in files:
+                if name.endswith(self.TEXT):
+                    path = os.path.join(folder, name)
+                    with open(path, 'rb') as fh:
+                        data = fh.read()
+                    with open(path, 'wb') as fh:
+                        fh.write(data.replace(b'\r\n', b'\n').replace(b'\n', b'\r\n'))
+                    converted += 1
+        self.assertGreater(converted, 10)
+        code, out = base.run_sor(copy, 'status')[:2]
+        self.assertIn('clauses, code and lock agree', out)
+        self.assertEqual(code, 0, out)
+
+
 if __name__ == '__main__':
     unittest.main()

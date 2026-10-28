@@ -44,7 +44,7 @@ except ImportError:
     msvcrt = None
 
 from . import lock as lockfile
-from .invoke import CMD, getenv
+from .invoke import CMD, getenv, replace_file
 from .model import PART_FILE_NAME, SPEC_DIR, has_spec
 
 
@@ -450,7 +450,7 @@ def _write(project, claims):
     with open(tmp, 'w', encoding='utf8', newline='\n') as fh:
         json.dump({'claims': claims}, fh, indent=1, ensure_ascii=False)
         fh.write('\n')
-    os.replace(tmp, p)
+    replace_file(tmp, p)
 
 
 _HELD = set()   # the mutex files this process holds now (adopting the old claims file takes the mutex unless the caller already has it)
@@ -1233,7 +1233,7 @@ def bind(project, session, agent_id, name, now=None):
             tmp = f'{bindings_file(project)}.{os.getpid()}.tmp'
             with open(tmp, 'w', encoding='utf8', newline='\n') as fh:
                 json.dump(data, fh, indent=1)
-            os.replace(tmp, bindings_file(project))
+            replace_file(tmp, bindings_file(project))
     return True, ''
 
 

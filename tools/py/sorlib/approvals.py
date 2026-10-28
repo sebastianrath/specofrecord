@@ -12,6 +12,7 @@ import os
 import time
 
 from . import claims
+from .invoke import replace_file
 
 FILE = 'approved-targets.json'                # in a store of its own folder
 OWN_FILE = '.sor-approved-targets.json'       # in the project's own `sor/` folder (no git repository, no SOR_CLAIMS_DIR)
@@ -71,4 +72,4 @@ def record(project, shown, now=None):
         tmp = f'{file(project)}.{os.getpid()}.tmp'
         with open(tmp, 'w', encoding='utf8', newline='\n') as fh:
             json.dump(data, fh, indent=1)
-        os.replace(tmp, file(project))
+        replace_file(tmp, file(project))

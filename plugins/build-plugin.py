@@ -9,7 +9,7 @@
 2. Zips plugins/specofrecord into DIR/sor-plugin-v<version>.zip (default DIR: dist/) with a top-level folder
    `specofrecord/`, a fixed timestamp and the executable bit kept on bin/sor, plus a .sha256 file next to it.
 3. Smoke test: unpacks the zip into a folder with a space in its name and runs it from unrelated folders with the
-   `python3` on the PATH (3.9 or newer): the launcher, the launcher through a symlink, the commands that start a
+   `python3` or `python` on the PATH (3.9 or newer): the launcher, the launcher through a symlink, the commands that start a
    project, and the exact hook commands from hooks.json.
 
 Python 3.9, standard library only. Run from any folder.
@@ -34,8 +34,9 @@ SKIP_FILES = {'.DS_Store'}
 SKIP_PATHS = {'evals/results'}   # what `claude plugin eval` writes when it runs the suite in plugins/specofrecord/evals
 REQUIRED = [
     '.claude-plugin/plugin.json', 'hooks/hooks.json', 'skills/specofrecord/SKILL.md',
-    'tools/sor.py', 'tools/sorlib/cli.py', 'bin/sor',
+    'tools/sor.py', 'tools/sorlib/cli.py', 'bin/sor', 'bin/sor-python', 'bin/sor-hook', 'bin/sor.cmd',
 ]
+SH = ['sh'] if os.name == 'nt' else []   # Windows cannot start a script with a #! line itself
 STAMP = (1980, 1, 1, 0, 0, 0)
 
 
@@ -109,6 +110,8 @@ def unpack(zip_path, into):
 
 
 def run(argv, cwd, stdin=None, env=None, shell=False):
+    if shell:   # a hook command is a line for a POSIX shell, as Claude Code runs it (cmd.exe would not expand ${CLAUDE_PLUGIN_ROOT})
+        argv, shell = ['sh', '-c', argv], False
     return subprocess.run(argv, cwd=cwd, input=stdin, env=env, shell=shell,
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 
@@ -124,9 +127,10 @@ def expect(ok, what, result=None):
 
 
 def smoke(zip_path):
-    python = shutil.which('python3')
+    python = next((p for p in (shutil.which('python3'), shutil.which('python'))   # Windows has no python3, or a stub of the Store that only prints a message
+                   if p and subprocess.run([p, '-c', 'pass'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0), None)
     if not python:
-        fail('python3 is not on the PATH')
+        fail('neither python3 nor python is on the PATH')
     version = run([python, '--version'], os.getcwd())
     print('smoke test with %s (%s)' % ((version.stdout or version.stderr).strip(), python))
     if sys.version_info < (3, 9):
@@ -139,9 +143,40 @@ def smoke(zip_path):
         elsewhere = os.path.join(work, 'elsewhere')
         os.makedirs(elsewhere)
 
-        expect(os.access(sor, os.X_OK), 'bin/sor is executable after unpacking')
-        result = run([sor, '--help'], elsewhere)
+        expect(os.name == 'nt' or os.access(sor, os.X_OK), 'bin/sor is executable after unpacking')
+        result = run(SH + [sor, '--help'], elsewhere)
         expect(result.returncode == 0 and 'usage: sor' in result.stdout, 'bin/sor --help from another folder', result)
+
+        if os.name == 'nt':   # the shim for cmd and PowerShell, which cannot run the shell script
+            shim = os.path.join(root, 'bin', 'sor.cmd')
+            result = run(['cmd', '/c', shim, '--help'], elsewhere)
+            expect(result.returncode == 0 and 'usage: sor' in result.stdout, 'bin/sor.cmd --help through cmd', result)
+            result = run(['cmd', '/c', shim, 'parts', '--bogus'], elsewhere)
+            expect(result.returncode != 0, 'bin/sor.cmd passes the exit code of the tool on', result)
+
+        # the Microsoft Store stub: a python3 that is on the PATH, prints a message and does not run Python
+        stub = os.path.join(work, 'stub')
+        os.makedirs(stub)
+        with open(os.path.join(stub, 'python3'), 'w', newline='\n') as f:
+            f.write('#!/bin/sh\necho "Python was not found; run without arguments to install from the Microsoft Store" >&2\nexit 49\n')
+        os.chmod(os.path.join(stub, 'python3'), 0o755)
+        stubbed = dict(os.environ, PATH=stub + os.pathsep + os.environ.get('PATH', ''))
+        result = run(SH + [sor, '--help'], elsewhere, env=stubbed)
+        expect(result.returncode == 0 and 'usage: sor' in result.stdout, 'bin/sor skips a python3 that is only a stub', result)
+        if os.name == 'nt':
+            with open(os.path.join(stub, 'python3.cmd'), 'w') as f:
+                f.write('@echo Python was not found 1>&2\r\n@exit /b 9009\r\n')
+            result = run(['cmd', '/c', os.path.join(root, 'bin', 'sor.cmd'), '--help'], elsewhere, env=stubbed)
+            expect(result.returncode == 0 and 'usage: sor' in result.stdout, 'bin/sor.cmd skips a python3 that is only a stub', result)
+
+        # no Python at all (every candidate is a stub): the hook exits 0, and says so once, in the session-start hook
+        for name in ('python', 'py'):
+            shutil.copy(os.path.join(stub, 'python3'), os.path.join(stub, name))
+        hook = os.path.join(root, 'bin', 'sor-hook')
+        result = run(SH + [hook, 'hook', 'session-start'], elsewhere, stdin='{}', env=stubbed)
+        expect(result.returncode == 0 and 'edit guard is off' in result.stdout, 'sor-hook says at session start that no Python was found', result)
+        result = run(SH + [hook, 'hook', 'pre-edit'], elsewhere, stdin='{}', env=stubbed)
+        expect(result.returncode == 0 and not result.stdout.strip(), 'sor-hook is silent for any other hook without Python', result)
 
         links = os.path.join(work, 'links')
         os.makedirs(links)
@@ -150,17 +185,17 @@ def smoke(zip_path):
         except (OSError, NotImplementedError):
             print('  --  symlinks are not available here, link check skipped')
         else:
-            result = run([os.path.join(links, 'sor'), '--help'], elsewhere)
+            result = run(SH + [os.path.join(links, 'sor'), '--help'], elsewhere)
             expect(result.returncode == 0 and 'usage: sor' in result.stdout, 'bin/sor --help through a symlink', result)
 
         project = os.path.join(work, 'a project')
         os.makedirs(project)
         for args, text in ((['new', '--root'], 'SPECOFRECORD.md'), (['new', 'alpha'], 'alpha.md')):
-            result = run([sor] + args, project)
+            result = run(SH + [sor] + args, project)
             expect(result.returncode == 0 and text in result.stdout, 'sor ' + ' '.join(args), result)
-        result = run([sor, 'parts'], project)
+        result = run(SH + [sor, 'parts'], project)
         expect(result.returncode == 0 and 'alpha' in result.stdout, 'sor parts lists the new part', result)
-        result = run([sor, 'status'], project)
+        result = run(SH + [sor, 'status'], project)
         # a fresh skeleton is full of <fill in> placeholders, so status reports problems and exits non-zero by design
         expect('sor-lock.json' in result.stdout and 'Traceback' not in result.stderr, 'sor status reads the new project', result)
 
@@ -186,7 +221,7 @@ def smoke(zip_path):
                            'tool_input': {'file_path': os.path.join(project, 'sor', 'alpha.md'), 'old_string': 'a', 'new_string': 'b'}})
         result = run(commands[('PreToolUse', 'Edit|Write|MultiEdit')], project, stdin=edit, env=env, shell=True)
         expect(result.returncode == 0, 'pre-edit hook runs on a spec edit', result)
-        bash = commands[('PreToolUse', 'Bash')]
+        bash = commands[('PreToolUse', 'Bash|PowerShell')]
         lock = json.dumps({'session_id': 'smoke', 'cwd': project, 'tool_name': 'Bash', 'tool_input': {'command': 'sor lock alpha --allow-behind ts'}})
         result = run(bash, project, stdin=lock, env=env, shell=True)
         expect(result.returncode == 0 and '"permissionDecision": "ask"' in result.stdout, 'pre-bash hook asks before a lock with --allow-behind', result)
@@ -194,7 +229,7 @@ def smoke(zip_path):
         result = run(bash, project, stdin=grep, env=env, shell=True)
         expect(result.returncode == 0 and not result.stdout.strip(), 'pre-bash hook is silent for a command that only mentions the flag', result)
         claim_env = dict(env, CLAUDE_CODE_SESSION_ID='smoke-session')
-        result = run([sor, 'claim', 'alpha'], project, env=claim_env)
+        result = run(SH + [sor, 'claim', 'alpha'], project, env=claim_env)
         claims_file = os.path.join(project, 'sor', '.sor-claims.json')
         expect(result.returncode == 0 and os.path.isfile(claims_file), 'a session can claim', result)
         end = json.dumps({'session_id': 'other-session', 'cwd': project})
@@ -202,7 +237,7 @@ def smoke(zip_path):
         expect(result.returncode == 0 and os.path.isfile(claims_file), 'session-end hook leaves the claims of another session', result)
         end = json.dumps({'session_id': 'smoke-session', 'cwd': project})
         result = run(commands[('SessionEnd', '')], project, stdin=end, env=env, shell=True)
-        claims = run([sor, 'claims', '--json'], project, env=env)
+        claims = run(SH + [sor, 'claims', '--json'], project, env=env)
         ended = claims.returncode == 0 and any(c.get('session') == 'smoke-session' and c.get('ended') for c in json.loads(claims.stdout)['claims'])
         expect(result.returncode == 0 and ended, 'session-end hook records that the ending session is gone, on its claims', claims)
     finally:

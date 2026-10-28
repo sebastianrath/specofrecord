@@ -334,6 +334,52 @@ class TestWhatTheHookAnswers(unittest.TestCase):
         self.assertIn('sor hook pre-bash failed', done.stderr)
 
 
+class TestThePowerShellTool(unittest.TestCase):
+    """Claude Code on Windows runs commands through a PowerShell tool as well: the same locks have to be asked about there, whatever the program or
+    path is written like. PowerShell reads a backslash as itself, so the hook has to as well."""
+    ASKED = [
+        ('the plain form', 'sor lock a --allow-behind ts'),
+        ('the Windows shim', 'sor.cmd lock a --allow-behind ts'),
+        ('python and an unquoted path with backslashes', r'python C:\Users\me\plugin\tools\sor.py lock a --allow-incomplete'),
+        ('python and a quoted path with backslashes', r'python "C:\Users\me\plugin\tools\sor.py" lock a --allow-behind ts'),
+        ('the call operator and the shim by its path', r"& 'C:\Users\me\plugin\bin\sor.cmd' lock a --allow-behind ts"),
+        ('the Windows launcher', r'py -3 .\tools\py\sor.py lock a --already-fits ts'),
+        ('behind another command', r'cd C:\work; sor lock a --allow-behind ts'),
+        ('the shim in capitals', 'SOR.CMD lock a --allow-behind ts'),
+        ('pwsh and a quoted command line', 'pwsh -c "sor lock a --allow-behind ts"'),
+        ('powershell and options before an unquoted command', 'powershell -NoProfile -Command sor lock a --allow-behind ts'),
+        ('cmd /c', 'cmd /c sor lock a --allow-behind ts'),
+        ('Invoke-Expression', 'Invoke-Expression "sor lock a --allow-behind ts"'),
+        ('iex', 'iex "sor lock a --allow-behind ts"'),
+    ]
+
+    def run_hook(self, tool, command):
+        payload = {'session_id': 's', 'tool_name': tool, 'tool_input': {'command': command}}
+        done = subprocess.run([sys.executable, base.SOR, 'hook', 'pre-bash'], input=json.dumps(payload), cwd=REPO, capture_output=True, text=True,
+                              env=dict(os.environ, PYTHONDONTWRITEBYTECODE='1', TMPDIR=NOTES))
+        self.assertEqual(done.returncode, 0, done.stderr)
+        return json.loads(done.stdout)['hookSpecificOutput']['permissionDecision'] if done.stdout else None
+
+    def test_a_lock_the_user_decides_is_asked_about_in_every_form(self):
+        for name, command in self.ASKED:
+            with self.subTest(name):
+                self.assertEqual(self.run_hook('PowerShell', command), 'ask')
+
+    def test_a_command_that_only_mentions_it_is_not(self):
+        for name, command in (('a plain command', 'Get-ChildItem; Write-Host hi'), ('a search', 'git log --grep=allow-behind'),
+                              ('a lock without the options', r'python C:\x\sor.py lock a'), ('another script', r'python C:\x\other.py status')):
+            with self.subTest(name):
+                self.assertIsNone(self.run_hook('PowerShell', command))
+
+    def test_the_bash_tool_still_reads_a_backslash_as_an_escape(self):
+        self.assertIsNone(self.run_hook('Bash', r'python C:\Users\me\tools\sor.py lock a --allow-incomplete'))   # one word of Bash, not a path to sor.py
+
+    def test_the_commands_registered_for_the_shell_tools_watch_both(self):
+        for _, path, _ in TestTheRegisteredCommands.WHERE:
+            with self.subTest(path):
+                self.assertIn('hook pre-bash', registered_command(path, 'Bash|PowerShell'))
+
+
 def registered_command(path, matcher):
     with open(path, encoding='utf8') as fh:
         groups = json.load(fh)['hooks']['PreToolUse']
@@ -358,14 +404,14 @@ class TestTheRegisteredCommands(unittest.TestCase):
         for name, path, env in self.WHERE:
             for flag in ('--allow-behind ts', '--already-fits ts', '--alr ts', '--allow-incomplete', '--confirm t1', '--results r.json', '--targets py'):
                 with self.subTest(name, flag=flag):
-                    done = self.run_command(registered_command(path, 'Bash'), env, bash(f'sor lock greet/bye {flag}'))
+                    done = self.run_command(registered_command(path, 'Bash|PowerShell'), env, bash(f'sor lock greet/bye {flag}'))
                     self.assertEqual(done.returncode, 0, done.stderr)
                     self.assertEqual(json.loads(done.stdout)['hookSpecificOutput']['permissionDecision'], 'ask')
 
     def test_each_asks_for_a_test_run_that_names_a_target(self):
         for name, path, env in self.WHERE:
             with self.subTest(name):
-                done = self.run_command(registered_command(path, 'Bash'), env, bash('sor test --targets py'))
+                done = self.run_command(registered_command(path, 'Bash|PowerShell'), env, bash('sor test --targets py'))
                 self.assertEqual(done.returncode, 0, done.stderr)
                 self.assertEqual(json.loads(done.stdout)['hookSpecificOutput']['permissionDecision'], 'ask')
 
@@ -373,14 +419,14 @@ class TestTheRegisteredCommands(unittest.TestCase):
         for name, path, env in self.WHERE:
             for command in ('grep -rn allow-behind docs', 'grep -rn already-fits docs', 'ls -la', 'sor lock greet/bye'):
                 with self.subTest(name, command=command):
-                    done = self.run_command(registered_command(path, 'Bash'), env, bash(command))
+                    done = self.run_command(registered_command(path, 'Bash|PowerShell'), env, bash(command))
                     self.assertEqual((done.returncode, done.stdout, done.stderr), (0, '', ''))
 
     def test_the_commands_for_edits_are_still_the_ones_for_edits(self):
         for name, path, env in self.WHERE:
             with self.subTest(name):
                 self.assertIn('hook pre-edit', registered_command(path, 'Edit|Write|MultiEdit'))
-                self.assertIn('hook pre-bash', registered_command(path, 'Bash'))
+                self.assertIn('hook pre-bash', registered_command(path, 'Bash|PowerShell'))
 
 
 if __name__ == '__main__':

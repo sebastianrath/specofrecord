@@ -407,7 +407,7 @@ class TestTheRegisteredCommands(Base):
         for name, path, env in guard.TestTheRegisteredCommands.WHERE:
             for event in self.EVENTS[name]:
                 with self.subTest(name, event=event):
-                    found = self.commands(path, event, 'Bash')
+                    found = self.commands(path, event, 'Bash|PowerShell')
                     self.assertEqual(len(found), 1)
                     self.assertIn('hook post-bash', found[0])
                     self.assertIn('SOR_ENFORCE_CLAIMS=1', found[0])
@@ -419,14 +419,14 @@ class TestTheRegisteredCommands(Base):
             for event in self.EVENTS[name]:
                 with self.subTest(name, event=event):
                     environment = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', TMPDIR=self.notes.name, **env)
-                    before = self.commands(path, 'PreToolUse', 'Bash')
+                    before = self.commands(path, 'PreToolUse', 'Bash|PowerShell')
                     self.assertEqual(len(before), 1)
                     payload = self.payload(SED, hook_event_name=event, call=f'{name}-{event}')
                     run = lambda command: subprocess.run(['sh', '-c', command], input=json.dumps(payload), capture_output=True, text=True, cwd=self.dir, env=environment)  # noqa: E731
                     done = run(before[0])
                     self.assertEqual((done.returncode, done.stderr), (0, ''))
                     change(self.dir, 'src/greet.py', 'Hello', 'Hi')
-                    done = run(self.commands(path, event, 'Bash')[0])
+                    done = run(self.commands(path, event, 'Bash|PowerShell')[0])
                     self.assertEqual(done.returncode, 0, done.stderr)
                     self.assertEqual(json.loads(done.stdout)['hookSpecificOutput']['hookEventName'], event)
                     change(self.dir, 'src/greet.py', 'Hi', 'Hello')

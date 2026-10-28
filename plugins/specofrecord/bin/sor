@@ -1,13 +1,5 @@
 #!/bin/sh
 # Runs the Spec of Record tool that ships with this plugin: sor status, sor claim <id>, ...
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "sor: python3 is needed and was not found on the PATH" >&2
-  exit 127
-fi
-if ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 9))' >/dev/null 2>&1; then
-  echo "sor: Python 3.9 or newer is needed, found $(python3 --version 2>&1)" >&2
-  exit 127
-fi
 # Follow symlinks, so a link to this file (in /usr/local/bin, say) still finds the tools that sit next to the real one.
 self=$0
 while [ -h "$self" ]; do
@@ -16,4 +8,13 @@ while [ -h "$self" ]; do
   case $self in /*) ;; *) self="$dir/$self" ;; esac
 done
 here=$(cd "$(dirname "$self")" && pwd)
-exec python3 "$here/../tools/sor.py" "$@"
+. "$here/sor-python"
+if [ -z "$SOR_PY" ]; then
+  if [ -n "$SOR_PY_SEEN" ]; then
+    echo "sor: Python 3.9 or newer is needed, found $($SOR_PY_SEEN --version 2>&1)" >&2
+  else
+    echo "sor: Python 3.9 or newer is needed and none (python3, python or py -3) was found on the PATH" >&2
+  fi
+  exit 127
+fi
+exec $SOR_PY "$here/../tools/sor.py" "$@"

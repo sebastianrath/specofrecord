@@ -119,7 +119,7 @@ child parts; more child parts than that: group them under parts of their own.
   The tool reads it as a part `design`, written by the export and never by hand. Each W3C
   design-token group is an item, each token a row with a `value` (`{design/planet/mars}`,
   `{design/planet/mars.value}`), and every `*.svg` next to it in `assets/` a row of
-  `design/assets` (its text includes the file's hash, so a changed picture shows as changed).
+  `design/assets` (its text includes the file's hash, taken with CRLF read as LF, so a changed picture shows as changed; a picture with CRLF line ends that was locked before this rule shows as changed once, until it is locked again).
   The compiler copies these into the code at build time, with a line marker per token, and never
   makes up a color the design has. A new export is a clause change like any other: `sor status`
   lists the tokens that changed and the code to rebuild.
@@ -926,4 +926,5 @@ What the tool does about it:
 - **Not covered:** claims across clones that share no `SOR_CLAIMS_DIR` and no machine; contradictions between clauses (the compiler's review and the tests find those); a Write
   by an agent that does not use the hook; the read-to-write gap of an Edit; a shell command that changes code (a warning afterwards); whether `SessionEnd` runs when the
   desktop app quits (it does for `SIGTERM` and `SIGHUP`, not for `SIGKILL`: checked, Claude Code 2.1.310, macOS); the claims of ids that exist only on a branch (a new
-  clause is claimed through the part that will hold it); Windows (`os.replace` may fail while a reader has the file open) was not tried.
+  clause is claimed through the part that will hold it). On Windows `os.replace` fails while a reader has the file open, so every write through a temp file waits for the reader
+  for up to about a second and then fails (`invoke.replace_file`).

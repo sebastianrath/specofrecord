@@ -15,7 +15,7 @@ const { markers, lock, model } = require('../sorlib');
 const FILE = path.join(__dirname, '..', '..', '..', 'vectors', 'hashing.json');
 const VECTORS = JSON.parse(fs.readFileSync(FILE, 'utf8'));
 const FORMAT = 3;   // the format of the vectors file this port reads: a rule that changes bumps it, and this port has to follow
-const CATEGORIES = ['style_of', 'split_lines', 'normalize', 'code_hash', 'text_hash', 'targets_digest', 'fold', 'marker', 'starters_of',
+const CATEGORIES = ['style_of', 'split_lines', 'normalize', 'code_hash', 'text_hash', 'asset_digest', 'targets_digest', 'fold', 'marker', 'starters_of',
   'lock_render'];
 
 const sha = (text) => crypto.createHash('sha256').update(text, 'utf8').digest('hex').slice(0, 12);
@@ -88,6 +88,8 @@ eachRow('code_hash', (r) => {
 });
 
 eachRow('text_hash', (r) => assert.strictEqual(lock.h(r.input), r.hash));
+
+eachRow('asset_digest', (r) => assert.strictEqual(model.assetDigest(Buffer.from(r.hex, 'hex')), r.hash));
 
 eachRow('marker', (r) => {
   const got = markers.parseMarker(r.path, r.line, r.starters);

@@ -1,0 +1,14 @@
+# Sourced by bin/sor and bin/sor-hook: sets SOR_PY to a Python 3.9 or newer, or leaves it empty.
+# `python3` is not a command on Windows (there it is `python`, or `py -3`, and the Microsoft Store stub named python3 only
+# prints a message), so each candidate is run, not just looked up.
+SOR_PY=
+SOR_PY_SEEN=
+for candidate in python3 python "py -3"; do
+  if $candidate -c 'import sys; sys.exit(sys.version_info < (3, 9))' >/dev/null 2>&1; then
+    SOR_PY=$candidate
+    break
+  fi
+  if [ -z "$SOR_PY_SEEN" ] && $candidate -c 'import sys; sys.exit(sys.version_info[0] != 3)' >/dev/null 2>&1; then
+    SOR_PY_SEEN=$candidate
+  fi
+done

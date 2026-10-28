@@ -135,6 +135,7 @@ class TestProblemsWithHowTargetsShareCode(TwoTargets):
                    extra={'greet': doc('Greet', 'Says hello.', rules=['- **hello** - The greeting is "Hello".'], tests=tests)})
         self.assertEqual(self.problems('runs on'), [])
 
+    @unittest.skipIf(os.name == 'nt', 'a file name cannot hold a * on Windows, so such a part cannot exist there')
     def test_a_part_name_may_not_start_with_the_character_of_the_lock_marker(self):
         self.build(extra={'*odd': doc('Odd', 'A part whose name starts with the marker character.')})
         self.assertTrue(any(p.kind == 'name' for p in self.problems()))

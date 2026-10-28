@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v python3 >/dev/null 2>&1 || exit 0; python3 \"${CLAUDE_PLUGIN_ROOT}/tools/sor.py\" hook session-start || exit 1",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/bin/sor-hook\" hook session-start",
             "timeout": 10
           }
         ]
@@ -17,17 +17,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v python3 >/dev/null 2>&1 || exit 0; SOR_ENFORCE_CLAIMS=1 python3 \"${CLAUDE_PLUGIN_ROOT}/tools/sor.py\" hook pre-edit || exit 1",
+            "command": "SOR_ENFORCE_CLAIMS=1 sh \"${CLAUDE_PLUGIN_ROOT}/bin/sor-hook\" hook pre-edit",
             "timeout": 30
           }
         ]
       },
       {
-        "matcher": "Bash",
+        "matcher": "Bash|PowerShell",
         "hooks": [
           {
             "type": "command",
-            "command": "command -v python3 >/dev/null 2>&1 || exit 0; python3 \"${CLAUDE_PLUGIN_ROOT}/tools/sor.py\" hook pre-bash || exit 1",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/bin/sor-hook\" hook pre-bash",
             "timeout": 10
           }
         ]
@@ -35,11 +35,11 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "Bash|PowerShell",
         "hooks": [
           {
             "type": "command",
-            "command": "command -v python3 >/dev/null 2>&1 || exit 0; SOR_ENFORCE_CLAIMS=1 python3 \"${CLAUDE_PLUGIN_ROOT}/tools/sor.py\" hook post-bash || exit 1",
+            "command": "SOR_ENFORCE_CLAIMS=1 sh \"${CLAUDE_PLUGIN_ROOT}/bin/sor-hook\" hook post-bash",
             "timeout": 30
           }
         ]
@@ -49,7 +49,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v python3 >/dev/null 2>&1 || exit 0; python3 \"${CLAUDE_PLUGIN_ROOT}/tools/sor.py\" hook post-read || exit 1",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/bin/sor-hook\" hook post-read",
             "timeout": 30
           }
         ]
@@ -60,7 +60,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v python3 >/dev/null 2>&1 || exit 0; python3 \"${CLAUDE_PLUGIN_ROOT}/tools/sor.py\" hook session-end || exit 1",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/bin/sor-hook\" hook session-end",
             "timeout": 5
           }
         ]
@@ -71,7 +71,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v python3 >/dev/null 2>&1 || exit 0; python3 \"${CLAUDE_PLUGIN_ROOT}/tools/sor.py\" hook stop || exit 1",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/bin/sor-hook\" hook stop",
             "timeout": 5
           }
         ]
@@ -82,7 +82,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v python3 >/dev/null 2>&1 || exit 0; python3 \"${CLAUDE_PLUGIN_ROOT}/tools/sor.py\" hook subagent-start || exit 1",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/bin/sor-hook\" hook subagent-start",
             "timeout": 5
           }
         ]
@@ -93,7 +93,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v python3 >/dev/null 2>&1 || exit 0; python3 \"${CLAUDE_PLUGIN_ROOT}/tools/sor.py\" hook subagent-stop || exit 1",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/bin/sor-hook\" hook subagent-stop",
             "timeout": 5
           }
         ]

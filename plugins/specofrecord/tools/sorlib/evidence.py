@@ -24,6 +24,7 @@ import os
 import re
 
 from . import lock as lockfile
+from .invoke import replace_file
 from .model import ENV_NAME, listed
 
 STATUSES = ('pass', 'fail')
@@ -189,7 +190,7 @@ def write(path, data):
     try:
         with open(tmp, 'w', encoding='utf8', newline='\n') as fh:
             fh.write(json.dumps(data, indent=2, sort_keys=True, ensure_ascii=False) + '\n')
-        os.replace(tmp, path)
+        replace_file(tmp, path)
     except BaseException:   # a cancelled or full-disk job must not leave its temp file in the evidence folder
         try:
             os.remove(tmp)

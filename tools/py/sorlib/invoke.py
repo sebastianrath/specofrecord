@@ -3,6 +3,7 @@
 `sor` is the command when it runs from the Claude Code plugin (whose bin/ is on the PATH), otherwise the
 relative path of a checkout. Agents copy these commands. Variables are SOR_<NAME>."""
 import os
+import time
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 PLUGIN = os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(_HERE)), '.claude-plugin', 'plugin.json'))
@@ -11,6 +12,20 @@ PLUGIN = os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(_HERE)), '.
 _TOOL = os.path.dirname(_HERE)
 CHECKOUT = os.path.basename(_TOOL) == 'py' and os.path.isdir(os.path.join(os.path.dirname(_TOOL), 'js'))
 CMD = 'sor' if PLUGIN else 'python3 tools/py/sor.py' if CHECKOUT else 'python3 tools/sor.py'
+
+
+def replace_file(tmp, path):
+    """os.replace, trying again for a moment when Windows refuses because another process has `path` open (a reader: the edit hook, an editor, `sor status`).
+    Everything the tool writes goes through a temp file and this, so a reader sees the old file or the new one and never half of one."""
+    waits = (0.01, 0.02, 0.05, 0.1, 0.2, 0.4)   # 0.8 s in all: a reader holds a file for a moment, not for a second
+    for attempt in range(len(waits) + 1):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            if os.name != 'nt' or attempt == len(waits) or (os.path.exists(path) and not os.access(path, os.W_OK)):   # a read-only file stays so
+                raise
+            time.sleep(waits[attempt])
 
 
 def getenv(name):

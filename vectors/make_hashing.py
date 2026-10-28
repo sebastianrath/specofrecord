@@ -255,6 +255,12 @@ TEXT = [{'name': n, 'input': t, 'hash': sha(t)} for n, t in [
     ('the empty text', ''), ('ascii', 'abc'), ('non-ascii is read as UTF-8', 'é'), ('a line feed counts', 'a\n'),
     ('a part face with a value', 'Camera\nWhy: it moves')]]
 
+ASSET = [{'name': n, 'hex': b.hex(), 'hash': hashlib.sha256(b.replace(b'\r\n', b'\n')).hexdigest()[:12]} for n, b in [
+    ('a picture with LF', b'<svg>\n<g/>\n</svg>\n'), ('a picture with CRLF is the same picture', b'<svg>\r\n<g/>\r\n</svg>\r\n'),
+    ('a lone CR stays', b'<svg>\r<g/>\r</svg>\r'), ('CRLF, CR, LF and CR CR LF', b'a\r\nb\rc\nd\r\r\ne'),
+    ('the empty file', b''), ('bytes that are not UTF-8', b'\xff\xfe\r\n\x00')]]
+
+
 def entry(d):
     return json.dumps(d, sort_keys=True, separators=(', ', ': '), ensure_ascii=False)
 LOCK = []
@@ -428,6 +434,7 @@ doc = {
     'split_lines': {'how': 'split_lines(text) -> lines: a line ends at LF, CRLF or CR and nowhere else; no empty last line for a final break.', 'rows': SPLIT},
     'normalize': {'how': 'normalized(lines, style) -> text: the code as the lock sees it.', 'rows': N},
     'code_hash': {'how': 'code_hash(regions) -> hash: regions sorted by (file, start), each normalized by style_of(file), joined with "\\n\\u0000\\n", SHA-256 of the UTF-8, first 12 hex digits.', 'rows': CODE},
+    'asset_digest': {'how': 'asset_digest(bytes) -> hash: SHA-256 of the bytes of a picture file with every CRLF read as LF (a lone CR stays), first 12 hex digits (the third column of a design table). `hex` is the file.', 'rows': ASSET},
     'text_hash': {'how': 'text_hash(text) -> hash: SHA-256 of the UTF-8, first 12 hex digits (lock.h).', 'rows': TEXT},
     'targets_digest': {'how': 'digest(targets) -> hash: text_hash of the lines "<target>:<code>" in the order of the target names, joined by LF. It is the `code` of a clause that keeps its code per target.', 'rows': DIGEST},
     'fold': {'how': 'fold(file entries) -> entries: a line of kind "code" goes into the entry named by its `of` as targets[<target>], with every field it has but kind, of and target ({code, built}, and fits when the language was confirmed to fit), and that entry gets code = digest(targets); a line without its clause is dropped.', 'rows': FOLD},

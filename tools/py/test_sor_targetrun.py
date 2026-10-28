@@ -365,7 +365,7 @@ class TestAResultsFileThatWasNotWritten(Runs):
         self.assertIn('the run took more than 1 s and was stopped', str(caught.exception))
 
 
-@unittest.skipUnless(os.name == 'posix', 'process groups: the Windows way (taskkill /T) is not run here')
+# the process-tree kill runs on every system: on Windows it is taskkill /T
 class TestStoppingARunAndWhatItStarted(Runs):
     # a "framework" that starts a worker and waits; the worker adds a byte to beat.txt every 50 ms for at most 20 s and holds the pipes of the run like a
     # worker does. Whether it still runs is read from the file: a process that was killed can stay a zombie that kill(pid, 0) finds (in a container
@@ -411,7 +411,11 @@ class TestStoppingARunAndWhatItStarted(Runs):
         from unittest import mock
         project = self.start()
 
+        original = targetrun.subprocess.Popen.communicate
+
         def interrupted(proc, *args, **kwargs):
+            if os.path.basename(str(proc.args[0])) == 'taskkill.exe' or proc.args[0] == 'taskkill':   # on Windows stopping the run is itself a program to run
+                return original(proc, *args, **kwargs)
             self.running()
             raise KeyboardInterrupt
         with mock.patch.object(targetrun.subprocess.Popen, 'communicate', interrupted):

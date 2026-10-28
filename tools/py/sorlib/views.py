@@ -18,7 +18,7 @@ from . import lock as lockfile
 from . import lint
 from .lint import bullet_counts
 from .markers import Scan
-from .model import CODE, FOLDER_FILE_NAME, ITEM, ROOT_FILE_NAME, SETTING, SPEC_DIR, Project, Row, has_spec, part_files, root_files, test_keyword
+from .model import CODE, FOLDER_FILE_NAME, ITEM, ROOT_FILE_NAME, SETTING, SPEC_DIR, Project, Row, has_spec, part_files, root_files, shown_path, test_keyword
 
 WIDTH = 110   # the longest line these views print
 
@@ -418,10 +418,10 @@ def cmd_new(args):
         with open(path, 'x', encoding='utf8', newline='\n') as fh:   # 'x': never overwrites, even in a race
             fh.write(skeleton(pid or '', root, args.why))
     except FileExistsError:
-        return refuse(f'{os.path.relpath(path, root)} already exists: nothing written')
+        return refuse(f'{shown_path(path, root)} already exists: nothing written')
     except OSError as e:
-        return refuse(f'cannot write {os.path.relpath(path, root)}: {e.strerror or e}')
-    print(f'wrote {os.path.relpath(path, root)}')
+        return refuse(f'cannot write {shown_path(path, root)}: {e.strerror or e}')
+    print(f'wrote {shown_path(path, root)}')
     print('next: replace every <fill in: ...> with real words; give the rule and its test the same name')
     print('then: run `sor check`, it lists what is left to fill in')
     return 0
