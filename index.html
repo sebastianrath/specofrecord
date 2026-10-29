@@ -504,6 +504,7 @@
     <li><a href="#editor">In your editor</a></li>
     <li><a href="#tooling">What you get</a></li>
     <li><a href="#record">The build record</a></li>
+    <li><a href="#dos-donts">Dos and Don'ts</a></li>
     <li><a href="#faq">Common questions</a></li>
     <li><a href="#see-also">Related projects</a></li>
     <li><a href="#about">About</a></li>
@@ -667,6 +668,12 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
 </div>
 <p>That helps with reviews, handovers and compliance checks, anywhere a change has to be explained later.</p>
 
+<h2 id="dos-donts">Dos and Don'ts</h2>
+<p>Don't write all the specs first all at once and code afterwards. It feels safe, but a spec is a guess until the code has run. Say you're building a small game. One spec says the player moves 20 px per key press, another says walls are 10 px thick and can't be crossed. Both read fine, but a 20 px step could transport the player right through a 10 px wall. You only see it when the game or a test runs, and every spec built on them needs changing.</p>
+<p>On a big project it gets exponentially more complicated. Agents write specs for thousands of areas, open questions pile up, and tests wait for code that doesn't exist yet. Then reality kicks in. The first code shows flaws in the specs, the specs get patched, the patches break other specs, and the circle begins.</p>
+<p>Software engineering learned this long ago. The classic waterfall model finished the design before any building began and tested at the end, where the surprises hit and sent teams back to redo earlier work.<sup><a href="#note-2" aria-label="Note 2">2</a></sup> What worked better was a thin version that runs from start to finish, which teams then grew. The basic idea behind agile development.</p>
+<p>Do the same with your agents. Start with one small thing that works, like one player walking across one room, and write a clause only when you build what it describes. When the code shows a clause is wrong, change the clause.</p>
+
 <h2 id="faq">Common questions</h2>
 <h3>Is this more documentation to maintain?</h3>
 <p>No, it replaces the documents you would otherwise write. The spec is what you edit. A change edits a clause, and a new feature adds clauses, or a new part, to the same set of files. There is no second copy buried in Confluence or Slack.</p>
@@ -720,6 +727,7 @@ export <span class="t-k">function</span> <span class="t-f">chase</span>(monster,
   <p>Spec of Record · Version 0.1, draft proposal · © Sebastian Rath · <a href="https://creativecommons.org/licenses/by/4.0/deed.en" rel="license">CC BY 4.0</a></p>
   <p class="note" id="note-1"><sup>1</sup> <a href="https://martinfowler.com/articles/exploring-gen-ai/sdd-3-tools.html">Birgitta Böckeler,
     Understanding Spec-Driven Development (Kiro, spec-kit and Tessl)</a>, which compares three spec-driven tools.</p>
+  <p class="note" id="note-2"><sup>2</sup> <a href="https://martinfowler.com/bliki/WaterfallProcess.html">Martin Fowler, Waterfall Process</a>, on why testing and integration come last, where the hardest problems show up.</p>
 </footer>
 </main>
 <!-- full-example:start -->
