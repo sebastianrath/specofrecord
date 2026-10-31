@@ -78,6 +78,6 @@ Files: `sor/SPECOFRECORD.md` is the project · `sor/<part>.md` a part · its chi
 `scene/modes` and a rule `modes` in `scene.md` would both be `scene/modes`, so name one of them differently.
 
 Limits (§13; `sor check` reports a breach as a note): at most 7 items per section (a table counts as one), 40 lines above
-`## Tests`, 5 lines per test, 80 words per item, 12 child parts per part. More items than that: make the part a folder of
-child parts; more child parts than that: group them under parts of their own.
+`## Tests` (every line of a table counts), 5 lines per test, 80 words per item (a table's words do not count), 12 child parts
+per part. More items than that: make the part a folder of child parts; more child parts than that: group them under parts of their own.
 

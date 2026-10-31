@@ -81,8 +81,8 @@ Files: `sor/SPECOFRECORD.md` is the project · `sor/<part>.md` a part · its chi
 `scene/modes` and a rule `modes` in `scene.md` would both be `scene/modes`, so name one of them differently.
 
 Limits (§13; `sor check` reports a breach as a note): at most 7 items per section (a table counts as one), 40 lines above
-`## Tests`, 5 lines per test, 80 words per item, 12 child parts per part. More items than that: make the part a folder of
-child parts; more child parts than that: group them under parts of their own.
+`## Tests` (every line of a table counts), 5 lines per test, 80 words per item (a table's words do not count), 12 child parts
+per part. More items than that: make the part a folder of child parts; more child parts than that: group them under parts of their own.
 
 ---
 
@@ -495,7 +495,9 @@ Tie-breaks: a user or a test could notice the change → Rules · only the way i
   bullets written in it.
 - Tests are exempt from the 7-item cap. One test SHOULD stay within 5 lines; a longer one is split into two.
 - One item SHOULD stay within 80 words; `sor check` notes a longer one as `too long`. An item is counted with its indented
-  lines; a table, an `open:` line and a `code:` line do not count, and tests are exempt.
+  lines; a table, an `open:` line and a `code:` line do not count, and tests are exempt. A table is for data that repeats
+  the same fields, such as a layout or a list of options, and not for sentences. Each of its rows is a clause of its own
+  (§1), and for the screen limit alone every line of it counts toward the lines above `## Tests`.
 - A part SHOULD have at most 12 child parts (the root: 12 top-level parts); `sor check` notes more as `too wide`. More means:
   group related ones under a part of their own, so the tree grows in depth and not in width (`rendering/lighting/shadows`, not
   25 children of `rendering`). A folder that only groups parts is no part and is not counted.
