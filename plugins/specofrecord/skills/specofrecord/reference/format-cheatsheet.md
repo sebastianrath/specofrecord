@@ -79,5 +79,5 @@ Files: `sor/SPECOFRECORD.md` is the project · `sor/<part>.md` a part · its chi
 
 Limits (§13; `sor check` reports a breach as a note): at most 7 items per section (a table counts as one), 40 lines above
 `## Tests` (every line of a table counts), 5 lines per test, 80 words per item (a table's words do not count), 12 child parts
-per part. More items than that: make the part a folder of child parts; more child parts than that: group them under parts of their own.
+per part, 7 clauses per code region. More items than that: make the part a folder of child parts; more child parts than that: group them under parts of their own; more clauses than that on one code region: split the code into regions.
 

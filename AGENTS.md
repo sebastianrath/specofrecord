@@ -24,8 +24,7 @@ The tool is `python3 tools/py/sor.py -C <project> <command>` (a project is a fol
   `sor claim`, `sor lock` and `sor release` (or set `SOR_AGENT=NAME`); no other command takes `--as`. Use the same name
   every time: another name is another agent. Without a name, a claim and a release fail and a plain `sor lock` is
   refused. Because you name yourself, your `sor release --all` frees only the claims made under your name, never another
-  agent's, so the skill's line that only the parent runs `release --all` without a name does not apply to you: always pass yours.
-- The skill also speaks of the plugin, `${CLAUDE_SKILL_DIR}`, Claude Code sessions and refusals by the edit hook. None
+  agent's, so the skill's line that only the parent runs `release --all` without a name does not apply to you: always pass yours.- The skill also speaks of the plugin, `${CLAUDE_SKILL_DIR}`, Claude Code sessions and refusals by the edit hook. None
   of that applies to you: use the command above, `--as NAME`, and `sor status`.
 - Where a Claude Code agent works in the same project, its edit guard may refuse edits to what you claimed. Release
-  when you are done.
+  when you are done, except claims on work you locked in your own worktree that is not merged yet.

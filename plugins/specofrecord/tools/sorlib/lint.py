@@ -16,6 +16,7 @@ LIMIT_SCREEN = 40      # lines above `## Tests`
 LIMIT_TEST_LINES = 5   # non-blank lines in one test
 LIMIT_WORDS = 80       # words in one bullet of Rules, Approach or Contract (its indented lines too; tables, `open:` and `code:` lines not)
 LIMIT_CHILDREN = 12    # parts directly under one part (under the root: the top-level parts)
+LIMIT_REGION_CLAUSES = 7   # clauses named by one `@clause` marker: they are claimed and locked together
 SENTINEL = '<fill in'  # what a template writes where a person has to write
 
 
@@ -82,6 +83,14 @@ def notes(project, scan=None):
             out.append(Problem('too wide', f'{project.parts[pid].rel}:1',
                                f'{n} parts sit directly under {under} (at most {LIMIT_CHILDREN}): group related ones under a part '
                                f'of their own, as `{pid + "/" if pid else ""}<group>/<name>` (SPEC §13)'))
+    for r in (scan.regions if scan is not None else []):   # a region that serves many clauses ties them together (SPEC §13)
+        if r.kind not in ('code', 'file', 'line'):   # glue and test regions name no clause of their own
+            continue
+        n = len(set(r.ids))
+        if n > LIMIT_REGION_CLAUSES:
+            out.append(Problem('wide region', f'{r.file}:{r.start}',
+                               f'this code region serves {n} clauses (at most {LIMIT_REGION_CLAUSES}): they are claimed and locked together, so '
+                               'split the code into regions, one per clause where it can be done (SPEC §13)'))
     for part in project.parts.values():
         counts = bullet_counts(part)
         for section in ('Rules', 'Approach', 'Contract'):

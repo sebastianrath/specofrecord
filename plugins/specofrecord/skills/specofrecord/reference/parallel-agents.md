@@ -8,6 +8,7 @@
 - When a claim of yours was freed
 - When a claim refuses you
 - Locking while others work
+- Merging a worktree branch
 
 Use this when more than one agent, or a person and an agent, work in the same project at once, or when you start
 subagents. The everyday rules (claim before you edit, what to do on REFUSED, lock only your own clauses, release when you
@@ -28,7 +29,8 @@ A claim is held while its holder works. It does not run out under you: after 30 
 - you left unfinished work in another worktree: the claim is *parked* with it; another agent may continue it (`sor claim --take-over`), and it frees itself after the parked window (24 hours by default,
   `Claims: parked 12h`);
 - you finished and locked work in your worktree that is not merged yet: the claim *waits for the merge*, with no limit, and is freed when the work reaches the asker's copy or you release it; whoever merges may say
-  `sor queued <your name> --by <their name>`, which only changes the notice (queued, or nobody has said they will merge it).
+  `sor queued <your name> --by <their name>`, which only changes the notice (queued, or nobody has said they will merge it). So an agent in a worktree does not release what it locked: it keeps the claims until the merge
+  ("Merging a worktree branch", below), and releases only what it claimed and did not lock.
 A long build that runs in the background does not make you quiet: the claim stays while it runs.
 
 ## Who you are
@@ -42,13 +44,14 @@ Subagents share your session, but Claude Code tells the hooks which subagent act
 - Each passes its own name with `--as <name>` on every claim, lock and release. The hook refuses a claim, lock or release from a subagent without one, and refuses a name that a sibling already uses.
   A shell variable would not survive between calls. The name binds the subagent: the edit guard attributes its edits to the name, so it is refused a clause a sibling or its parent holds.
 - Do not claim what you delegate, because your claim would block your subagent's.
-- A subagent releases with its own name (`sor release --all --as <name>`): that frees only its claims, and another agent's
+- A subagent releases with its own name (`sor release --all --as <name>`; one in its own worktree keeps its claims on locked, unmerged work, as above): that frees only its claims, and another agent's
   claim named by id is left alone ("NOT released (held by someone else)", exit 3). Nobody runs `sor release --force`: the hook refuses it.
   `sor release <id>` gives up that id only: the other ids you claimed in the same call stay held (`still holding: …`), and an id under a part you claimed is "NOT released" until you release the part.
 - A finished subagent's claims are not kept alive by you working on: only its own activity renews them, and it is gone once it stopped.
 - Your own final `sor release --all` has no `--as`, and `SOR_AGENT` is not set in your environment (it is a name too, and
   your subagents share that environment). A caller that gives no name frees every claim of the session, so it also clears
-  what a subagent that crashed left behind.
+  what a subagent that crashed left behind. It frees the claims that subagents keep on locked work in their worktrees as well, so run it
+  only after those branches are merged, or release by id.
 - Claim items, not whole parts, when others work in the same part: a claim on a part holds all its own items, so another
   agent's claim on an item inside it is refused until you release, and your claim on the part is refused while someone
   holds one of its items (child parts are separate). Claim the part only to add an item to it.
@@ -117,3 +120,21 @@ lock like any other problem in its scope; `sor lock <ids>` locks exactly what yo
 A claim on a part does not hold its child parts against other agents: someone may claim `audio/mixer` while you hold
 `audio`. So claim the child parts you will change as well when that matters. Never lock the whole project (`--all`) while
 others hold claims: the tool refuses it, because it would also accept their unfinished work.
+
+## Merging a worktree branch
+For whoever merges a branch that another agent finished in its own worktree (an orchestrator, a merge queue, a person). That agent locked its work
+and kept its claims, as "When a claim of yours was freed" and `SKILL.md` ("Claims") say.
+1. If the merge will not happen at once, say so: `sor queued <holder> --by <your name>`. It changes the notice and nothing else.
+2. Merge the branch. Set the lock merge up once per clone: the line `sor/sor-lock.json merge=sor-lock` in `.gitattributes`, and `git config merge.sor-lock.driver "sor merge-lock %O %A %B"`. The `.gitattributes` line is committed, the `git config` entry is per clone: a clone without it merges as git alone does. The driver merges the lock by entry and names the entries that
+   both sides changed, which step 3 locks again; it exits 1 then, so git lists the file as conflicted: lock them, then `git add` the file. Without it git often reports a conflict in `sor/sor-lock.json` although no entry changed on both sides (a new entry next to a changed one is enough). Do not edit a conflicted lock by hand: restore one
+   side's file (`git checkout --ours sor/sor-lock.json`, or `git checkout --theirs sor/sor-lock.json`) and `git add` it. That drops the other side's entries, which is why step 3 follows.
+   Perforce: its own resolve reports the same adjacency case as a conflict. Set `P4MERGE` to a script that is called as `script BASE THEIRS YOURS RESULT`, copies YOURS over RESULT, and runs `sor merge-lock BASE RESULT THEIRS`; answer `m` at the
+   resolve prompt (tried with p4d 2025.2). Perforce ignores the tool's exit code, so the entries it leaves out are named only on the tool's own output: run `sor status` after the resolve and lock what it lists as new.
+3. Run `sor status`, then `sor lock <ids>` for the clauses whose entries came from the side whose file you did not keep (when unsure, for every clause `sor status` lists), so the lock is made against the merged code. Your lock respects other agents' claims: a clause one of them holds is left out and named.
+4. Release the claims of the branch's agent once it has finished and its work is in your copy. The tool frees them by itself when the work has reached your copy ("its work has reached this copy"), but after a merge `sor claims` can
+   still list them as *waiting for the merge* (seen after a merge with no lock conflict at all). Then release them under the holder's name: `sor release --as <holder> <ids>`.
+   That is acting under another agent's name, so do it only for a holder that has finished and whose branch is merged, never for one at work, and never with `--force`. Do it from the parent session: the hook refuses a
+   subagent that passes a name a sibling uses, and SPEC §16 defines no other way to release another agent's claim.
+5. A lock refused for items you did not touch: `sor status` lists them as recompile, review or drift, and `sor claims` says which claims hold them and which clauses share their code region (nobody else can claim
+   those meanwhile). Lock together the ones that share a region with your ids, release the claims of finished holders (step 4), and run `sor lock` again. Items of an agent still at work stay pending: leave them to it
+   and tell the user.

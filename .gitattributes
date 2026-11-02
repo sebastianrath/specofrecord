@@ -5,3 +5,6 @@ vectors/** linguist-generated
 *.png filter=lfs diff=lfs merge=lfs -text
 *.jpg filter=lfs diff=lfs merge=lfs -text
 *.jpeg filter=lfs diff=lfs merge=lfs -text
+# The two projects' locks merge by entry where a clone has set the driver up (SPEC §11); without it git merges the text as before.
+examples/solar-system/sor/sor-lock.json merge=sor-lock
+editors/vscode/sor/sor-lock.json merge=sor-lock

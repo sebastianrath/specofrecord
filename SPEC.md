@@ -82,7 +82,7 @@ Files: `sor/SPECOFRECORD.md` is the project · `sor/<part>.md` a part · its chi
 
 Limits (§13; `sor check` reports a breach as a note): at most 7 items per section (a table counts as one), 40 lines above
 `## Tests` (every line of a table counts), 5 lines per test, 80 words per item (a table's words do not count), 12 child parts
-per part. More items than that: make the part a folder of child parts; more child parts than that: group them under parts of their own.
+per part, 7 clauses per code region. More items than that: make the part a folder of child parts; more child parts than that: group them under parts of their own; more clauses than that on one code region: split the code into regions.
 
 ---
 
@@ -428,7 +428,8 @@ when the root file has none; and a clause whose lock line `clause@target` (§11)
   pass nor fail has no label, and it is dropped with the result.
 - Sorted, one entry per line, a blank line between the entries, no line numbers, no timestamps, no measurements: identical
   input gives identical bytes; a line-based merge keeps different entries apart, and the blank line is what lets it merge two branches that changed
-  neighbouring entries, which it would report as a conflict if their lines touched.
+  neighbouring entries, which it would report as a conflict if their lines touched. It does not always keep them apart: an entry inserted right next to an entry the other
+  branch changed is still reported as a conflict, because every blank line is the same line to git. `sor merge-lock` merges by entry instead (below).
 - Hashes do not depend on line endings: spec text is read with universal newlines and code is hashed
   without layout, so an LF checkout and a CRLF checkout of the same files give the same lock.
 - The file is written through a temp file and a rename that keeps the permissions the file had, and
@@ -474,6 +475,14 @@ when the root file has none; and a clause whose lock line `clause@target` (§11)
   for the clauses the other side changed (this gives the same lock as a correct hand merge). `sor check` lists it as a problem. The edit hook goes on letting
   edits through, because those are the edits that resolve the merge. A hook that meets an error of its own exits 0 and says so to the agent, never 1, which Claude
   Code treats as a noisy error and lets the call through all the same.
+- **`sor merge-lock BASE OURS THEIRS` merges the lock by entry.** It is a git merge driver: `sor/sor-lock.json merge=sor-lock` in `.gitattributes`, and
+  `git config merge.sor-lock.driver "sor merge-lock %O %A %B"`. An entry that one side changed is taken from that side, and the same change on both sides is kept.
+  An entry that both sides changed in different ways is left out of the result, named on stderr, for the next `sor lock` of it, because the right entry depends on
+  the merged code; `sor status` lists it as new. A clause and its per-target lines are one unit and never come from two sides. The exit code is 0 when the lock
+  was merged whole. It is 1 when entries were left out: OURS holds the merge without them, and git lists the file as conflicted, so that the merger sees it, locks them
+  and adds the file. It is also 1 for a version with conflict markers, a damaged one, an empty one, one in a newer format, and entries that cannot be written: nothing
+  is merged and OURS is untouched (it is replaced through a temporary file, never truncated first). A legacy root key `CLAUSES` is read as `ROOT` on every side.
+  Restoring one side of a conflicted lock instead drops the entries the other side locked: a claim whose holder locked them then stays *waiting for the merge* (§16).
 - Large projects may split it: a folder with a project of its own (§1) holds its own lock.
 
 ## 12. Where does it go?
@@ -501,6 +510,9 @@ Tie-breaks: a user or a test could notice the change → Rules · only the way i
 - A part SHOULD have at most 12 child parts (the root: 12 top-level parts); `sor check` notes more as `too wide`. More means:
   group related ones under a part of their own, so the tree grows in depth and not in width (`rendering/lighting/shadows`, not
   25 children of `rendering`). A folder that only groups parts is no part and is not counted.
+- A code region SHOULD serve at most 7 clauses (the ids on one `@clause` marker); `sor check` notes a wider one as `wide region`. Clauses that
+  share a region are claimed and locked together (§16), so one wide region keeps agents on separate clauses apart, and a correct change to its code
+  needs a change to one of its clauses first (§15). More means: split the code into regions, one per clause where it can be done.
 - A value SHOULD be defined once. `sor check` notes a `{name: value}` that another part defines with the same name and the
   same text (case and spacing aside) as `value twice`, at each of the definitions, naming the others: keep one and refer to
   it from the rest (`{part/item.name}`), or, if they are different quantities, rename them so the names say what they are.
@@ -531,7 +543,7 @@ with `-C <folder>`:
 
 | Command | Does |
 |---|---|
-| `sor check [--strict] [PART ...]` | problems: header, names (a name used twice says where the first is), `heading` (a section heading written twice in one part: same text, case and spacing ignored), values, references (§4; one that names nothing says what was found and suggests the nearest valid ids, as in `{core/spawn} names no item, row, value or part; did you mean {core/ecs/spawn}?`), `needs` → `gives` (a `needs` on a part says it is a part and lists the `gives` ids inside it), a `collision` of a part and an item with one id (`"scene/modes" names both a part (scene/modes.md) and an item of scene.md: rename one of them`), orphan tests (named after nothing, with neither `proves:` nor `bug:`), `proves:` lines that name no clause, `expect: {ref}` alone, markers, unmarked lines, `placeholder`, and in a `<part>.tests.md`: a test also named in the part's file (`duplicate`), anything but tests (`misplaced`), no part to belong to (`tests file`) (a `<fill in …>` left in a spec file, for example by `sor new`). Notes, which never change the exit code: a breach of the limits of §13 (items in a section of Rules, Approach or Contract, words in an item (`too long`), lines above `## Tests`, lines in a test, parts directly under one part (`too wide`)), every `open:` question (§3), `loose text` (a line under the title or in a section that belongs to no item: it is not locked, and a change to it goes unnoticed), `never run` (a test with `do:`, `expect:`, `each:` or `measure:` lines that nothing will run: the project has no web target, the test is not `manual:` and has no `@clause test` code; one note per part), and `no code for target` (§9); `--strict` makes these exit 2. With parts, `sor check audio` reports only the problems and notes of those parts and of the parts inside them (`audio` covers `audio/mixer`, not `audio-fx`; `ROOT` is the root file alone), and its exit code follows only them; a name that is no part is exit 2 and lists the closest ids. Without parts nothing changes |
+| `sor check [--strict] [PART ...]` | problems: header, names (a name used twice says where the first is), `heading` (a section heading written twice in one part: same text, case and spacing ignored), values, references (§4; one that names nothing says what was found and suggests the nearest valid ids, as in `{core/spawn} names no item, row, value or part; did you mean {core/ecs/spawn}?`), `needs` → `gives` (a `needs` on a part says it is a part and lists the `gives` ids inside it), a `collision` of a part and an item with one id (`"scene/modes" names both a part (scene/modes.md) and an item of scene.md: rename one of them`), orphan tests (named after nothing, with neither `proves:` nor `bug:`), `proves:` lines that name no clause, `expect: {ref}` alone, markers, unmarked lines, `placeholder`, and in a `<part>.tests.md`: a test also named in the part's file (`duplicate`), anything but tests (`misplaced`), no part to belong to (`tests file`) (a `<fill in …>` left in a spec file, for example by `sor new`). Notes, which never change the exit code: a breach of the limits of §13 (items in a section of Rules, Approach or Contract, words in an item (`too long`), lines above `## Tests`, lines in a test, parts directly under one part (`too wide`), clauses served by one code region (`wide region`)), every `open:` question (§3), `loose text` (a line under the title or in a section that belongs to no item: it is not locked, and a change to it goes unnoticed), `never run` (a test with `do:`, `expect:`, `each:` or `measure:` lines that nothing will run: the project has no web target, the test is not `manual:` and has no `@clause test` code; one note per part), and `no code for target` (§9); `--strict` makes these exit 2. With parts, `sor check audio` reports only the problems and notes of those parts and of the parts inside them (`audio` covers `audio/mixer`, not `audio-fx`; `ROOT` is the root file alone), and its exit code follows only them; a name that is no part is exit 2 and lists the closest ids. Without parts nothing changes |
 | `sor status [--json]` | compares files and code with `sor-lock.json`: **recompile** (new, changed, removed clauses), **review** (a referenced item or value, or shared code, changed), **drift** (code changed, its clause did not), **built**, **info**; and a block `tests (N)` of the tests a lock would refuse for want of a passing result, with the way out (as in the refusal of `sor lock`). `--json` has them as `tests_pending`, a superset of `tests_not_passed` (the tests that had not passed at the last lock); `tests deferred (N)` lists the tests a CI job proves (§8), and `--json` has them as `tests_deferred`. A line `tests locked: …` says how many passed and where their results came from (`via`, §11), and how many tests are `manual:` and checked by a person or not yet; it is printed only when a test is manual, when a result came from a file or a target command, or when some passes are labeled and others are not, and `--json` does not have it |
 | `sor test [id …] [--coverage] [--out F] [--provides NAMES] [--all] [--targets NAMES]` | runs the tests in headless Chrome against the web target's probes; reports clause and line coverage. `--targets py` also runs the command that target's rules give, and only then (§9). An id is a test, the item it proves, or a part; an id that matches no test is exit 2, not a pass. A test without steps whose code is marked `@clause test` is shown as EXTERNAL: not run, not failed (§8) |
 | `sor test --list [id …] [--provides NAMES] [--all] [--json]` | lists the tests a run would run and the ones it would leave to CI (§8): each with its environments, whether your own framework runs it and its fingerprint (`--json` adds `fingerprints`, one for each language, to a test with test code in some languages, §8); runs nothing, so it needs no web target |
@@ -544,6 +556,7 @@ with `-C <folder>`:
 | `sor claim <id …> [--as NAME] [--ttl 30m] [--take-over]` | says you are working on these clauses, and how long it holds without activity: `claimed audio, held while you work: it ends at 00:31 if you do nothing for 30 min` (`--ttl never`: `no idle limit`; without `--ttl`, the root file's `Claims: idle …`, else 30 minutes); exit 3 and who holds them when someone else is: the refusal names the ids in the way, and says when the others asked for were free but not claimed either, for a claim takes all its ids or none; `--take-over` continues the work of a parked claim (§16) |
 | `sor claims [--json]` | every claim in force with its holder, ids, folder, branch, times and state (`held`, `parked`, `waiting`, `free`) and what the store is shared with; writes nothing of its own (§16) |
 | `sor queued HOLDER --by NAME` | says that whoever merges has queued the work of a holder: a notice for finished work that waits for its merge, and nothing else (§16) |
+| `sor merge-lock BASE OURS THEIRS` | the git merge driver for `sor-lock.json`: merges the three versions by entry and writes the result over OURS (§11) |
 | `sor claim greet/hello@py`, `sor lock greet/hello@py` | one language of a clause, in a project that says its targets (§9, §16): the claim holds that language's line, the lines of its own test and of its rows and the code regions in its files; the lock writes those lines and the glue of that language's files, and never the clause's own line. `sor release` of it says when the language has code that is not locked |
 | `sor release [id … \| --all] [--as NAME] [--force]` | gives claims up again: the ids named and what is claimed under them, while the other ids of a claim made in one call stay held (`still holding: b, c`); an id under a claimed part releases nothing (`NOT released: greet/hello is part of your claim on greet`). A caller that names itself (`--as NAME` or `SOR_AGENT`) frees only that agent's claims; releasing another agent's claim by id prints `NOT released (held by someone else; a person can force it from a terminal with --force)` and exits 3. A caller that gives no name (the parent, or the only agent) frees every claim made in its session (§16). `--force` overrides, for a person at a terminal: the Bash hook refuses it to an agent (§16). Claims that were freed are named: `nothing to release: your claims on X expired at 00:31`, or the same as a `note:` beside what was released |
 | `sor markers [id \| file:line]` | where an item's code is, or which clauses a line of code serves; `--json` gives every region with the `targetName` of the target its file belongs to (null when it belongs to none) |
@@ -770,8 +783,8 @@ Choices the tool made where this spec is silent:
 
 Not built yet: benchmark metrics in `measure:`, `each: N × x = gen()`, runners for non-web targets (no example here has
 one: `sor test` runs nothing there, so a test with steps stays `manual:` or takes its result from `--results F` when the
-project's own framework runs it, §8), running that framework from `sor test`, experiments, migrations, split locks, a
-merge driver for the lock file, renaming.
+project's own framework runs it, §8), running that framework from `sor test`, experiments, migrations, split locks,
+renaming.
 
 ## 16. Working in parallel
 Several agents, or people and agents, may work on one project. Without a guard, these happen

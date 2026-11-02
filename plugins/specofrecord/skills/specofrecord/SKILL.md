@@ -23,7 +23,7 @@ pass `-C <folder>`. The format is in `reference/format-cheatsheet.md`.
 | "build it", after a person changed clauses | step 3 of the change: `sor status` lists what changed |
 | "keep my change", or drift that was there before you started | "Code a person changed", below |
 | plain sentences: bullets without **names**, or `sor check` says `unnamed test` or `loose text` | `reference/plain-clauses.md` |
-| other agents work at the same time (also when one picks up other work), or one per language of a clause (`greet/hello@py`) | `reference/parallel-agents.md` |
+| other agents work at the same time (also when one picks up other work), or one per language of a clause (`greet/hello@py`), or you merge a branch another agent finished in its own worktree | `reference/parallel-agents.md` |
 | a test that needs a place (an OS, a GPU, a database) or must run in CI | `reference/ci-evidence.md` |
 
 A new project: nothing else is asked of the user, and there is no `sor init`. Write the specs and stop: write code
@@ -43,13 +43,14 @@ only when asked, or when the project is tiny like hello world.
 | `sor parts [--tree] [<parts>]` | an index of every part, or of those and the parts inside them: run it first in a project you do not know |
 | `sor needs [part]`, `sor changes` | what a part uses from other parts; the pending changes in words |
 | `sor evidence …`, `sor verify` | what a CI job proved about tests that say `runs on:`, and the gate over it (`reference/ci-evidence.md`) |
+| `sor merge-lock …` | git's merge driver for `sor-lock.json`, set up in each clone by whoever merges ("Merging a worktree branch", `reference/parallel-agents.md`) |
 
 ## Your routine
 The user says what to build or change, in their own words, and mentions Spec of Record once. They never run or ask for
 `sor` commands: that is your job, every time.
 - Start with `sor status`: drift that was already there is a person's change to the code (see "Code a person changed"). Say once what is pending that you did not start.
 - Finish each unit of work with `sor check` (fix every problem), `sor test` when the project has a test runner, `sor lock`
-  for what you claimed, and `sor release --all` (a sub-agent: see "Claims").
+  for what you claimed, and `sor release --all` (a sub-agent: see "Claims"; in your own worktree, keep the claims on work you locked).
 - Then tell the user in plain words what you wrote or changed: the clauses, the code, the test results and anything left
   undecided (the `open:` questions). Leave out command output unless something failed. Ask the same way: no flag or command names, just what you did, what you want next and what they trust you on.
 - Explain the tool's words when you use them: say "I saved the agreed state" or "the specs and the code agree", and
@@ -92,9 +93,9 @@ that set one `SOR_CLAIMS_DIR`); `sor claims` says what they are shared with.
 - If it prints REFUSED (exit 3), do not edit that clause or its code, and do not look for a way around it (never delete `sor/.sor-claims*`, never `sor release --force`). A refused claim takes none of its ids, free ones included. The refusal
   says why: *held* (its holder is at work: take another clause, wait and retry, or ask the user), *parked* (its holder is gone and left unfinished work elsewhere: `sor claim --take-over <ids>` continues it there), *waiting for the merge*
   (finished work not in your copy yet: update your copy once it is merged, or take another clause).
-- Release when you are done, and before you stop even if the work failed: `sor release --all`. A claim of yours that was freed while you were away is told at `sor lock` or `sor release`: claim again and re-read the clause first.
+- Release when you are done, and before you stop even if the work failed: `sor release --all`. One exception: in your own worktree you keep the claims on work you locked that is not merged yet (they protect it until the merge, and whoever merges releases them, since after a merge `sor claims` may still list them: `reference/parallel-agents.md`, "Merging a worktree branch"); release what you did not lock. A claim of yours that was freed while you were away is told at `sor lock` or `sor release`: claim again and re-read the clause first.
 - A sub-agent passes its own `--as <name>` on every claim, lock and release (the hook refuses one without) and frees only its own claims. `sor release --all` without a name frees every claim of the session, its siblings' too, so only
-  the parent runs it. More: `reference/parallel-agents.md`.
+  the parent runs it, and only after the worktree branches of its subagents are merged. More: `reference/parallel-agents.md`.
 
 ## Code a person changed ("keep my change")
 A person may edit code themselves. The edit guard watches only your own edits, so theirs goes through and shows up as
@@ -104,7 +105,7 @@ in line. The steps are in `reference/code-a-person-changed.md`: read it first.
 ## Rules
 **Guard and files**
 - The edit guard governs the spec folder, the declared code paths and files with `@clause` markers; edit anything else (docs, config, notes) normally.
-  It sees Edit and Write only: a shell command that changes code (`sed -i`, a script) gets a warning afterwards, so use Edit.
+  It sees Edit and Write only: a shell command that changes code (`sed -i`, a script) gets a warning afterwards, so use Edit, also when the clause has already changed: a shell edit skips the guard's check.
 - A refusal starts with "Clauses come first", "Someone else is working on this", "Do not rewrite", or (for the lock and
   claims files) a message with "is written only by"; one with "is in lock format" means this sor is older than the lock: tell
   the user to update it. A hook *error* (a message that the hook could not run) is a broken setup: tell the user. Claude Code prints `PreToolUse:Edit hook error:` before a refusal too, so go by the words after it. Never work around a refusal.

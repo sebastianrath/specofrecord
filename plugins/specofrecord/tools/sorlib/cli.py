@@ -397,7 +397,9 @@ def cmd_lock(args):
         lost = claims.lost(project, me, ids) if me else []   # claims that expired: they are no longer held
         if not ids:
             sid = claims.current_session()
-            names = sorted({c['agent'] for c in claims.active(project) if sid and c.get('session') == sid})
+            # The names this session claimed under, but not a subagent's: subagents share the session id, and `--as <their name>` would lock their unfinished work.
+            others = claims.bound_names(project, sid) if sid else set()
+            names = sorted({c['agent'] for c in claims.active(project) if sid and c.get('session') == sid} - others)
             if lost:
                 print(f'lock refused:\n  your {claims.lapse_text(lost)}; {claims.claim_again()} '
                       '(or say which clauses: sor lock <ids>).\n'
@@ -745,6 +747,48 @@ def cmd_queued(args):
         print(f'queued: {args.holder} holds no claim', file=sys.stderr)
         return 2
     print(f'queued {n} claim{"s" if n != 1 else ""} of {args.holder}, by {args.by}')
+    return 0
+
+
+def cmd_merge_lock(args):
+    """`sor merge-lock BASE OURS THEIRS`: the merge driver for sor-lock.json (SPEC §11). Merges the three versions by entry and writes the result over OURS, as git
+    expects of a driver (`%O %A %B`). Exit 0: merged. Exit 1 with a message that says "left out": an entry both sides changed in different ways is left out of the
+    result and named, to be locked again; OURS holds the rest, and git reports the file as a conflict so that the merger sees it. Exit 1 otherwise: not merged
+    (a version with conflict markers, damaged, in a newer format or empty, or entries that cannot be written), and OURS is as it was."""
+    versions = []
+    for path, name, may_be_empty in ((args.base, 'base', True), (args.ours, 'ours', False), (args.theirs, 'theirs', False)):
+        try:
+            with open(path, encoding='utf8') as fh:
+                text = fh.read()
+        except OSError as e:
+            print(f'merge-lock: cannot read the {name} version: {e.strerror or e}', file=sys.stderr)
+            return 1
+        if not text.strip():
+            if not may_be_empty:
+                print(f'merge-lock: the {name} version is empty: merge the lock by hand and lock the clauses again', file=sys.stderr)
+                return 1
+            versions.append({})
+            continue
+        try:
+            versions.append(lockfile.parse_text(text, f'the {name} version of the lock'))
+        except lockfile.LockFormatError as e:
+            print(f'merge-lock: {e}', file=sys.stderr)
+            return 1
+    merged, left_out = lockfile.merge_entries(*versions)
+    try:
+        text = lockfile.render(merged)   # before OURS is touched: a lock that cannot be written leaves it as it was
+    except (lockfile.LockWriteError, ValueError) as e:
+        print(f'merge-lock: the merged entries cannot be written: {e}', file=sys.stderr)
+        return 1
+    tmp = f'{args.ours}.{os.getpid()}.tmp'
+    with open(tmp, 'w', encoding='utf8', newline='\n') as fh:
+        fh.write(text)
+    os.replace(tmp, args.ours)
+    note = f'merge-lock: merged {len(merged)} lock lines'
+    if left_out:
+        print(f'{note}; changed on both sides and left out, lock them again: {", ".join(left_out)}', file=sys.stderr)
+        return 1
+    print(note, file=sys.stderr)
     return 0
 
 
@@ -1271,6 +1315,11 @@ def build_parser():
     s.add_argument('holder', help='the name the holder claimed under')
     s.add_argument('--by', required=True, help='who queued it: a merge queue, an orchestrator, a CI job, a person')
     s.set_defaults(fn=cmd_queued)
+    s = sub.add_parser('merge-lock', help='the git merge driver for sor-lock.json: merges the base, ours and theirs versions by entry and writes the result over ours')
+    s.add_argument('base', help='the common ancestor version (git: %%O)')
+    s.add_argument('ours', help='our version, overwritten with the result (git: %%A)')
+    s.add_argument('theirs', help='their version (git: %%B)')
+    s.set_defaults(fn=cmd_merge_lock)
     s = sub.add_parser('release', help='give up claims')
     s.add_argument('ids', nargs='*')
     s.add_argument('--all', action='store_true', help='all of your claims')

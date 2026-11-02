@@ -128,6 +128,7 @@ class TestNumbersInTheDocuments(unittest.TestCase):
         'lines per test': (lint.LIMIT_TEST_LINES, r'(\d+) lines per test|within (\d+) lines'),
         'words per item': (lint.LIMIT_WORDS, r'(\d+) words per item|within (\d+) words'),
         'child parts per part': (lint.LIMIT_CHILDREN, r'(\d+) child parts per part|at most (\d+) child parts'),
+        'clauses per code region': (lint.LIMIT_REGION_CLAUSES, r'(\d+) clauses per code region|serve at most (\d+) clauses'),
     }
     STATED = ('SPEC.md', 'format-cheatsheet.md')   # SPEC §13, and the cheat sheet generated from SPEC
 

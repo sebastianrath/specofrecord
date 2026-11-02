@@ -167,5 +167,52 @@ class TestRootItemsHaveNoPrefix(base.Case):
         self.assertNotIn('no prefix', err)
 
 
+class TestACodeRegionThatServesManyClauses(base.Case):
+    """SPEC §13: clauses that share a region are claimed and locked together, so `sor check` notes a region that names too many."""
+    LIMIT = lint.LIMIT_REGION_CLAUSES
+
+    def region(self, n):
+        """`sor check` on a project whose one region names n clauses: (exit code, the 'wide region' notes as (where, text))."""
+        ids = [f'{part}/r{i}' for part in ('a', 'b') for i in range(1, 5)][:n]
+        self.project({part: base.doc(part.upper(), f'{part} is here.', rules=[f'- **r{i}** - A rule.' for i in range(1, 5)])
+                      for part in ('a', 'b')})
+        base.write(self.dir, 'src/app.js', '// @clause ' + ' '.join(ids) + '\nconst x = 1;\n// @clause end\n')
+        code, out, _ = base.run_sor(self.dir, 'check')
+        return code, [m.groups() for m in (re.match(r'\s*wide region\s+(\S+)\s+(.*)$', line) for line in out.splitlines()) if m]
+
+    def test_the_limit_itself_is_fine_and_one_more_is_a_note_at_the_marker(self):
+        self.assertEqual(self.region(self.LIMIT), (0, []))
+        code, notes = self.region(self.LIMIT + 1)
+        self.assertEqual(code, 0, 'a note never changes the exit code')
+        self.assertEqual(len(notes), 1, notes)
+        self.assertEqual(notes[0][0], 'src/app.js:1')
+        self.assertIn(f'serves {self.LIMIT + 1} clauses (at most {self.LIMIT})', notes[0][1])
+
+    def test_strict_makes_it_fail_like_any_note(self):
+        self.region(self.LIMIT + 1)
+        self.assertEqual(base.run_sor(self.dir, 'check', '--strict')[0], 2)
+
+    def test_a_clause_written_twice_on_one_marker_counts_once(self):
+        ids = ['a/r1'] * (self.LIMIT + 1)
+        self.project({'a': base.doc('A', 'a is here.', rules=['- **r1** - A rule.'])})
+        base.write(self.dir, 'src/app.js', '// @clause ' + ' '.join(ids) + '\nconst x = 1;\n// @clause end\n')
+        code, out, _ = base.run_sor(self.dir, 'check')
+        self.assertEqual(code, 0)
+        self.assertIn('1 code regions; 0 problem(s)', out)   # the project loaded and the one region was read
+        self.assertNotIn('wide region', out)
+
+    def test_a_file_marker_and_a_line_marker_count_like_a_region(self):
+        ids = [f'{part}/r{i}' for part in ('a', 'b') for i in range(1, 5)][:self.LIMIT + 1]
+        self.project({part: base.doc(part.upper(), f'{part} is here.', rules=[f'- **r{i}** - A rule.' for i in range(1, 5)])
+                      for part in ('a', 'b')})
+        for rel, text, where in (('src/whole.js', '// @clause file ' + ' '.join(ids) + '\nconst x = 1;\n', 'src/whole.js:1'),
+                                 ('src/row.js', 'const y = 2; // @clause ' + ' '.join(ids) + '\n', 'src/row.js:1')):
+            with self.subTest(rel):
+                base.write(self.dir, rel, text)
+                out = base.run_sor(self.dir, 'check')[1]
+                self.assertRegex(out, r'wide region\s+' + re.escape(where) + r'\s+this code region serves 8 clauses')
+                os.remove(os.path.join(self.dir, *rel.split('/')))
+
+
 if __name__ == '__main__':
     unittest.main()

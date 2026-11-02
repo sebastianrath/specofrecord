@@ -395,6 +395,31 @@ class GoneHolderScenarios(GitScene):
         self.git(repo, 'worktree', 'remove', '--force', wt)
         self.ok(repo, 'sess-bob', 'claim', JUPITER, '--as', 'bob')
 
+    def test_restoring_mains_lock_after_the_merge_strands_the_claim_and_a_merge_by_entry_frees_it(self):
+        """What happened in a project with many branches: git reported a conflict in sor-lock.json, the merger restored main's side (SPEC §11), the entries
+        the branch had locked were gone from the lock, and the holder's claim stayed 'waiting for the merge' although its code was merged."""
+        repo, project = self.repository()
+        wt = self.worktree(repo, 'feature')
+        self.finished_in(repo, wt)
+        lock = 'sor/sor-lock.json'
+        mains = self.git(repo, 'show', 'HEAD:' + lock)
+        common = self.git(repo, 'merge-base', 'main', 'feature').strip()
+        files = {name: os.path.join(self.tmp, f'merge-{name}.json') for name in ('base', 'ours', 'theirs')}
+        for name, text in (('base', self.git(repo, 'show', common + ':' + lock)), ('ours', mains), ('theirs', self.git(repo, 'show', 'feature:' + lock))):
+            with open(files[name], 'w', encoding='utf8', newline='\n') as fh:
+                fh.write(text)
+        self.git(repo, 'merge', '-q', '--no-edit', 'feature')
+        with open(os.path.join(repo, lock), 'w', encoding='utf8', newline='\n') as fh:   # the merger restores main's side of the file
+            fh.write(mains)
+        self.git(repo, 'commit', '-q', '-am', 'main lock restored')
+        self.assertIn('waiting for the merge', self.refused(repo, 'sess-bob', 'claim', JUPITER, '--as', 'bob'))
+        done = subprocess.run([sys.executable, SOR, 'merge-lock', files['base'], files['ours'], files['theirs']], capture_output=True, text=True, env=clean_env('sess-merge'), cwd=repo)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        with open(files['ours'], encoding='utf8') as fh, open(os.path.join(repo, lock), 'w', encoding='utf8', newline='\n') as out:
+            out.write(fh.read())
+        self.git(repo, 'commit', '-q', '-am', 'lock merged by entry')
+        self.ok(repo, 'sess-bob', 'claim', JUPITER, '--as', 'bob')
+
     def test_a_removed_worktree_whose_work_was_never_merged_still_waits(self):
         repo, project = self.repository()
         wt = self.worktree(repo, 'feature')

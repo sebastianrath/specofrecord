@@ -991,6 +991,15 @@ class TestLockCommand(Flow):
         self.assertEqual(code, 2)
         self.assertIn('you claimed in this session as sub-1', out)
 
+    def test_a_session_is_not_told_to_lock_under_the_name_of_a_subagent(self):
+        # Subagents share the parent's session id; the hint "you claimed in this session as X" must leave out the names they act under.
+        self.sor('claim', 'greet', '--as', 'sub-1', CLAUDE_CODE_SESSION_ID='s1')
+        claims.bind(Project(self.dir), 's1', 'agent-1', 'sub-1')
+        code, out, _ = self.sor('lock', '--allow-incomplete', CLAUDE_CODE_SESSION_ID='s1')
+        self.assertEqual(code, 2)
+        self.assertNotIn('you claimed in this session as', out)
+        self.assertNotIn('sub-1', out)
+
     def test_an_unknown_id_is_refused(self):
         code, out, _ = self.sor('lock', 'nope', '--allow-incomplete')
         self.assertEqual(code, 2)

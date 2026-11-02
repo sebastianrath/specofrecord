@@ -287,6 +287,53 @@ def load(project):
     return path, data
 
 
+def parse_text(text, label):
+    """({key: entry}) of the text of a lock file, as the file holds it (each per-target line a key of its own), without the format marker and
+    without a project: for a merge, which has three versions of the file and no checkout. Raises what `load` raises for a conflict, damage or a format this tool does not read."""
+    if CONFLICT_MARK.search(text):
+        raise LockConflict(f'{label} has merge conflict markers: it is not a lock to merge from. Nothing was changed.')
+    try:
+        data = json.loads(text, object_pairs_hook=_once)
+    except _Twice as e:
+        raise LockDamaged(f'{label} has the key {e.args[0]} twice. Nothing was changed.') from None
+    except ValueError as e:
+        raise LockDamaged(f'{label} is not the JSON that `{CMD} lock` writes ({e}). Nothing was changed.') from None
+    if not isinstance(data, dict):
+        raise LockDamaged(f'{label} is not a lock: its JSON is not an object. Nothing was changed.')
+    number = data.pop(FORMAT_KEY, 1)
+    if isinstance(number, bool) or not isinstance(number, int) or number < 1 or number > FORMAT:
+        raise LockFormatError(f'{label} has {FORMAT_KEY} {json.dumps(number)}, which this sor (lock format {FORMAT} at most) does not read. Nothing was changed.')
+    if LEGACY_ROOT_KEY in data and ROOT not in data:   # as `read` does: one root for every version being merged
+        data[ROOT] = data.pop(LEGACY_ROOT_KEY)
+    return data
+
+
+def merge_entries(base, ours, theirs):
+    """A three-way merge of lock files by entry (SPEC §11): (merged entries, ids left out). An entry that one side changed and the other did not
+    is taken from the side that changed it; the same change on both sides is kept; an entry that both sides changed in different ways is left out of the
+    result, with its per-target lines, for the next `sor lock` of it, since the right entry depends on the merged code. A clause and its per-target lines
+    (`greet/hello@py`) are one unit, so they never come from two sides."""
+    def units(data):
+        out = {}
+        for k, e in data.items():
+            of = e.get('of') if isinstance(e, dict) and e.get('kind') == LINE_KIND else None
+            out.setdefault(of if isinstance(of, str) else k, {})[k] = e
+        return out
+    b, o, t = units(base), units(ours), units(theirs)
+    merged, left_out = {}, []
+    for unit in sorted(set(b) | set(o) | set(t)):
+        mine, other, was = o.get(unit, {}), t.get(unit, {}), b.get(unit, {})
+        if mine == other or other == was:
+            chosen = mine
+        elif mine == was:
+            chosen = other
+        else:
+            chosen = {}
+            left_out.append(unit)
+        merged.update(chosen)
+    return merged, left_out
+
+
 def file_problems(project):
     """The lock file as problems for `sor check`: a conflict or a damaged file, named once. A lock in a newer format is not one: it is refused when it is used."""
     try:
