@@ -1,78 +1,97 @@
-# Proposal: a note for a new or changed clause that has no code (2026-11-02)
+# Proposal: a note for a clause with no code, and a safe way to move markers (2026-11-02, revised after review)
 
-Status: draft, written in the working tree of branch `skill-improvements`, not committed. Which branch it belongs on is the owner's call.
+Status: draft. Committed on the local `main` of this repository (not pushed). `proposals/` is listed in `.gitignore` as
+"kept locally, never committed"; the file was force-added on the owner's instruction, as the two older files in this folder were.
 
 ## What happened
 In the Plateau project a unit added nine rule clauses (`render/gpu/hdr/*`, `render/sdl3/hdr/*`, `games/model-viewer/hdr`).
 Eight had no `@clause` region in any code file. One clause's prose said "Its code is marked by item in `viewer.h` and
 `viewer.cpp`", which was untrue. `sor check` reported 0 problems and no note. A human reviewer found it by running
-`sor markers`. The unit had not been locked yet; `sor lock` would have refused it (SPEC §9: a new or changed clause has
-code in each target that applies to it).
+`sor markers`, before anything was locked.
 
-## What sor shows today (measured on the committed head of that branch, copied to a scratch folder)
-- `sor check`: no note. SPEC line 349 counts "have code in py but none in ts"; a clause with no code anywhere is not counted.
-  A one-target project can therefore never get this note.
+## What sor does today (read from the sources and tested in a scratch project, 2026-11-02)
+- `sor check`: no note. `lint.no_code_for_target` (lint.py:149) deliberately says nothing for a clause with no code anywhere
+  ("a rule such as `out-of-scope` has none anywhere") and counts only a target that lacks code another target has.
 - `sor status`: lists the clauses as `new` without an `@ file:lines` location. Nothing says "no code".
-- `sor markers` (the whole project): no line for them. Only `sor markers <id>` prints `<id> has no code`.
-- `sor lock`: refuses, but only when someone tries to lock.
+- `sor markers` (whole project): no line for them. Only `sor markers <id>` prints `<id> has no code`.
+- **`sor lock` does NOT refuse a new clause that has no code anywhere.** Tested: a new rule `pair/c` with no marker in any file
+  was locked ("locked 2 of 11 entries") and `sor markers pair/c` still says "has no code". lock.py:803 and :962 refuse
+  "no code" only per target, when the clause has code in another target or a per-language lock asks for it. An earlier
+  version of this proposal said the lock would have refused the incident; that was wrong, it was never tested.
 
-The gap is visibility before the lock, not detection.
+So the gap is detection, not only visibility: a clause with no code anywhere can be locked and nothing ever mentions it.
 
-## Proposed change (structural, language-neutral)
-A `sor check` note, `no code`, for a clause that is new or changed since the last lock and has no non-test, non-glue
-code region in any target, using the same predicate `sor lock` already applies. It changes no exit code; `--strict`
-makes it exit 2. `sor status` prints the same note as a line after its groups. Clauses `sor lock` does not require code
-for (check the §9 predicate: Why, approach items without code) are not noted.
+## Proposed change 1: a `no code` note, scoped to new or changed clauses
+A `sor check` note, `no code`, for a clause that is new or changed since the last lock and has no non-test, non-glue code
+region in any target. It changes no exit code; `--strict` makes it exit 2. `sor status` prints the same note as a line
+after its groups. There is no existing predicate to reuse (see above), so the note must be a new check.
+Scoping matters: on Plateau main, with every clause locked, 114 to 123 Rules items have no code anywhere (constraints,
+contracts, gate rules). Unscoped, the note would show all of them every time. Scoped to new or changed clauses it is silent on
+a locked tree and fires on the eight clauses of the incident. A clause that is meant to have no code is acknowledged by locking
+it: the note shows once, at creation.
 
-## Prose that says where the code is (corrected after a challenge)
-I first called the prose check noise and dropped it. That was wrong: a clause whose text names a file where it has no
-marker is a real prose-versus-marker mismatch or a missing marker. Measured on Plateau main (everything locked):
-- Broad check (any backticked source file named in an item): 23 of 1740 items name a file in which the clause has no
-  marker. 13 of them have no code anywhere (looks like legitimately code-less constraint clauses; not all checked).
-  Of the other 10, reading each sentence: 5 are real (a stale "Its code is in X" sentence: `tools/editor/program/files/answers`;
-  a sentence that disagrees with the markers: `tools/material-load/id`; a file the clause describes but never marks:
-  `render/lit/template/common` -> `lit_lobes.hlsli`, `tools/editor/program/files/paths` -> `document.h`,
-  `platform/dialogs/no-library-types` -> `dialogs_sdl3.h`) and 5 are legitimate references to a file another clause owns
-  (a version history naming `lit_constants.h`, "plain C over `plateau_abi.h`", `math.h` of the projection clause, the macros of
-  `plateau_binding.hlsli`, an included `lit_common.hlsli`).
-- Narrow check (only sentences of the form "Its code is ...", "The code is ...", "code is marked ..."): 89 items, 4 name a
-  file without a marker for the clause, and all 4 are real (`games/model-viewer/hdr`, `tools/material-load/id`,
-  `tools/editor/program/files/answers`, `tools/editor/program/files/modal-keys`).
+## Proposed change 2: stop writing where the code is in the clause prose
+The location is written twice, in prose and in the `@clause` markers, and nothing compares them. Measured on Plateau main
+(everything locked; a throwaway script, not committed, so the numbers are indicative):
+- Any backticked source file named in an item: 23 of 1740 items name a file in which the clause has no marker. 13 of those
+  have no code anywhere (they look like constraint clauses; not all checked). Of the other 10, reading each sentence, 5 are real
+  (`tools/editor/program/files/answers`: a stale "Its code is in X"; `tools/material-load/id`: the sentence and the markers
+  disagree; `render/lit/template/common` -> `lit_lobes.hlsli`, `tools/editor/program/files/paths` -> `document.h`,
+  `platform/dialogs/no-library-types` -> `dialogs_sdl3.h`: a file the clause describes but never marks) and 5 are legitimate
+  references to a file another clause owns.
+- Only sentences like "Its code is ...", "The code is ...", "code is marked ...": 89 items, 4 name a file without a marker for
+  the clause, and all 4 are real. That is a small sample (4 of 89); the script's sentence split stops at the first ". " and its
+  file matching is by basename or path suffix.
 
-So the narrow check has full precision on this project. The broad check has about 50% precision.
+Preferred fix: do not write the location in prose. `sor show <id>` prints the locations from the markers, so there is one copy
+and it cannot disagree. A convention plus a `sor check` note on the stock phrases ("Its code is ...", "marked by item in ...")
+enforces it. Weaker alternative: a note when such a sentence names a file in which the clause has no marker; it depends on
+English phrasing, which is why the first is better.
 
-How it is possible: the location is written twice, once in prose and once in the `@clause` markers, and nothing compares
-them. Code moves, a unit adds its code to an older clause's region, or a sentence is copied from a neighbour, and the
-prose keeps saying the old thing.
-
-Two ways to fix the cause, in order of preference:
-1. Stop writing the location in prose. `sor show <id>` already prints the code locations from the markers. A convention
-   (and a `sor check` note on the stock phrases "Its code is ..." / "marked by item in ...") removes the second copy, so it
-   cannot disagree.
-2. Keep the sentences and check them: a `sor check` note when an item has a sentence of that stock form, names a backticked
-   file, and the clause has no marker in it. This is language-specific to English phrasing, which is why 1 is better.
-
-## Companion problem: a pure marker move needs a clause text change twice (tested 2026-11-02)
+## Companion problem: a marker-only change needs a clause text change twice
 Splitting the marker region of one piece of code between two clauses cannot be done without changing a clause's text:
 - The edit guard refuses the Edit ("Clauses come first ... serves <id>: change <id> first").
 - Even if a person makes the edit (the guard sees only agent edits), `sor lock` refuses. Test in a scratch project: two
   clauses `pair/a`, `pair/b` share one region `// @clause pair/a pair/b` around two lines; lock; then split it into two
-  regions around the same two lines and nothing else. `sor status` then reports `drift pair/a` and `drift pair/b`; `sor lock
-  pair/a pair/b` is refused with `drift`; `sor lock --rehash` answers "nothing to rewrite" and `--allow-incomplete` does not
-  help.
-So the fix has to cover both layers or it only moves the problem: the guard accepts a marker-only Edit AND `sor lock`
-treats a region whose code, with the `@clause` marker lines and trailing `// @clause` comments removed, is byte-identical
-to the locked code as unchanged for the clauses that keep their lines (a clause that gained or lost lines in its region
-because the split moved them still needs its code accepted, so the lock should record the new region without asking for a
-text change, as `--rehash` does for a hashing-rule change). Plateau's reference definition and proof script:
-`docs/sor-requests/stripdiff.py` in that repository.
+  regions around the same two lines and nothing else. `sor status` reports `drift pair/a` and `drift pair/b`; `sor lock
+  pair/a pair/b` is refused with `drift`; `sor lock --rehash` answers "nothing to rewrite" and `--allow-incomplete` does not help.
 
-Until then the least bad practice is: put the text change to good use. Delete the stale "Its code is in ..." sentence of the
-clause (the duplicate this proposal removes anyway) instead of inventing a dummy edit.
+### The refusal protects something: do not remove it wholesale
+A marker decides which clause answers for which code. Tested (scratch project, both clauses locked with passing tests):
+- wrapping a line that was `glue` in `// @clause pair/b` (the code bytes are unchanged): `drift pair/b`;
+- moving `pair/b`'s only line into `// @clause glue`: `drift pair/b`.
+So today an ownership change is reviewed even when no byte of code changes. A rule that accepts any change whose code is
+byte-identical after the marker lines are stripped would accept both, and an agent could attach unreviewed code to a clause or
+move code out of every clause (into `glue`) with no text change and no re-acceptance.
+
+### Proposed rule (guard and lock, both)
+Accept a change with no clause text change when, line by line, the set of clauses that answer for each code line only
+shrinks: after the change each line is owned by a non-empty subset of the clauses that owned it before (never a new clause on
+a line, never a line that had a non-glue owner and now has only `glue`, never a glue or unowned line that gains an owner), and
+the code with markers removed is byte-identical. A clause whose region narrows is re-recorded by the lock without a text
+change (as `--rehash` does for a hashing-rule change). Any other marker change keeps today's behaviour: the receiving clause
+(or the clause losing its only owner) must change or be accepted first. Splitting a shared region into per-clause regions
+passes; the two cases above are still refused.
+
+Not tested yet: adding markers around code that has none (the Plateau incident's "missing marker" fixes, e.g. around
+`lit_lobes.hlsli`). By the rule above that gives the clause a line it did not own, so it needs acceptance; check that sor
+reports it as drift and does not treat unmarked lines as an exempt state.
+
+### What "markers removed" means
+The strip must use sor's own marker parser (SPEC §10; markers.py reads many comment starters: `//`, `#`, `--`, `;;`, block
+comments, runs such as `///`), not a regex for `//`. The reference script in Plateau (`docs/sor-requests/stripdiff.py`)
+strips only `// @clause` and hard-codes the base branch as `main:`; it is a proof for that C++ project, not a definition.
+
+Until the rule exists the least bad practice is: put the text change to good use. Delete the stale "Its code is in ..."
+sentence of the clause (the duplicate change 2 removes anyway) instead of inventing a dummy edit.
 
 ## Alternative that needs no sor change
-A rule in the project's own gate: fail a branch whose changed clauses have no code, from `sor status --json` (kind
-`new` or `changed` and no location). Plateau can add this to `tools/gate/merge_and_lock.py` or the preflight today.
+A rule in the project's own gate: fail a branch whose changed clauses have no code, from `sor status --json` (kind `new` or
+`changed` and no location). Plateau is adding it to `tools/gate/merge_and_lock.py`.
+
+## Related documents
+Plateau's request to the sor owner, `docs/sor-requests/marker-only-edits.md`, asks for the guard half only and says the
+strip is a `//` regex. It should link here for the rule above, and this file is the one source for the definition.
 
 ## Also seen in the same incident (not caused by this gap)
 New code went inside the regions of older clauses (the SDL3 targets region, the UI shader region). That shows up as drift
