@@ -153,8 +153,8 @@ def notes(project, scan=None):
     if len(project.target_names()) >= 2:
         out += no_code_for_target(project, scan or Scan(project))
     # The markers are read only when there is something to ask: a text that says where its code is, or a lock to compare with.
-    if any(WHERE_CODE.search(text) for part in project.parts.values() for item in part.items.values()
-           if not item.is_test for _, text in item.lines):
+    if any(WHERE_CODE.search(_item_text(item)[0]) for part in project.parts.values() for item in part.items.values()
+           if not item.is_test):
         scan = scan or Scan(project)
         out += code_location_sentences(project, scan)
     from . import lock as lockfile   # lazily: lock reads the markers, not the notes
@@ -163,8 +163,10 @@ def notes(project, scan=None):
     except lockfile.LockFormatError:   # `sor check` works without a lock it cannot read (a newer format, a merge conflict, damage)
         old = {}
     if old:   # a clause is new or changed only against a lock
-        scan = scan or Scan(project)
-        out += no_code_yet(project, scan, lockfile.status(project, scan, old)[0])
+        keys = new_or_changed_items(project, old)
+        if keys:
+            scan = scan or Scan(project)
+            out += no_code_yet(project, scan, keys)
     return sorted(out, key=_order)
 
 
@@ -187,41 +189,60 @@ def no_code_for_target(project, scan):
     return out
 
 
-def _has_code(project, scan, item):
-    """Whether any code region that is not glue or a test is marked for the item or one of its rows, or it names code with
-    `code:` (an anchor): the cases `sor lock` takes as the code of a clause."""
-    keys = {item.id} | {r.id for r in item.rows.values()}
-    if item.anchors:
-        return True
-    return any(r.kind != 'test' and not any(k.startswith('glue:') for k in r.keys) and keys & set(r.keys) for r in scan.regions)
+def new_or_changed_items(project, old):
+    """The ids of the clauses (not tests) that the lock does not have, or has with another text: what `sor status` calls new or
+    changed, found from the text hashes alone, so `sor check` does not work out the code of every clause."""
+    from .lock import h   # lazily, like the lock itself in `notes`
+    keys = []
+    for part in project.parts.values():
+        for item in part.items.values():
+            if not item.is_test and (old.get(item.id) or {}).get('text') != h(item.text()):
+                keys.append(item.id)
+    return keys
 
 
-def no_code_yet(project, scan, findings):
-    """One note for the clauses that are new or changed since the last lock and have no code at all, in any target: nothing
-    in `sor check`, `sor status` or `sor lock` says so otherwise, because a clause without code is allowed (a rule such as
-    `out-of-scope` has none) and the per-target note counts only a target that lacks code another has. It shows once, when
-    the clause is new or changed; locking it (with no code) acknowledges it."""
-    missing = []
-    for f in findings:
-        if f.status not in ('new', 'changed'):
-            continue
-        item = project.items.get(f.key)
+def no_code_yet(project, scan, keys):
+    """One note per part for the clauses among `keys` (new or changed since the last lock) that have no code at all, in any
+    target: nothing in `sor check`, `sor status` or `sor lock` says so otherwise, because a clause without code is allowed (a
+    rule such as `out-of-scope` has none) and the per-target note counts only a target that lacks code another has. It shows
+    once, when the clause is new or changed; locking it (with no code) acknowledges it. Code that is not glue or a test, in a
+    region or named by a `code:` line that resolves (its region), counts."""
+    coded = {k for r in scan.regions if r.kind != 'test' for k in r.keys if not k.startswith('glue:')}
+    by_part = {}
+    for key in sorted(keys):
+        item = project.items.get(key)
         if not isinstance(item, Item) or item.is_test or item.kind == 'design' or item.draft:
             continue
-        if not _has_code(project, scan, item):
-            missing.append(f.key)
-    if not missing:
-        return []
-    first = project.items[missing[0]]
-    return [Problem('no code', f'{first.file}:{first.lineno}',
-                    f'{len(missing)} clause(s) are new or changed and have no code in any target: {listed(sorted(missing), 5)}. '
-                    'Mark their code `@clause <id>`, or lock them as they are if they are meant to have none (a rule, a constraint)')]
+        if not ({item.id} | {r.id for r in item.rows.values()}) & coded:
+            by_part.setdefault(item.part.key, []).append(item)
+    out = []
+    for part_key, items in by_part.items():
+        first = min(items, key=lambda i: i.lineno)
+        out.append(Problem('no code', f'{first.file}:{first.lineno}',
+                           f'{len(items)} clause(s) of {part_key} are new or changed and have no code in any target: '
+                           f'{listed(sorted(i.id for i in items), 5)}. Mark their code `@clause <id>`, or lock them as they are if '
+                           'they are meant to have none (a rule, a constraint)'))
+    return out
 
 
 # "Its code is ...", "The code is ...", "Their code is ...", "the code is marked ...": a sentence that says where the code is.
 WHERE_CODE = re.compile(r'\b(?:[Ii]ts|[Tt]heir|[Tt]he) code (?:is|lives|sits)\b|\bcode is marked\b')
 CODE_PATH = re.compile(r'`([^`\s]+\.[A-Za-z0-9]{1,5})`')
-SENTENCE_END = re.compile(r'(?<=[a-z0-9`)])\.(?=\s+[A-Z`(]|\s*$)')
+SENTENCE_END = re.compile(r'(?<![Ee]\.g)(?<![Ii]\.e)(?<=[a-z0-9`)])\.(?=\s+[A-Z`(]|\s*$)')
+
+
+def _item_text(item):
+    """The item's lines as one text, and where each line starts in it: a sentence may wrap onto the next line."""
+    parts, starts, at = [], [], 0
+    for n, text in item.lines:
+        starts.append((at, n))
+        parts.append(text.strip())
+        at += len(parts[-1]) + 1
+    return ' '.join(parts), starts
+
+
+def _line_at(starts, offset):
+    return [n for at, n in starts if at <= offset][-1]
 
 
 def code_location_sentences(project, scan):
@@ -242,21 +263,20 @@ def code_location_sentences(project, scan):
             if item.is_test:
                 continue
             keys = {item.id} | {r.id for r in item.rows.values()}
-            for n, text in item.lines:
-                m = WHERE_CODE.search(text)
-                if not m:
-                    continue
+            text, starts = _item_text(item)
+            for m in WHERE_CODE.finditer(text):
                 sentence = text[m.start():]
                 end = SENTENCE_END.search(sentence)
                 sentence = sentence[:end.end()] if end else sentence
                 named = set()
                 for path in CODE_PATH.findall(sentence):
+                    plain = path[2:] if path.startswith('./') else path
                     for f in by_name.get(os.path.basename(path), []):
-                        if f == path or f.endswith('/' + path.lstrip('./')):
+                        if f == plain or f.endswith('/' + plain):
                             named.add(f)
                 wrong = sorted(f for f in named if not keys & files[f])
                 if wrong:
-                    out.append(Problem('code location', f'{item.file}:{n}',
+                    out.append(Problem('code location', f'{item.file}:{_line_at(starts, m.start())}',
                                        f'{item.id} says its code is in {listed(wrong, 3)}, but the markers put none of its code '
                                        'there: `sor show` prints where it is, so leave the place out of the text, or fix whichever is wrong'))
     return out
