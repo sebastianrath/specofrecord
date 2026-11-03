@@ -52,6 +52,24 @@ Two ways to fix the cause, in order of preference:
 2. Keep the sentences and check them: a `sor check` note when an item has a sentence of that stock form, names a backticked
    file, and the clause has no marker in it. This is language-specific to English phrasing, which is why 1 is better.
 
+## Companion problem: a pure marker move needs a clause text change twice (tested 2026-11-02)
+Splitting the marker region of one piece of code between two clauses cannot be done without changing a clause's text:
+- The edit guard refuses the Edit ("Clauses come first ... serves <id>: change <id> first").
+- Even if a person makes the edit (the guard sees only agent edits), `sor lock` refuses. Test in a scratch project: two
+  clauses `pair/a`, `pair/b` share one region `// @clause pair/a pair/b` around two lines; lock; then split it into two
+  regions around the same two lines and nothing else. `sor status` then reports `drift pair/a` and `drift pair/b`; `sor lock
+  pair/a pair/b` is refused with `drift`; `sor lock --rehash` answers "nothing to rewrite" and `--allow-incomplete` does not
+  help.
+So the fix has to cover both layers or it only moves the problem: the guard accepts a marker-only Edit AND `sor lock`
+treats a region whose code, with the `@clause` marker lines and trailing `// @clause` comments removed, is byte-identical
+to the locked code as unchanged for the clauses that keep their lines (a clause that gained or lost lines in its region
+because the split moved them still needs its code accepted, so the lock should record the new region without asking for a
+text change, as `--rehash` does for a hashing-rule change). Plateau's reference definition and proof script:
+`docs/sor-requests/stripdiff.py` in that repository.
+
+Until then the least bad practice is: put the text change to good use. Delete the stale "Its code is in ..." sentence of the
+clause (the duplicate this proposal removes anyway) instead of inventing a dummy edit.
+
 ## Alternative that needs no sor change
 A rule in the project's own gate: fail a branch whose changed clauses have no code, from `sor status --json` (kind
 `new` or `changed` and no location). Plateau can add this to `tools/gate/merge_and_lock.py` or the preflight today.
