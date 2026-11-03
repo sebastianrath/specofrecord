@@ -73,9 +73,17 @@ change (as `--rehash` does for a hashing-rule change). Any other marker change k
 (or the clause losing its only owner) must change or be accepted first. Splitting a shared region into per-clause regions
 passes; the two cases above are still refused.
 
-Not tested yet: adding markers around code that has none (the Plateau incident's "missing marker" fixes, e.g. around
-`lit_lobes.hlsli`). By the rule above that gives the clause a line it did not own, so it needs acceptance; check that sor
-reports it as drift and does not treat unmarked lines as an exempt state.
+Adding markers around code that has none (the Plateau "missing marker" fixes, e.g. around `lit_lobes.hlsli`), tested in a
+scratch project with both clauses locked and passing:
+- A source file with no `@clause` marker at all is invisible to sor: `sor check` reports 0 problems, the lock is clean, no
+  note. Whole unmarked files escape the guard completely.
+- Wrapping every line of such a file in `// @clause pair/b` gives `drift pair/b` (the clause now owns code it did not
+  before): refused today without a text change, and refused by the proposed rule (a new owner on a line).
+- In a file that already has markers, a line left outside every region is a problem (`unmarked out/extra.js:4 code
+  outside any @clause region`), and giving `pair/b` only the first line gives `drift pair/b` too.
+So the proposed rule must treat "unmarked file gains markers" like "glue gains an owner": acceptance required. It also
+shows a blind spot for the first bullet: a `sor check` note for source files under a target's code folders that have no
+marker at all would have shown the missing-marker cases of the Plateau incident (unverified idea, not measured).
 
 ### What "markers removed" means
 The strip must use sor's own marker parser (SPEC §10; markers.py reads many comment starters: `//`, `#`, `--`, `;;`, block
