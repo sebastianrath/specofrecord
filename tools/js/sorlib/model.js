@@ -18,7 +18,7 @@ const VDEF = () => re(`\\{([A-Za-z][${WORD}-]*):[${SP}]*([^{}]+)\\}`, 'gsu');
 const REF = () => re(`\\{([^{}:${SP}][^{}:]*)\\}`, 'gsu');
 const BAD_VDEF = () => re(`\\{[^{}${SP}]+:[^${SP}][^{}]*\\}`, 'gsu');
 const CODE = /`[^`]*`/g;
-const HEADER_KEYS = 'Why|Owner|Source|Run|Code|Design|Targets|Claims';
+const HEADER_KEYS = 'Why|Owner|Source|Run|Code|Design|Targets|Claims|Require';
 const SETTING = re(`(?:^|\\.[${SP}]+|[${SP}]+·[${SP}]+)(${HEADER_KEYS}):[${SP}]*`);
 const SETTING_AT_START = re(`^(?:^|\\.[${SP}]+|[${SP}]+·[${SP}]+)(${HEADER_KEYS}):[${SP}]*`);
 const SECTION = re(`^## (.+?)[${SP}]*$`);
@@ -154,6 +154,7 @@ class Item {
     this.rows = new Map();
     this.refs = [];         // [lineno, reference text]
     this.anchors = [];      // [lineno, 'path#name']
+    this.noCode = false;    // a `code: none` line: the clause is meant to have no code
     this.opens = [];        // [lineno, question]
     this.openLines = new Set();
     this.draft = false;
@@ -246,7 +247,8 @@ class Item {
       asking = null;
       const anchor = ANCHOR.exec(t);
       if (anchor && !this.isTest) {
-        this.anchors.push([n, anchor[1]]);
+        if (anchor[1] === 'none') this.noCode = true;
+        else this.anchors.push([n, anchor[1]]);
         continue;
       }
       for (const m of all(VDEF(), clean)) {

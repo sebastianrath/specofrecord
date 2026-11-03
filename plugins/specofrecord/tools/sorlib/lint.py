@@ -189,6 +189,18 @@ def no_code_for_target(project, scan):
     return out
 
 
+def code_none_problems(project, scan):
+    """A problem for a clause that says `code: none` and has code marked for it: it cannot be both, and a `code: none` that stays
+    after the code is written would hide the clause from the checks that ask for code."""
+    coded = {k for r in scan.regions if r.kind != 'test' for k in r.keys if not k.startswith('glue:')}
+    out = []
+    for item in project.items.values():
+        if isinstance(item, Item) and item.no_code and ({item.id} | {r.id for r in item.rows.values()}) & coded:
+            out.append(Problem('code none', f'{item.file}:{item.lineno}',
+                               f'{item.id} says `code: none` but code is marked for it: remove the line, or take the markers away'))
+    return out
+
+
 def new_or_changed_items(project, old):
     """The ids of the clauses (not tests) that the lock does not have, or has with another text: what `sor status` calls new or
     changed, found from the text hashes alone, so `sor check` does not work out the code of every clause."""
@@ -211,8 +223,8 @@ def no_code_yet(project, scan, keys):
     by_part = {}
     for key in sorted(keys):
         item = project.items.get(key)
-        if not isinstance(item, Item) or item.is_test or item.kind == 'design' or item.draft:
-            continue
+        if not isinstance(item, Item) or item.is_test or item.kind == 'design' or item.draft or item.no_code:
+            continue   # `code: none` says the clause is meant to have none
         if not ({item.id} | {r.id for r in item.rows.values()}) & coded:
             by_part.setdefault(item.part.key, []).append(item)
     out = []

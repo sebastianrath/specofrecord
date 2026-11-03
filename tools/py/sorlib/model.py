@@ -13,8 +13,8 @@ VDEF = re.compile(r'\{([A-Za-z][\w-]*):\s*([^{}]+)\}')
 REF = re.compile(r'\{([^{}:\s][^{}:]*)\}')
 BAD_VDEF = re.compile(r'\{[^{}\s]+:[^\s][^{}]*\}')
 CODE = re.compile(r'`[^`]*`')
-HEADER = re.compile(r'^(Why|Owner|Source|Run|Code|Design|Targets|Claims):\s*(.*)$')
-SETTING = re.compile(r'(?:^|\.\s+|\s+·\s+)(Why|Owner|Source|Run|Code|Design|Targets|Claims):\s*')
+HEADER = re.compile(r'^(Why|Owner|Source|Run|Code|Design|Targets|Claims|Require):\s*(.*)$')
+SETTING = re.compile(r'(?:^|\.\s+|\s+·\s+)(Why|Owner|Source|Run|Code|Design|Targets|Claims|Require):\s*')
 SECTION = re.compile(r'^## (.+?)\s*$')
 SECTIONS = ('Rules', 'Approach', 'Contract', 'Tests')
 # Headings a person may write, and the section each one means (SPEC §15, the plain format). A heading the
@@ -203,6 +203,7 @@ class Item:
         self.rows = {}         # first cell -> Row
         self.refs = []         # (lineno, reference text)
         self.anchors = []      # (lineno, 'path#name'): the code this item is about
+        self.no_code = False   # a `code: none` line: the clause is meant to have no code (SPEC §10)
         self.opens = []        # (lineno, question): `open:` lines; they stay out of text() and the lock
         self.open_lines = set()  # every line number that belongs to a question (it may wrap onto deeper-indented lines)
         self.draft = False     # a bullet nobody has named yet (its name starts with ~)
@@ -297,7 +298,10 @@ class Item:
             asking = None
             anchor = ANCHOR.match(t)
             if anchor and not self.is_test:
-                self.anchors.append((n, anchor.group(1)))
+                if anchor.group(1) == 'none':
+                    self.no_code = True
+                else:
+                    self.anchors.append((n, anchor.group(1)))
                 continue
             for name, val in VDEF.findall(clean):
                 self.values[name] = val.strip()
@@ -962,6 +966,33 @@ class Project:
         root = self.root_part()
         return bool(root and root.header.get('Targets', '').strip())
 
+    def requires_code(self, part):
+        """Whether the clauses of a part must have code (or say `code: none`) when they are locked as new or changed: the nearest
+        `Require:` line of the part or the parts around it, up to the root file's, lists `code` (SPEC §10). Nothing requires it
+        until a header says so."""
+        pid = part.id if part is not None else ''
+        while pid:
+            p = self.parts.get(pid)
+            if p is not None and 'Require' in p.header:
+                return 'code' in [w.strip() for w in p.header['Require'].split(',')]
+            pid = pid.rpartition('/')[0]
+        root = self.root_part()
+        return bool(root and 'code' in [w.strip() for w in root.header.get('Require', '').split(',')])
+
+    def require_problems(self):
+        """A `Require:` line lists words the tool knows (only `code` so far), comma-separated, none empty."""
+        out = []
+        for p in self.parts.values():
+            if 'Require' not in p.header:
+                continue
+            if not p.header['Require'].strip():
+                continue   # an empty `Require:` turns what the parts around it require off
+            words = [w.strip() for w in p.header['Require'].split(',')]
+            if not all(words) or any(w != 'code' for w in words):
+                out.append(Problem('require', p.rel, '`Require:` is a comma-separated list of what a clause must have when it is '
+                                                     'locked; the only word it knows is `code` (`Require: code`)'))
+        return out
+
     def targets_of_part(self, part):
         """The targets the clauses of a part apply to: the nearest `Targets:` of the part or the parts around it, up to the root
         file's, as a list of names. An empty list when the project is not targeted."""
@@ -1055,6 +1086,7 @@ class Project:
                         if not good and not bad:
                             out.append(Problem('target', p.rel, '`comment:` names no starter'))
         out += self.target_run_problems()
+        out += self.require_problems()
         known = set(names)
         for p in self.parts.values():
             text = p.header.get('Targets', '').strip()

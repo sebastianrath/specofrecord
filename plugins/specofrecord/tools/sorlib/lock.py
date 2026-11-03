@@ -751,6 +751,21 @@ def no_code_after(project, scan, findings, keys, allowed):
     return out
 
 
+def require_code_after(project, scan, findings, keys):
+    """The clauses among `keys` that are locked with a change of their own (new or changed), sit in a part that says `Require: code`,
+    and have no code (not glue, not a test) and no `code: none` line. A clause locked earlier without code is not asked again until it
+    changes, so a project that turns the setting on does not find every clause it has locked refused."""
+    coded = {k for r in scan.regions if r.kind != 'test' for k in r.keys if not k.startswith('glue:')}
+    out = []
+    for key in sorted({f.key for f in findings if f.status in ('new', 'changed')} & set(keys)):
+        item = project.items.get(key)
+        if not isinstance(item, Item) or item.is_test or item.kind == 'design' or item.draft or item.no_code:
+            continue
+        if project.requires_code(item.part) and not ({item.id} | {r.id for r in item.rows.values()}) & coded:
+            out.append(key)
+    return out
+
+
 def owner_parts(project):
     """{key: the part that holds it} for every part, item and row."""
     owners = {}
@@ -838,6 +853,9 @@ def refusals_ahead(project, scan, findings=(), old=None, confirm=(), scope=None,
         reasons.append(f'behind  {key}  its code in {", ".join(late)} was accepted for an older text of the clause: rebuild it '
                        f'(change that code). Only when the user has said that {", ".join(late)} is rebuilt later, lock again with '
                        '--allow-behind <language>; it then stays listed as behind')
+    for key in require_code_after(project, scan, findings, entries if scope is None else scope):
+        reasons.append(f'no code  {key}  its part says `Require: code` and the clause is new or changed with no code: mark its code '
+                       f'`@clause {key}`, or write `code: none` under the clause if it is meant to have none')
     for key, late, where in no_code_after(project, scan, findings, entries if scope is None else scope, set(allow_behind)):
         there, here, part = ', '.join(late), ', '.join(where), owners.get(key)
         # `Targets:` limits a whole part, and in the root file it is the default of the whole project: say so, or the advice limits more than the clause

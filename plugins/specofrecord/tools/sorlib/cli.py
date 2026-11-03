@@ -67,7 +67,8 @@ def read_results(path):
 
 
 def problems(project, scan):
-    return project.check() + scan.problems + lockfile.line_collisions(project, scan) + lockfile.file_problems(project)
+    return (project.check() + scan.problems + lockfile.line_collisions(project, scan) + lockfile.file_problems(project)
+            + lint.code_none_problems(project, scan))
 
 
 def home(project, ident):
