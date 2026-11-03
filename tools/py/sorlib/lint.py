@@ -164,6 +164,7 @@ def notes(project, scan=None):
         old = {}
     if old:   # a clause is new or changed only against a lock
         keys = new_or_changed_items(project, old)
+        out += code_waived(project, keys)
         if keys:
             scan = scan or Scan(project)
             out += no_code_yet(project, scan, keys)
@@ -201,6 +202,23 @@ def code_none_problems(project, scan):
     return out
 
 
+def code_waived(project, keys):
+    """One note per part for the clauses among `keys` (new or changed since the last lock) that say `code: none`: the one way to
+    lock a clause with no code under `Require: code`, shown once so that a reviewer sees each exception when it is made."""
+    by_part = {}
+    for key in sorted(keys):
+        item = project.items.get(key)
+        if isinstance(item, Item) and item.no_code and not item.is_test and item.kind not in ('design', 'needs') and not item.draft:
+            by_part.setdefault(item.part.key, []).append(item)
+    out = []
+    for part_key, items in by_part.items():
+        first = min(items, key=lambda i: i.lineno)
+        out.append(Problem('code waived', f'{first.file}:{first.lineno}',
+                           f'{len(items)} clause(s) of {part_key} are new or changed and say `code: none`: '
+                           f'{listed(sorted(i.id for i in items), 5)}. They are meant to have no code: check that is true'))
+    return out
+
+
 def new_or_changed_items(project, old):
     """The ids of the clauses (not tests) that the lock does not have, or has with another text: what `sor status` calls new or
     changed, found from the text hashes alone, so `sor check` does not work out the code of every clause."""
@@ -223,8 +241,8 @@ def no_code_yet(project, scan, keys):
     by_part = {}
     for key in sorted(keys):
         item = project.items.get(key)
-        if not isinstance(item, Item) or item.is_test or item.kind == 'design' or item.draft or item.no_code:
-            continue   # `code: none` says the clause is meant to have none
+        if not isinstance(item, Item) or item.is_test or item.kind in ('design', 'needs') or item.draft or item.no_code:
+            continue   # `code: none` says the clause is meant to have none; a `needs` line is no clause
         if not ({item.id} | {r.id for r in item.rows.values()}) & coded:
             by_part.setdefault(item.part.key, []).append(item)
     out = []

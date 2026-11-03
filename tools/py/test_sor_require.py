@@ -174,5 +174,36 @@ class TestTheSettingAndTheLine(Required):
         self.assertEqual(self.lock('--all')[0], 0)
 
 
+class TestVerification(Required):
+    def test_code_none_is_hashed_with_the_clause_so_adding_it_is_a_change(self):
+        self.start(extra=['- **c** - The page says {text: C}.'])
+        self.assertNotEqual(self.lock('pair/c')[0], 0)   # refused: no code
+        accepted(self.dir)   # lock everything as it is, c without code
+        self.assertEqual(self.sor('status')[1].strip(), 'clauses, code and lock agree')
+        path = os.path.join(self.dir, 'sor', 'pair.md')
+        write(self.dir, 'sor/pair.md', read(path).replace('{text: C}.', '{text: C}.\n  code: none'))
+        out = self.sor('status')[1]
+        self.assertIn('changed', out)
+        self.assertIn('pair/c', out)
+
+    def test_a_needs_line_is_no_clause_and_is_not_asked_for_code(self):
+        self.project({'pair': doc('Pair', 'Two.', header=['Require: code'], rules=[A], tests=TESTS),
+                      'user': doc('User', 'Uses.', header=['Require: code'], rules=['- **u** - Uses {pair/a}.'],
+                                  contract=['- needs {pair/a}'], tests=['- **u** - ok.', '  expect: ok'])})
+        write(self.dir, 'out/app.js', APP + '// @clause user/u\nconsole.log("U");\n// @clause end\n')
+        out = self.sor('lock', '--all', '--allow-incomplete')[1]
+        self.assertNotIn('no code  user/needs', out)
+        self.assertEqual([n.text for n in lint.notes(Project(self.dir)) if n.kind == 'no code'], [])
+
+    def test_each_code_none_exception_is_shown_once_as_a_note_when_it_is_made(self):
+        self.start(extra=['- **c** - The page says {text: C}.', '  code: none'])
+        found = [n for n in lint.notes(Project(self.dir)) if n.kind == 'code waived']
+        self.assertEqual(len(found), 1, [n.text for n in found])
+        self.assertIn('pair/c', found[0].text)
+        self.assertIn('note: 1 clause(s) of pair are new or changed and say `code: none`: pair/c', self.sor('status')[1])
+        self.assertEqual(self.lock('pair/c')[0], 0)
+        self.assertEqual([n for n in lint.notes(Project(self.dir)) if n.kind == 'code waived'], [])   # locked: shown once
+
+
 if __name__ == '__main__':
     unittest.main()

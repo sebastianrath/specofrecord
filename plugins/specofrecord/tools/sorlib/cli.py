@@ -222,7 +222,8 @@ def cmd_status(args):
             for note in lint.no_code_for_target(project, scan):
                 print(f'note: {note.text} (not a pending change; `sor check` lists them)')
         if old:
-            for note in lint.no_code_yet(project, scan, [f.key for f in findings if f.status in ('new', 'changed')]):
+            changed = [f.key for f in findings if f.status in ('new', 'changed')]
+            for note in lint.no_code_yet(project, scan, changed) + lint.code_waived(project, changed):
                 print(f'note: {note.text} (not a pending change; `sor check` lists them)')
         pending_keys = {f.key for f in findings}   # a clause with a change of its own is about its pending change, not about what was confirmed
         confirmed = [(k, langs) for k, langs in lockfile.confirmed_fits(project, old) if k not in pending_keys] if old else []

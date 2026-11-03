@@ -759,8 +759,8 @@ def require_code_after(project, scan, findings, keys):
     out = []
     for key in sorted({f.key for f in findings if f.status in ('new', 'changed')} & set(keys)):
         item = project.items.get(key)
-        if not isinstance(item, Item) or item.is_test or item.kind == 'design' or item.draft or item.no_code:
-            continue
+        if not isinstance(item, Item) or item.is_test or item.kind in ('design', 'needs') or item.draft or item.no_code:
+            continue   # a `needs` line is no clause
         if project.requires_code(item.part) and not ({item.id} | {r.id for r in item.rows.values()}) & coded:
             out.append(key)
     return out
