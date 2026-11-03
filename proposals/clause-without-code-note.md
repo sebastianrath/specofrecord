@@ -1,5 +1,9 @@
 # Proposal: a note for a clause with no code, and a safe way to move markers (2026-11-02, revised after review)
 
+Implemented (this repository, dummy projects only, see `tools/py/test_sor_nocode.py`): change 1 as a `no code` note in `sor
+check` and `sor status`, and the weaker form of change 2 as a `code location` note. NOT implemented: the marker-only rule
+(guard and lock): it changes what the lock accepts, see the open questions at its end.
+
 Status: draft. Committed on the local `main` of this repository (not pushed). `proposals/` is listed in `.gitignore` as
 "kept locally, never committed"; the file was force-added on the owner's instruction, as the two older files in this folder were.
 
@@ -75,15 +79,16 @@ passes; the two cases above are still refused.
 
 Adding markers around code that has none (the Plateau "missing marker" fixes, e.g. around `lit_lobes.hlsli`), tested in a
 scratch project with both clauses locked and passing:
-- A source file with no `@clause` marker at all is invisible to sor: `sor check` reports 0 problems, the lock is clean, no
-  note. Whole unmarked files escape the guard completely.
+- In a project that declares no code roots (the default, `code_roots() == ['.']`), a source file with no `@clause` marker at
+  all is invisible to sor: `sor check` reports 0 problems, the lock is clean, no note (markers.py `_add` returns early on
+  purpose, so documents and data are not flagged). In a project that declares code roots (a target with a `path`) every
+  line under them must be in a region, so an unmarked file is a problem. Not tested with declared roots; read from the code.
 - Wrapping every line of such a file in `// @clause pair/b` gives `drift pair/b` (the clause now owns code it did not
   before): refused today without a text change, and refused by the proposed rule (a new owner on a line).
 - In a file that already has markers, a line left outside every region is a problem (`unmarked out/extra.js:4 code
   outside any @clause region`), and giving `pair/b` only the first line gives `drift pair/b` too.
-So the proposed rule must treat "unmarked file gains markers" like "glue gains an owner": acceptance required. It also
-shows a blind spot for the first bullet: a `sor check` note for source files under a target's code folders that have no
-marker at all would have shown the missing-marker cases of the Plateau incident (unverified idea, not measured).
+So the proposed rule must treat "unmarked file gains markers" like "glue gains an owner": acceptance required. The blind
+spot of the first bullet has a remedy that exists already: declare the code roots. No new note is proposed for it.
 
 ### What "markers removed" means
 The strip must use sor's own marker parser (SPEC §10; markers.py reads many comment starters: `//`, `#`, `--`, `;;`, block
@@ -104,3 +109,17 @@ strip is a `//` regex. It should link here for the rule above, and this file is 
 ## Also seen in the same incident (not caused by this gap)
 New code went inside the regions of older clauses (the SDL3 targets region, the UI shader region). That shows up as drift
 or a refused lock. It is the wide-region problem, tracked separately.
+
+## Open questions for the marker-only rule (not implemented)
+The guard half is straightforward: `Scan(project, overrides={file: new text})` already parses a change before it is written, so
+the hook can compare the owner sets of every line before and after and apply the shrink rule above. The lock half has no
+baseline: the lock stores one code hash per clause, not which lines a clause owned, so `sor lock` cannot tell a shrink from
+a gain. Three ways, all with a cost:
+1. Record the owners: add a per-clause line-owner digest to the lock (a format change, 4 to 5) so the lock can check the rule.
+2. Use git as the baseline: accept the drift only for files whose last committed version, scanned, reproduces the locked hashes
+   and satisfies the rule against the working copy. No lock format change; needs git and a clean committed baseline.
+3. A ticket: the guard, when it allows a marker-only edit, writes a record next to the claims, in the store where the
+   approved test commands are kept, that `sor lock` consumes. A change made by a person has no ticket and keeps the
+   text-change requirement.
+Each decides what `sor lock` is willing to accept without a text change, which is the central guarantee of the tool, so it is
+the sor owner's decision.

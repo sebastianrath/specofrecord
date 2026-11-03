@@ -7,9 +7,10 @@ are never problems and never change the lock.
 """
 import glob
 import os
+import re
 
 from .markers import Scan
-from .model import ANCHOR, CODE, SECTIONS, VDEF, Problem, listed, split_lines, test_keyword
+from .model import ANCHOR, CODE, SECTIONS, VDEF, Item, Problem, listed, split_lines, test_keyword
 
 LIMIT_ITEMS = 7        # items in Rules, Approach or Contract (a table counts as one)
 LIMIT_SCREEN = 40      # lines above `## Tests`
@@ -151,6 +152,19 @@ def notes(project, scan=None):
     out += value_twice(project)
     if len(project.target_names()) >= 2:
         out += no_code_for_target(project, scan or Scan(project))
+    # The markers are read only when there is something to ask: a text that says where its code is, or a lock to compare with.
+    if any(WHERE_CODE.search(text) for part in project.parts.values() for item in part.items.values()
+           if not item.is_test for _, text in item.lines):
+        scan = scan or Scan(project)
+        out += code_location_sentences(project, scan)
+    from . import lock as lockfile   # lazily: lock reads the markers, not the notes
+    try:
+        old = lockfile.read(project)
+    except lockfile.LockFormatError:   # `sor check` works without a lock it cannot read (a newer format, a merge conflict, damage)
+        old = {}
+    if old:   # a clause is new or changed only against a lock
+        scan = scan or Scan(project)
+        out += no_code_yet(project, scan, lockfile.status(project, scan, old)[0])
     return sorted(out, key=_order)
 
 
@@ -170,6 +184,81 @@ def no_code_for_target(project, scan):
             others = sorted({t for k in lacking for t in where[k]})
             out.append(Problem('no code for target', f'{part.rel}:1',
                                f'{len(lacking)} clause(s) have code in {", ".join(others)} but none in {name}: {listed(lacking, 5)}'))
+    return out
+
+
+def _has_code(project, scan, item):
+    """Whether any code region that is not glue or a test is marked for the item or one of its rows, or it names code with
+    `code:` (an anchor): the cases `sor lock` takes as the code of a clause."""
+    keys = {item.id} | {r.id for r in item.rows.values()}
+    if item.anchors:
+        return True
+    return any(r.kind != 'test' and not any(k.startswith('glue:') for k in r.keys) and keys & set(r.keys) for r in scan.regions)
+
+
+def no_code_yet(project, scan, findings):
+    """One note for the clauses that are new or changed since the last lock and have no code at all, in any target: nothing
+    in `sor check`, `sor status` or `sor lock` says so otherwise, because a clause without code is allowed (a rule such as
+    `out-of-scope` has none) and the per-target note counts only a target that lacks code another has. It shows once, when
+    the clause is new or changed; locking it (with no code) acknowledges it."""
+    missing = []
+    for f in findings:
+        if f.status not in ('new', 'changed'):
+            continue
+        item = project.items.get(f.key)
+        if not isinstance(item, Item) or item.is_test or item.kind == 'design' or item.draft:
+            continue
+        if not _has_code(project, scan, item):
+            missing.append(f.key)
+    if not missing:
+        return []
+    first = project.items[missing[0]]
+    return [Problem('no code', f'{first.file}:{first.lineno}',
+                    f'{len(missing)} clause(s) are new or changed and have no code in any target: {listed(sorted(missing), 5)}. '
+                    'Mark their code `@clause <id>`, or lock them as they are if they are meant to have none (a rule, a constraint)')]
+
+
+# "Its code is ...", "The code is ...", "Their code is ...", "the code is marked ...": a sentence that says where the code is.
+WHERE_CODE = re.compile(r'\b(?:[Ii]ts|[Tt]heir|[Tt]he) code (?:is|lives|sits)\b|\bcode is marked\b')
+CODE_PATH = re.compile(r'`([^`\s]+\.[A-Za-z0-9]{1,5})`')
+SENTENCE_END = re.compile(r'(?<=[a-z0-9`)])\.(?=\s+[A-Z`(]|\s*$)')
+
+
+def code_location_sentences(project, scan):
+    """A note for an item whose text says where its code is and names a file that has code regions but none for this item.
+    The place is written twice, in the text and in the `@clause` markers, and nothing else compares them, so one of them goes
+    stale when code moves or a unit puts its code in another clause's region. `sor show <id>` prints the places from the
+    markers: the sentence is better left out."""
+    files = {}
+    for r in scan.regions:
+        if r.kind != 'test':
+            files.setdefault(r.file, set()).update(r.keys)
+    by_name = {}
+    for f in files:
+        by_name.setdefault(os.path.basename(f), []).append(f)
+    out = []
+    for part in project.parts.values():
+        for item in part.items.values():
+            if item.is_test:
+                continue
+            keys = {item.id} | {r.id for r in item.rows.values()}
+            for n, text in item.lines:
+                m = WHERE_CODE.search(text)
+                if not m:
+                    continue
+                sentence = text[m.start():]
+                end = SENTENCE_END.search(sentence)
+                sentence = sentence[:end.end()] if end else sentence
+                named = set()
+                for path in CODE_PATH.findall(sentence):
+                    for f in by_name.get(os.path.basename(path), []):
+                        if f == path or f.endswith('/' + path.lstrip('./')):
+                            named.add(f)
+                wrong = sorted(f for f in named if not keys & files[f])
+                if wrong:
+                    out.append(Problem('code location', f'{item.file}:{n}',
+                                       f'{item.id} says its code is in {listed(wrong, 3)}, but the markers put none of its code '
+                                       'there: `sor show` prints where it is, so leave the place out of the text, or fix whichever is wrong'))
     return out
 
 
